@@ -71,11 +71,19 @@ export default function Table<T>({
       {/* Mobile Card View */}
       <div className="md:hidden">
         {data.map((item, rowIndex) => (
-          <div key={rowIndex} className="border-b p-4 hover:bg-gray-50">
+          <div 
+            key={rowIndex} 
+            className="border-b p-3 hover:bg-gray-50 text-sm"
+          >
             {columns.map((column, colIndex) => (
-              <div key={colIndex} className="flex justify-between py-2">
-                <span className="font-medium text-gray-500">{column.header}</span>
-                <span className={`text-gray-900 ${column.className}`}>
+              <div 
+                key={colIndex} 
+                className="flex flex-col sm:flex-row sm:justify-between py-1.5"
+              >
+                <span className="font-medium text-gray-500 mb-1 sm:mb-0">
+                  {column.header}
+                </span>
+                <span className={`text-gray-900 break-words ${column.className}`}>
                   {renderCell(item, column)}
                 </span>
               </div>
