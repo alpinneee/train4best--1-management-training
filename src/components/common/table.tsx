@@ -35,7 +35,7 @@ export default function Table<T>({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow">
+    <div className="bg-white rounded-lg shadow mx-4">
       {/* Desktop Table View */}
       <div className="hidden md:block overflow-x-auto" style={{ maxWidth: '100%' }}>
         <table className="w-full border-collapse min-w-full">
@@ -69,35 +69,27 @@ export default function Table<T>({
       </div>
 
       {/* Mobile Card View */}
-      <div className="md:hidden overflow-x-auto">
-        <table className="w-full border-collapse min-w-full">
-          <thead>
-            <tr className="bg-gray-50 border-b">
-              {columns.map((column, index) => (
-                <th
-                  key={index}
-                  className={`p-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${column.className}`}
-                >
+      <div className="md:hidden">
+        {data.map((item, rowIndex) => (
+          <div 
+            key={rowIndex} 
+            className="border-b p-3 hover:bg-gray-50 text-sm"
+          >
+            {columns.map((column, colIndex) => (
+              <div 
+                key={colIndex} 
+                className="flex flex-col sm:flex-row sm:justify-between py-1.5"
+              >
+                <span className="font-medium text-gray-500 mb-1 sm:mb-0">
                   {column.header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {data.map((item, rowIndex) => (
-              <tr key={rowIndex} className="hover:bg-gray-50">
-                {columns.map((column, colIndex) => (
-                  <td
-                    key={colIndex}
-                    className={`p-2 text-sm text-gray-500 ${column.className}`}
-                  >
-                    {renderCell(item, column)}
-                  </td>
-                ))}
-              </tr>
+                </span>
+                <span className={`text-gray-900 break-words ${column.className}`}>
+                  {renderCell(item, column)}
+                </span>
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+        ))}
       </div>
 
       {/* Pagination */}

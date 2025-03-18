@@ -3,7 +3,7 @@
 import './globals.css'
 import Chatbot from '@/components/common/Chatbot'
 import { ThemeProvider } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
+
 import theme from '@/theme'; // Buat theme sesuai kebutuhan
 
 export default function RootLayout({
@@ -15,8 +15,10 @@ export default function RootLayout({
     <html lang="en">
       <body className="bg-gray-100">
         <ThemeProvider theme={theme}>
-          <CssBaseline />
-          {children}
+         
+          <div className="py-4">
+            {children}
+          </div>
           <Chatbot />
         </ThemeProvider>
       </body>

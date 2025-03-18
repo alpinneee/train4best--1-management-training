@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 interface ModalProps {
   onClose: () => void;
@@ -21,15 +22,28 @@ const Modal: React.FC<ModalProps> = ({ onClose, children }) => {
     };
   }, [onClose]);
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-      <div ref={modalRef} className="bg-white p-6 rounded-lg w-96">
-        <button onClick={onClose} className="absolute top-2 right-2 text-gray-600">
-          &times;
-        </button>
-        {children}
+  return createPortal(
+    <div 
+      className="fixed inset-0 z-[9999] overflow-y-auto"
+      aria-labelledby="modal-title" 
+      role="dialog" 
+      aria-modal="true"
+    >
+      <div className="flex items-center justify-center min-h-screen">
+        <div 
+          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" 
+          onClick={onClose}
+        ></div>
+        
+        <div className="relative bg-white rounded-lg w-[500px] mx-auto z-[10000] p-6">
+          <button onClick={onClose} className="absolute top-2 right-2 text-gray-600">
+            &times;
+          </button>
+          {children}
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

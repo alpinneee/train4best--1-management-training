@@ -226,9 +226,6 @@ const UserPage = (): ReactElement => {
             <h2 className="text-xl font-semibold mb-4 text-gray-700">
               Edit Usertype
             </h2>
-            <h2 className="text-xl font-semibold mb-4 text-gray-700">
-              Edit Usertype
-            </h2>
             <form onSubmit={handleEditSubmit}>
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2">ID Usertype</label>
