@@ -116,9 +116,9 @@ export default function PaymentReport() {
     <Layout>
       <div className="container mx-auto p-4">
         <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl">Payment Report</h1>
+          <h1 className="text-2xl text-gray-700">Payment Report</h1>
           
-          <div className="flex gap-3">
+          <div className="flex gap-3 text-gray-800">
             <select className="border p-2 rounded">
               <option value="">Payment</option>
               <option value="transfer">Transfer Bank</option>
@@ -126,7 +126,7 @@ export default function PaymentReport() {
               <option value="credit">Kartu Kredit</option>
             </select>
 
-            <button className="border px-4 py-2 rounded flex items-center gap-2">
+            <button className="border px-4 py-2 rounded flex items-center gap-2 text-gray-700">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">
                 <path fill="currentColor" d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83l1.41 1.41L19 6.41V10h2V3h-7z"/>
               </svg>

@@ -302,6 +302,7 @@ const CourseScheduleDetail = () => {
 
         {/* Edit Schedule Modal */}
         {isEditModalOpen && (
+          <Modal onClose={() => setIsEditModalOpen(false)}>
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white p-6 rounded-lg w-[600px]">
               <h2 className="text-xl font-semibold mb-4 text-gray-700">
@@ -400,12 +401,13 @@ const CourseScheduleDetail = () => {
               </form>
             </div>
           </div>
+          </Modal>
         )}
 
         {isModalOpen && (
           <Modal onClose={() => setIsModalOpen(false)}>
-            <div className="w-[500px]">
-              <h2 className="text-xl font-semibold mb-6">Add Participant</h2>
+            <div className="w-[450px]">
+              <h2 className="text-xl font-semibold mb-6 text-gray-700">Add Participant</h2>
               <form onSubmit={handleAddParticipant}>
                 <div className="space-y-4">
                   <div>
@@ -421,7 +423,7 @@ const CourseScheduleDetail = () => {
                           name: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 border rounded-lg"
+                      className="w-full px-3 py-2 border rounded-lg text-gray-700"
                       required
                     />
                   </div>
@@ -438,7 +440,7 @@ const CourseScheduleDetail = () => {
                           presentDay: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 border rounded-lg"
+                      className="w-full px-3 py-2 border rounded-lg text-gray-700"
                       disabled
                     />
                   </div>
@@ -455,7 +457,7 @@ const CourseScheduleDetail = () => {
                           paymentStatus: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 border rounded-lg"
+                      className="w-full px-3 py-2 border rounded-lg text-gray-700"
                       disabled
                     />
                   </div>
@@ -482,11 +484,11 @@ const CourseScheduleDetail = () => {
 
         {isInstructureModalOpen && (
           <Modal onClose={() => setIsInstructureModalOpen(false)}>
-            <div className="w-[500px]">
-              <h2 className="text-xl font-semibold mb-6">Add Instructure</h2>
+            <div className="w-[450px]">
+              <h2 className="text-xl font-semibold mb-6 text-gray-700">Add Instructure</h2>
               <form onSubmit={handleAddInstructure}>
                 <div className="space-y-4">
-                  <div>
+                  <div> 
                     <label className="block text-gray-700 mb-2">
                       Instructure Name
                     </label>
@@ -499,7 +501,7 @@ const CourseScheduleDetail = () => {
                           name: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 border rounded-lg"
+                      className="w-full px-3 py-2 border rounded-lg text-gray-700"
                       required
                     />
                   </div>
@@ -508,7 +510,7 @@ const CourseScheduleDetail = () => {
                     <input
                       type="text"
                       value={newInstructure.role}
-                      className="w-full px-3 py-2 border rounded-lg"
+                      className="w-full px-3 py-2 border rounded-lg text-gray-700"
                       disabled
                     />
                   </div>
@@ -517,7 +519,7 @@ const CourseScheduleDetail = () => {
                     <input
                       type="text"
                       value={newInstructure.status}
-                      className="w-full px-3 py-2 border rounded-lg"
+                      className="w-full px-3 py-2 border rounded-lg text-gray-700"
                       disabled
                     />
                   </div>

@@ -90,12 +90,12 @@ const CertificatePage = () => {
           <div className="flex gap-4">
             <input
               type="date"
-              className="px-4 py-2 border rounded-lg"
+              className="px-4 py-2 border rounded-lg text-gray-700"
               placeholder="Start Date"
             />
             <input
               type="date"
-              className="px-4 py-2 border rounded-lg"
+              className="px-4 py-2 border rounded-lg text-gray-700"
               placeholder="End Date"
             />
           </div>
