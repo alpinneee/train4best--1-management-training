@@ -44,7 +44,7 @@ export default function Table<T>({
               {columns.map((column, index) => (
                 <th
                   key={index}
-                  className={`p-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider ${column.className}`}
+                  className={`p-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${column.className}`}
                 >
                   {column.header}
                 </th>
@@ -57,7 +57,7 @@ export default function Table<T>({
                 {columns.map((column, colIndex) => (
                   <td
                     key={colIndex}
-                    className={`p-3 text-base text-gray-500 ${column.className}`}
+                    className={`p-3 text-sm text-gray-500 ${column.className}`}
                   >
                     {renderCell(item, column)}
                   </td>
@@ -73,17 +73,17 @@ export default function Table<T>({
         {data.map((item, rowIndex) => (
           <div 
             key={rowIndex} 
-            className="border-b p-3 hover:bg-gray-50 text-sm"
+            className="border-b p-3 hover:bg-gray-50 text-xs"
           >
             {columns.map((column, colIndex) => (
               <div 
                 key={colIndex} 
                 className="flex flex-col sm:flex-row sm:justify-between py-1.5"
               >
-                <span className="font-medium text-gray-500 mb-1 sm:mb-0">
+                <span className="font-medium text-xs text-gray-500 mb-1 sm:mb-0">
                   {column.header}
                 </span>
-                <span className={`text-gray-900 break-words ${column.className}`}>
+                <span className={`text-sm text-gray-900 break-words ${column.className}`}>
                   {renderCell(item, column)}
                 </span>
               </div>
@@ -116,7 +116,7 @@ export default function Table<T>({
           {/* Desktop pagination */}
           <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
             <div>
-              <p className="text-base text-gray-700">
+              <p className="text-sm text-gray-700">
                 Showing{" "}
                 <span className="font-medium">
                   {(currentPage - 1) * itemsPerPage + 1}

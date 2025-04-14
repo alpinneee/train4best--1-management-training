@@ -12,14 +12,18 @@ import {
   ChevronDown,
 } from "lucide-react";
 
+interface IconProps {
+  size?: number;
+}
+
 interface MenuItem {
   title: string;
-  icon: React.ReactNode;
+  icon: React.ReactElement<IconProps>;
   path?: string;
   submenu?: {
     title: string;
     path: string;
-    icon: React.ReactNode;
+    icon: React.ReactElement<IconProps>;
     className?: string;
   }[];
 }
@@ -27,7 +31,7 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   {
     title: "Dashboard",
-    icon: <LayoutDashboard size={20} />,
+    icon: <LayoutDashboard size={12} />,
     path: "/dashboard",
   },
   {
@@ -120,7 +124,7 @@ const Sidebar: FC<SidebarProps> = ({ isMobileOpen, onMobileClose }) => {
       <aside
         className={`
           fixed md:sticky top-0 left-0 z-50
-          w-64 h-screen bg-[#E7E7E7]
+          w-56 h-screen bg-[#E7E7E7]
           transition-transform duration-300 ease-in-out
           ${isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
         `}
@@ -153,31 +157,31 @@ const Sidebar: FC<SidebarProps> = ({ isMobileOpen, onMobileClose }) => {
           </div>
 
           {/* Menu Items dengan custom scrollbar */}
-          <div className="flex-1 overflow-y-auto scrollbar-hide px-4 py-2">
+          <div className="flex-1 overflow-y-auto scrollbar-hide px-4 py-1">
             <div className="space-y-2 pb-24">
               {menuItems.map((item) => (
-                <div key={item.title} className="space-y-2">
+                <div key={item.title} className="space-y-1">
                   {item.submenu ? (
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       <button
                         onClick={() => toggleMenu(item.title)}
-                        className="flex items-center justify-between w-full p-2.5 text-gray-700 hover:bg-gray-200 rounded-lg"
+                        className="flex items-center justify-between w-full p-2 text-gray-700 hover:bg-gray-200 rounded-lg"
                       >
-                        <div className="flex items-center gap-3">
-                          {item.icon}
-                          <span className="text-sm font-medium">
+                        <div className="flex items-center gap-2">
+                          {React.cloneElement(item.icon, { size: 10 })}
+                          <span className="text-xs font-medium">
                             {item.title}
                           </span>
                         </div>
                         <ChevronDown
-                          size={16}
+                          size={10}
                           className={`transform transition-transform ${
                             openMenus.includes(item.title) ? "rotate-180" : ""
                           }`}
                         />
                       </button>
                       <div
-                        className={`ml-9 space-y-3 ${
+                        className={`ml-7 space-y-2 ${
                           openMenus.includes(item.title) ? "block" : "hidden"
                         }`}
                       >
@@ -185,11 +189,11 @@ const Sidebar: FC<SidebarProps> = ({ isMobileOpen, onMobileClose }) => {
                           <Link
                             key={subItem.path}
                             href={subItem.path}
-                            className={`flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 py-2 px-3 rounded transition-colors ${
+                            className={`flex items-center gap-2 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 py-1.5 px-2 rounded transition-colors ${
                               subItem.className || ""
                             }`}
                           >
-                            {subItem.icon}
+                            {React.cloneElement(subItem.icon, { size: 10 })}
                             <span>{subItem.title}</span>
                           </Link>
                         ))}

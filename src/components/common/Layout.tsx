@@ -17,7 +17,7 @@ const Layout: FC<LayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col fix">
       <Navbar 
         onMobileMenuClick={handleMobileOpen} 
       />
