@@ -5,6 +5,7 @@ import Layout from "@/components/common/Layout";
 import Button from "@/components/common/button";
 import Modal from "@/components/common/Modal";
 import Table from "@/components/common/table";
+import Image from 'next/image';
 
 interface User {
   no: number;
@@ -350,11 +351,15 @@ const UserPage = () => {
                   onClick={() => fileInputRef.current?.click()}
                 >
                   {previewUrl ? (
-                    <img 
-                      src={previewUrl} 
-                      alt="Preview" 
-                      className="w-full h-full object-cover rounded-lg"
-                    />
+                    <div className="relative w-full h-full">
+                      <Image 
+                        src={previewUrl} 
+                        alt="Preview" 
+                        fill
+                        className="object-cover rounded-lg"
+                        sizes="(max-width: 768px) 100vw, 33vw"
+                      />
+                    </div>
                   ) : (
                     <div className="text-center p-4">
                       <svg 

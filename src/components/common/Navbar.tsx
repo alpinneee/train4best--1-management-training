@@ -1,9 +1,10 @@
 "use client";
 
+import React from "react";
 import { FC, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Bell, LogOut, User, UserPlus, Key, HelpCircle } from "lucide-react";
+import { Bell } from "lucide-react";
 
 interface NavbarProps {
   onMobileMenuClick: () => void;
