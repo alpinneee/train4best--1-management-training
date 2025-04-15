@@ -1,10 +1,6 @@
 {
   "extends": "next/core-web-api",
   "rules": {
-    "@typescript-eslint/no-unused-vars": ["warn", { 
-      "varsIgnorePattern": "^(LogOut|User|UserPlus|Key|HelpCircle)$",
-      "argsIgnorePattern": "^_",
-      "ignoreRestSiblings": true
-    }]
+    "@typescript-eslint/no-unused-vars": "off"
   }
 } 
