@@ -11,6 +11,7 @@ interface User {
   username: string;
   idUser: string;
   jobTitle: string;
+  photo?: string;
 }
 
 interface Column {
@@ -122,6 +123,7 @@ const UserPage = () => {
     username: "",
     idUser: "",
     jobTitle: "",
+    photo: "",
   });
   const itemsPerPage = 10;
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -161,19 +163,36 @@ const UserPage = () => {
       username: user.username,
       idUser: user.idUser,
       jobTitle: user.jobTitle,
+      photo: user.photo || '',
     });
+    setPreviewUrl(user.photo || null);
     setIsEditModalOpen(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission logic here
+    
+    const newUserData: User = {
+      no: users.length + 1,
+      username: newUser.username,
+      idUser: newUser.idUser,
+      jobTitle: newUser.jobTitle,
+      photo: previewUrl || '',
+    };
+
+    setUsers(prev => [...prev, newUserData]);
     setIsModalOpen(false);
+    
     setNewUser({
       username: "",
       idUser: "",
       jobTitle: "",
+      photo: "",
     });
+    setPreviewUrl(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleEditSubmit = (e: React.FormEvent) => {
@@ -181,7 +200,13 @@ const UserPage = () => {
     if (selectedUser) {
       setUsers((prevUsers) =>
         prevUsers.map((user) =>
-          user.no === selectedUser.no ? { ...selectedUser, ...newUser } : user
+          user.no === selectedUser.no 
+            ? { 
+                ...selectedUser, 
+                ...newUser,
+                photo: previewUrl || user.photo || '',
+              } 
+            : user
         )
       );
     }
@@ -191,7 +216,9 @@ const UserPage = () => {
       username: "",
       idUser: "",
       jobTitle: "",
+      photo: "",
     });
+    setPreviewUrl(null);
   };
 
   const handleFile = (file: File) => {
