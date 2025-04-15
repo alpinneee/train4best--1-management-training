@@ -5,6 +5,7 @@ import React, { useState } from "react";
 import Button from "@/components/common/button";
 import Layout from "@/components/common/Layout";
 import Table from "@/components/common/table";
+import Modal from "@/components/common/Modal";
 
 interface Instructure {
   no: number;
@@ -497,73 +498,71 @@ const InstructurePage = () => {
 
         {/* Add Instructure Modal */}
         {isModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div className="bg-white p-6 rounded-lg w-96">
-              <h2 className="text-xl font-semibold mb-4 text-gray-700">
-                Add New Instructure
-              </h2>
-              <form onSubmit={handleSubmit}>
-                <div className="mb-4">
-                  <label className="block text-gray-700 mb-2">Full Name</label>
-                  <input
-                    type="text"
-                    name="fullName"
-                    value={newInstructure.fullName}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border rounded"
-                    required
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block text-gray-700 mb-2">
-                    Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    name="phoneNumber"
-                    value={newInstructure.phoneNumber}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border rounded"
-                    required
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block text-gray-700 mb-2">
-                    Proficiency
-                  </label>
-                  <select
-                    name="proficiency"
-                    value={newInstructure.proficiency}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border rounded"
-                    required
-                  >
-                    <option value="">Select Proficiency</option>
-                    {proficiencyCategories.map((category) => (
-                      <option key={category} value={category}>
-                        {category}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-800"
-                  >
-                    Add Instructure
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
+          <Modal onClose={() => setIsModalOpen(false)}>
+            <h2 className="text-xl font-semibold mb-4 text-gray-700">
+              Add New Instructure
+            </h2>
+            <form onSubmit={handleSubmit}>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2">Full Name</label>
+                <input
+                  type="text"
+                  name="fullName"
+                  value={newInstructure.fullName}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border rounded"
+                  required
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  name="phoneNumber"
+                  value={newInstructure.phoneNumber}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border rounded"
+                  required
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2">
+                  Proficiency
+                </label>
+                <select
+                  name="proficiency"
+                  value={newInstructure.proficiency}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border rounded"
+                  required
+                >
+                  <option value="">Select Proficiency</option>
+                  {proficiencyCategories.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-800"
+                >
+                  Add Instructure
+                </button>
+              </div>
+            </form>
+          </Modal>
         )}
       </div>
     </Layout>
