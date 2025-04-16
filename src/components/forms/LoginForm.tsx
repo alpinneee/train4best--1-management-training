@@ -36,6 +36,12 @@ const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userProfile, setUserProfile] = useState<{
+    name: string;
+    email: string;
+    imageUrl: string;
+  } | null>(null);
 
   useEffect(() => {
     window.onSignIn = async (googleUser: GoogleUser) => {
@@ -59,9 +65,13 @@ const LoginPage = () => {
         });
         
         if (response.ok) {
-          // Handle successful login
+          setIsLoggedIn(true);
+          setUserProfile({
+            name: userData.name,
+            email: userData.email,
+            imageUrl: userData.imageUrl
+          });
           console.log('Login berhasil:', userData);
-          // Redirect atau update state sesuai kebutuhan
         } else {
           console.error('Login gagal');
         }
@@ -75,12 +85,42 @@ const LoginPage = () => {
     try {
       const auth2 = window.gapi.auth2.getAuthInstance();
       await auth2.signOut();
+      setIsLoggedIn(false);
+      setUserProfile(null);
       console.log('User signed out.');
-      // Tambahkan logika logout di sini (clear state, redirect, dll)
     } catch (error) {
       console.error('Error saat logout:', error);
     }
   };
+
+  if (isLoggedIn && userProfile) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="p-5 rounded-lg bg-white shadow-md"
+      >
+        <div className="flex flex-col items-center space-y-4">
+          <Image
+            src={userProfile.imageUrl}
+            alt="Profile"
+            width={80}
+            height={80}
+            className="rounded-full"
+          />
+          <h2 className="text-xl font-semibold">{userProfile.name}</h2>
+          <p className="text-gray-600">{userProfile.email}</p>
+          <button
+            onClick={handleSignOut}
+            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+          >
+            Sign Out
+          </button>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
