@@ -9,6 +9,7 @@ import Modal from "@/components/common/Modal";
 import Card from "@/components/common/card";
 import Layout from "@/components/common/Layout";
 
+
 export default function CourseType() {
   const courseTypes = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
   const [currentPage, setCurrentPage] = useState(1);

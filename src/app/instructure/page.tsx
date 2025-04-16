@@ -17,6 +17,7 @@ interface Instructure {
 interface Column {
   header: string;
   accessor: keyof Instructure | ((data: Instructure) => React.ReactNode);
+  className?: string;
 }
 
 const InstructurePage = () => {
@@ -374,7 +375,11 @@ const InstructurePage = () => {
   };
 
   const columns: Column[] = [
-    { header: "NO", accessor: "no" },
+    { 
+      header: "NO", 
+      accessor: "no",
+      className: "w-16 text-center"
+    },
     { 
       header: "Full Name", 
       accessor: (data: Instructure) => (
@@ -382,14 +387,23 @@ const InstructurePage = () => {
           <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
           {data.fullName}
         </div>
-      )
+      ),
+      className: "min-w-[240px]"
     },
-    { header: "Phone Number", accessor: "phoneNumber" },
-    { header: "Proficiency", accessor: "proficiency" },
+    { 
+      header: "Phone Number", 
+      accessor: "phoneNumber",
+      className: "min-w-[150px]"
+    },
+    { 
+      header: "Proficiency", 
+      accessor: "proficiency",
+      className: "min-w-[150px]"
+    },
     {
       header: "Action",
       accessor: () => (
-        <div className="flex gap-2">
+        <div className="flex gap-2 justify-center">
           <button
             className="p-2 border rounded hover:bg-gray-100"
             title="View History"
@@ -446,6 +460,7 @@ const InstructurePage = () => {
           </button>
         </div>
       ),
+      className: "w-32 text-center"
     },
   ];
 
@@ -499,69 +514,73 @@ const InstructurePage = () => {
         {/* Add Instructure Modal */}
         {isModalOpen && (
           <Modal onClose={() => setIsModalOpen(false)}>
-            <h2 className="text-xl font-semibold mb-4 text-gray-700">
-              Add New Instructure
-            </h2>
-            <form onSubmit={handleSubmit}>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">Full Name</label>
-                <input
-                  type="text"
-                  name="fullName"
-                  value={newInstructure.fullName}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border rounded"
-                  required
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">
-                  Phone Number
-                </label>
-                <input
-                  type="tel"
-                  name="phoneNumber"
-                  value={newInstructure.phoneNumber}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border rounded"
-                  required
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">
-                  Proficiency
-                </label>
-                <select
-                  name="proficiency"
-                  value={newInstructure.proficiency}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border rounded"
-                  required
-                >
-                  <option value="">Select Proficiency</option>
-                  {proficiencyCategories.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-800"
-                >
-                  Add Instructure
-                </button>
-              </div>
-            </form>
+            <div className="w-full max-w-md mx-auto">
+              <h2 className="text-2xl font-semibold mb-6 text-gray-700">
+                Add New Instructure
+              </h2>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    name="fullName"
+                    value={newInstructure.fullName}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700">
+                    Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    name="phoneNumber"
+                    value={newInstructure.phoneNumber}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700">
+                    Proficiency
+                  </label>
+                  <select
+                    name="proficiency"
+                    value={newInstructure.proficiency}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  >
+                    <option value="">Select Proficiency</option>
+                    {proficiencyCategories.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    Add Instructure
+                  </button>
+                </div>
+              </form>
+            </div>
           </Modal>
         )}
       </div>
