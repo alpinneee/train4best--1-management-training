@@ -4,11 +4,31 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 
+// Definisi tipe untuk Google User
+interface GoogleUser {
+  getBasicProfile(): {
+    getId(): string;
+    getName(): string;
+    getImageUrl(): string;
+    getEmail(): string;
+  };
+  getAuthResponse(): {
+    id_token: string;
+  };
+}
+
+// Definisi tipe untuk Window
 declare global {
   interface Window {
-    gapi: any;
-    google: any;
-    onSignIn: (googleUser: any) => void;
+    gapi: {
+      auth2: {
+        getAuthInstance(): {
+          signOut(): Promise<void>;
+        };
+      };
+    };
+    google: unknown;
+    onSignIn(googleUser: GoogleUser): void;
   }
 }
 
@@ -18,24 +38,47 @@ const LoginPage = () => {
   const [rememberMe, setRememberMe] = useState(false);
 
   useEffect(() => {
-    window.onSignIn = (googleUser) => {
+    window.onSignIn = async (googleUser: GoogleUser) => {
       const profile = googleUser.getBasicProfile();
-      console.log('ID: ' + profile.getId());
-      console.log('Name: ' + profile.getName());
-      console.log('Image URL: ' + profile.getImageUrl());
-      console.log('Email: ' + profile.getEmail());
+      const userData = {
+        id: profile.getId(),
+        name: profile.getName(),
+        imageUrl: profile.getImageUrl(),
+        email: profile.getEmail(),
+      };
       
+      // Kirim token ke backend
       const id_token = googleUser.getAuthResponse().id_token;
-      // Kirim token ke backend Anda
+      try {
+        const response = await fetch('/api/auth/google', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ token: id_token, userData }),
+        });
+        
+        if (response.ok) {
+          // Handle successful login
+          console.log('Login berhasil:', userData);
+          // Redirect atau update state sesuai kebutuhan
+        } else {
+          console.error('Login gagal');
+        }
+      } catch (error) {
+        console.error('Error saat login:', error);
+      }
     };
   }, []);
 
-  const signOut = () => {
-    const auth2 = window.gapi.auth2.getAuthInstance();
-    if (auth2) {
-      auth2.signOut().then(() => {
-        console.log('User signed out.');
-      });
+  const handleSignOut = async () => {
+    try {
+      const auth2 = window.gapi.auth2.getAuthInstance();
+      await auth2.signOut();
+      console.log('User signed out.');
+      // Tambahkan logika logout di sini (clear state, redirect, dll)
+    } catch (error) {
+      console.error('Error saat logout:', error);
     }
   };
 
