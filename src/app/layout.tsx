@@ -1,7 +1,6 @@
 import './globals.css'
 import { Inter } from "next/font/google";
 import Script from 'next/script';
-import ClientLayout from '@/components/layouts/ClientLayout';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -23,9 +22,9 @@ export default function RootLayout({
           content="913107858333-8csadaquuajoeb3pf7hu2l223ia4u6od.apps.googleusercontent.com"
         />
       </head>
-      <body className={inter.className}>
+      <body className={`${inter.className} bg-gray-50`}>
         <Script src="https://apis.google.com/js/platform.js" strategy="afterInteractive" />
-        <ClientLayout>{children}</ClientLayout>
+        {children}
       </body>
     </html>
   )

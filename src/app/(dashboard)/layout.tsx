@@ -1,3 +1,5 @@
+'use client';
+
 import Layout from '@/components/common/Layout'
 
 export default function DashboardLayout({
@@ -5,5 +7,9 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  return <Layout>{children}</Layout>
+  return (
+    <div className="bg-gray-50">
+      <Layout>{children}</Layout>
+    </div>
+  )
 } 

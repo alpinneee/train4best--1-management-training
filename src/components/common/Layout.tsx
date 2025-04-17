@@ -17,11 +17,9 @@ const Layout: FC<LayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col fix">
-      <Navbar 
-        onMobileMenuClick={handleMobileOpen} 
-      />
-      <div className="flex flex-1 relative">
+    <div className="min-h-screen flex flex-col">
+      <Navbar onMobileMenuClick={handleMobileOpen} />
+      <div className="flex flex-1">
         <Sidebar
           isMobileOpen={isMobileOpen}
           onMobileClose={handleMobileOpen}

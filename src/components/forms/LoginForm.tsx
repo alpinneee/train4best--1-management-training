@@ -205,25 +205,6 @@ const LoginPage = () => {
                 transition={{ duration: 0.6, delay: 0.5 }}
                 className="intro-x mt-8"
               >
-                {/* Google Sign-In Button */}
-                <motion.div
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ duration: 0.6, delay: 0.4 }}
-                  className="intro-x mt-4 flex justify-center xl:justify-start"
-                >
-                  <div className="g-signin2" data-onsuccess="onSignIn" data-theme="dark"></div>
-                </motion.div>
-
-                <motion.div
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ duration: 0.6, delay: 0.5 }}
-                  className="intro-x mt-4 text-center text-sm text-gray-500"
-                >
-                  - OR -
-                </motion.div>
-
                 <input
                   type="text"
                   placeholder="Email"
@@ -275,6 +256,18 @@ const LoginPage = () => {
                 >
                   Register
                 </Link>
+              </motion.div>
+
+              - OR -
+
+              {/* Google Sign-In Button */}
+              <motion.div
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.6, delay: 0.8 }}
+                className="intro-x mt-6 flex justify-center xl:justify-start w-full"
+              >
+                <div className="g-signin2 min-w-full xl:min-w-[350px] rounded-md overflow-hidden" data-width="350" data-height="40" data-longtitle="true" data-onsuccess="onSignIn" data-theme="dark"></div>
               </motion.div>
             </div>
           </motion.div>
