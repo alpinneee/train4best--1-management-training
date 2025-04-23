@@ -35,7 +35,7 @@ export default function Table<T>({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow mx-4">
+    <div className="bg-white rounded shadow">
       {/* Desktop Table View */}
       <div className="hidden md:block overflow-x-auto" style={{ maxWidth: '100%' }}>
         <table className="w-full border-collapse min-w-full">
@@ -44,7 +44,7 @@ export default function Table<T>({
               {columns.map((column, index) => (
                 <th
                   key={index}
-                  className={`p-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider ${column.className}`}
+                  className={`p-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${column.className}`}
                 >
                   {column.header}
                 </th>
@@ -57,7 +57,7 @@ export default function Table<T>({
                 {columns.map((column, colIndex) => (
                   <td
                     key={colIndex}
-                    className={`p-3 text-base text-gray-500 ${column.className}`}
+                    className={`p-2 text-sm text-gray-500 ${column.className}`}
                   >
                     {renderCell(item, column)}
                   </td>
@@ -73,14 +73,14 @@ export default function Table<T>({
         {data.map((item, rowIndex) => (
           <div 
             key={rowIndex} 
-            className="border-b p-3 hover:bg-gray-50 text-sm"
+            className="border-b p-2 hover:bg-gray-50 text-xs"
           >
             {columns.map((column, colIndex) => (
               <div 
                 key={colIndex} 
-                className="flex flex-col sm:flex-row sm:justify-between py-1.5"
+                className="flex justify-between py-1"
               >
-                <span className="font-medium text-gray-500 mb-1 sm:mb-0">
+                <span className="font-medium text-gray-500">
                   {column.header}
                 </span>
                 <span className={`text-gray-900 break-words ${column.className}`}>
@@ -94,20 +94,20 @@ export default function Table<T>({
 
       {/* Pagination */}
       {onPageChange && (
-        <div className="bg-white px-4 py-3 flex items-center justify-between border-t">
+        <div className="bg-white px-2 py-2 flex items-center justify-between border-t">
           {/* Mobile pagination */}
           <div className="flex-1 flex justify-between sm:hidden">
             <button
               onClick={() => onPageChange(Math.max(currentPage - 1, 1))}
               disabled={currentPage === 1}
-              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="relative inline-flex items-center px-2 py-1 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
               Previous
             </button>
             <button
               onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="ml-2 relative inline-flex items-center px-2 py-1 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
               Next
             </button>
@@ -116,7 +116,7 @@ export default function Table<T>({
           {/* Desktop pagination */}
           <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
             <div>
-              <p className="text-base text-gray-700">
+              <p className="text-xs text-gray-700">
                 Showing{" "}
                 <span className="font-medium">
                   {(currentPage - 1) * itemsPerPage + 1}
@@ -133,7 +133,7 @@ export default function Table<T>({
                 <button
                   onClick={() => onPageChange(Math.max(currentPage - 1, 1))}
                   disabled={currentPage === 1}
-                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-base font-medium text-gray-500 hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  className="relative inline-flex items-center px-2 py-1 rounded-l-md border border-gray-300 bg-white text-xs font-medium text-gray-500 hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
@@ -141,7 +141,7 @@ export default function Table<T>({
                   <button
                     key={i + 1}
                     onClick={() => onPageChange(i + 1)}
-                    className={`relative inline-flex items-center px-4 py-2 border text-base font-medium ${
+                    className={`relative inline-flex items-center px-3 py-1 border text-xs font-medium ${
                       currentPage === i + 1
                         ? "z-10 bg-indigo-50 border-indigo-500 text-indigo-600"
                         : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
@@ -153,7 +153,7 @@ export default function Table<T>({
                 <button
                   onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
                   disabled={currentPage === totalPages}
-                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-base font-medium text-gray-500 hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  className="relative inline-flex items-center px-2 py-1 rounded-r-md border border-gray-300 bg-white text-xs font-medium text-gray-500 hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>

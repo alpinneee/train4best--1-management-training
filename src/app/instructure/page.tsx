@@ -378,38 +378,42 @@ const InstructurePage = () => {
     { 
       header: "NO", 
       accessor: "no",
-      className: "w-16 text-center"
+      className: "w-12 text-center"
     },
     { 
       header: "Full Name", 
       accessor: (data: Instructure) => (
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
-          {data.fullName}
+        <div className="flex items-center gap-1">
+          <div className="w-6 h-6 bg-gray-300 rounded-full"></div>
+          <span className="text-xs">{data.fullName}</span>
         </div>
       ),
-      className: "min-w-[240px]"
+      className: "min-w-[200px]"
     },
     { 
       header: "Phone Number", 
-      accessor: "phoneNumber",
-      className: "min-w-[150px]"
+      accessor: (data: Instructure) => (
+        <span className="text-xs">{data.phoneNumber}</span>
+      ),
+      className: "min-w-[120px]"
     },
     { 
       header: "Proficiency", 
-      accessor: "proficiency",
-      className: "min-w-[150px]"
+      accessor: (data: Instructure) => (
+        <span className="text-xs">{data.proficiency}</span>
+      ),
+      className: "min-w-[120px]"
     },
     {
       header: "Action",
       accessor: () => (
-        <div className="flex gap-2 justify-center">
+        <div className="flex gap-1 justify-center">
           <button
-            className="p-2 border rounded hover:bg-gray-100"
+            className="p-1 border rounded hover:bg-gray-100"
             title="View History"
           >
             <svg
-              className="w-4 h-4"
+              className="w-3 h-3"
               fill="none"
               stroke="#374151"
               viewBox="0 0 24 24"
@@ -423,11 +427,11 @@ const InstructurePage = () => {
             </svg>
           </button>
           <button
-            className="p-2 border rounded hover:bg-gray-100"
+            className="p-1 border rounded hover:bg-gray-100"
             title="Edit"
           >
             <svg
-              className="w-4 h-4"
+              className="w-3 h-3"
               fill="none"
               stroke="#374151"
               viewBox="0 0 24 24"
@@ -441,11 +445,11 @@ const InstructurePage = () => {
             </svg>
           </button>
           <button
-            className="p-2 border rounded hover:bg-gray-100"
+            className="p-1 border rounded hover:bg-gray-100"
             title="Delete"
           >
             <svg
-              className="w-4 h-4 text-red-500"
+              className="w-3 h-3 text-red-500"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -460,30 +464,33 @@ const InstructurePage = () => {
           </button>
         </div>
       ),
-      className: "w-32 text-center"
+      className: "w-24 text-center"
     },
   ];
 
   return (
     <Layout>
-      <div className="p-6">
-        <h1 className="text-2xl text-gray-700 mb-4">Instructure</h1>
+      <div className="p-2">
+        <h1 className="text-lg md:text-xl text-gray-700 mb-2">
+          Instructure
+        </h1>
 
-        <div className="flex justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:justify-between gap-2 mb-2">
           <div>
             <Button
               variant="primary"
-              size="medium"
+              size="small"
               onClick={() => setIsModalOpen(true)}
+              className="w-full sm:w-auto text-xs"
             >
               Add New Instructure
             </Button>
           </div>
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-2">
             <select
               value={selectedProficiency}
               onChange={(e) => setSelectedProficiency(e.target.value)}
-              className="px-4 py-2 border rounded-lg text-gray-700"
+              className="px-2 py-1 text-xs border rounded-lg w-full sm:w-auto"
             >
               <option value="all">All Proficiencies</option>
               {proficiencyCategories.map((category) => (
@@ -495,32 +502,33 @@ const InstructurePage = () => {
             <input
               type="text"
               placeholder="Search..."
-              className="px-4 py-2 border rounded-lg"
+              className="px-2 py-1 text-xs border rounded-lg w-full sm:w-auto"
             />
           </div>
         </div>
 
-        <Table
-          columns={columns}
-          data={currentItems}
-          currentPage={currentPage}
-          totalPages={Math.ceil(filteredInstructures.length / itemsPerPage)}
-          itemsPerPage={itemsPerPage}
-          totalItems={filteredInstructures.length}
-          onPageChange={setCurrentPage}
-        />
-
+        <div className="overflow-x-auto -mx-2 px-2">
+          <Table
+            columns={columns}
+            data={currentItems}
+            currentPage={currentPage}
+            totalPages={Math.ceil(filteredInstructures.length / itemsPerPage)}
+            itemsPerPage={itemsPerPage}
+            totalItems={filteredInstructures.length}
+            onPageChange={setCurrentPage}
+          />
+        </div>
 
         {/* Add Instructure Modal */}
         {isModalOpen && (
           <Modal onClose={() => setIsModalOpen(false)}>
-            <div className="w-full max-w-md mx-auto">
-              <h2 className="text-2xl font-semibold mb-6 text-gray-700">
+            <div className="w-full">
+              <h2 className="text-base font-semibold mb-2 text-gray-700">
                 Add New Instructure
               </h2>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-700">
+              <form onSubmit={handleSubmit} className="space-y-2">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
                     Full Name
                   </label>
                   <input
@@ -528,12 +536,12 @@ const InstructurePage = () => {
                     name="fullName"
                     value={newInstructure.fullName}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                     required
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-700">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
                     Phone Number
                   </label>
                   <input
@@ -541,19 +549,19 @@ const InstructurePage = () => {
                     name="phoneNumber"
                     value={newInstructure.phoneNumber}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                     required
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-700">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
                     Proficiency
                   </label>
                   <select
                     name="proficiency"
                     value={newInstructure.proficiency}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                     required
                   >
                     <option value="">Select Proficiency</option>
@@ -564,20 +572,23 @@ const InstructurePage = () => {
                     ))}
                   </select>
                 </div>
-                <div className="flex justify-end gap-3 pt-4">
-                  <button
-                    type="button"
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button
+                    variant="gray"
+                    size="small"
                     onClick={() => setIsModalOpen(false)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="text-xs px-2 py-1"
                   >
                     Cancel
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="small"
                     type="submit"
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="text-xs px-2 py-1"
                   >
                     Add Instructure
-                  </button>
+                  </Button>
                 </div>
               </form>
             </div>

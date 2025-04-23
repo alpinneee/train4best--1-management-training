@@ -16,6 +16,7 @@ interface Certificate {
 interface Column<T> {
   header: string;
   accessor: keyof T | ((data: T) => React.ReactNode);
+  className?: string;
 }
 
 const CertificatePage = () => {
@@ -59,23 +60,44 @@ const CertificatePage = () => {
   ];
 
   const columns: Column<Certificate>[] = [
-    { header: "No", accessor: "no" },
-    { header: "Name", accessor: "name" },
-    { header: "Certificate Number", accessor: "certificateNumber" },
-    { header: "Issue Date", accessor: "issueDate" },
-    { header: "Valid Date", accessor: "validDate" },
+    { 
+      header: "No", 
+      accessor: "no",
+      className: "w-12 text-center"
+    },
+    { 
+      header: "Name", 
+      accessor: "name",
+      className: "min-w-[120px]"
+    },
+    { 
+      header: "Certificate Number", 
+      accessor: "certificateNumber",
+      className: "min-w-[120px]"
+    },
+    { 
+      header: "Issue Date", 
+      accessor: "issueDate",
+      className: "min-w-[100px]"
+    },
+    { 
+      header: "Valid Date", 
+      accessor: "validDate",
+      className: "min-w-[100px]"
+    },
     {
       header: "Action",
       accessor: () => (
-        <div className="flex gap-2">
-          <button className="flex items-center gap-1 text-gray-600 hover:text-gray-800">
-            <Printer size={20} /> Print
+        <div className="flex gap-1">
+          <button className="flex items-center gap-1 text-xs text-gray-600 hover:text-gray-800 p-1">
+            <Printer size={14} /> Print
           </button>
-          <button className="flex items-center gap-1 text-gray-600 hover:text-gray-800">
-            <FileText size={20} /> Detail
+          <button className="flex items-center gap-1 text-xs text-gray-600 hover:text-gray-800 p-1">
+            <FileText size={14} /> Detail
           </button>
         </div>
       ),
+      className: "min-w-[120px]"
     },
   ];
 
@@ -90,45 +112,47 @@ const CertificatePage = () => {
 
   return (
     <Layout>
-      <div className="p-6">
-        <h1 className="text-2xl text-gray-700 mb-6">List Certificate</h1>
+      <div className="p-2">
+        <h1 className="text-lg md:text-xl text-gray-700 mb-2">List Certificate</h1>
 
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2">
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <input
               type="date"
-              className="px-4 py-2 border rounded-lg"
+              className="w-full sm:w-auto px-2 py-1 text-xs border rounded-lg"
               placeholder="Start Date"
             />
             <input
               type="date"
-              className="px-4 py-2 border rounded-lg"
+              className="w-full sm:w-auto px-2 py-1 text-xs border rounded-lg"
               placeholder="End Date"
             />
           </div>
 
-          <div className="flex gap-4">
-            <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
-              <Printer size={20} />
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <button className="flex items-center justify-center gap-1 px-2 py-1 bg-gray-100 text-xs text-gray-700 rounded-lg hover:bg-gray-200 w-full sm:w-auto">
+              <Printer size={14} />
               Print File
             </button>
             <input
               type="text"
               placeholder="Search..."
-              className="px-4 py-2 border rounded-lg"
+              className="w-full sm:w-auto px-2 py-1 text-xs border rounded-lg"
             />
           </div>
         </div>
 
-        <Table
-          columns={columns}
-          data={getCurrentPageItems()}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          itemsPerPage={ITEMS_PER_PAGE}
-          totalItems={certificates.length}
-          onPageChange={setCurrentPage}
-        />
+        <div className="overflow-x-auto -mx-2 px-2">
+          <Table
+            columns={columns}
+            data={getCurrentPageItems()}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            itemsPerPage={ITEMS_PER_PAGE}
+            totalItems={certificates.length}
+            onPageChange={setCurrentPage}
+          />
+        </div>
       </div>
     </Layout>
   );

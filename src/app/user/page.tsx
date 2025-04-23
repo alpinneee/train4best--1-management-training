@@ -279,23 +279,26 @@ const UserPage = () => {
 
   return (
     <Layout>
-      <div className="flex flex-col gap-4">
-        <h1 className="text-2xl text-gray-700 mb-4">Users</h1>
+      <div className="flex flex-col gap-2 p-2">
+        <h1 className="text-lg md:text-xl text-gray-700 mb-2">
+          Users
+        </h1>
 
-        <div className="mb-4 flex justify-between">
+        <div className="mb-2 flex flex-col sm:flex-row sm:justify-between gap-2">
           <Button
             variant="primary"
             size="small"
             onClick={() => setIsModalOpen(true)}
+            className="w-full sm:w-auto"
           >
             Add New User
           </Button>
 
-          <div className="flex gap-2 text-gray-700">
+          <div className="flex flex-col sm:flex-row gap-2 text-gray-700 w-full sm:w-auto">
             <select
               value={selectedJobTitle}
               onChange={handleJobTitleChange}
-              className="px-2 py-1 text-sm rounded-lg"
+              className="px-2 py-1 text-xs rounded-lg w-full sm:w-auto"
             >
               {jobTitles.map((title) => (
                 <option key={title} value={title}>
@@ -306,30 +309,32 @@ const UserPage = () => {
             <input
               type="text"
               placeholder="Search..."
-              className="px-2 py-1 text-sm rounded-lg"
+              className="px-2 py-1 text-xs rounded-lg w-full sm:w-auto"
             />
           </div>
         </div>
 
-        <Table
-          columns={columns}
-          data={currentUsers}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          itemsPerPage={itemsPerPage}
-          totalItems={filteredUsers.length}
-          onPageChange={setCurrentPage}
-        />
+        <div className="overflow-x-auto -mx-2 px-2">
+          <Table
+            columns={columns}
+            data={currentUsers}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            itemsPerPage={itemsPerPage}
+            totalItems={filteredUsers.length}
+            onPageChange={setCurrentPage}
+          />
+        </div>
 
         {/* Add User Modal */}
         {isModalOpen && (
           <Modal onClose={() => setIsModalOpen(false)}>
-            <h2 className="text-lg font-semibold mb-4 text-gray-700">
+            <h2 className="text-base font-semibold mb-2 text-gray-700">
               Add New User
             </h2>
-            <div className="flex gap-6">
+            <div className="flex flex-col md:flex-row gap-4">
               {/* Bagian Upload Foto */}
-              <div className="w-1/3">
+              <div className="w-full md:w-1/3">
                 <div 
                   className={`aspect-square bg-gray-100 rounded-lg flex flex-col items-center justify-center border-2 border-dashed ${
                     isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
@@ -361,9 +366,9 @@ const UserPage = () => {
                       />
                     </div>
                   ) : (
-                    <div className="text-center p-4">
+                    <div className="text-center p-2">
                       <svg 
-                        className="mx-auto h-12 w-12 text-gray-400" 
+                        className="mx-auto h-8 w-8 text-gray-400"
                         stroke="currentColor" 
                         fill="none" 
                         viewBox="0 0 48 48"
@@ -375,10 +380,10 @@ const UserPage = () => {
                           strokeLinejoin="round" 
                         />
                       </svg>
-                      <p className="mt-1 text-sm text-gray-600">
+                      <p className="mt-1 text-xs text-gray-600">
                         Click to upload or drag and drop
                       </p>
-                      <p className="mt-1 text-xs text-gray-500">
+                      <p className="mt-0.5 text-[10px] text-gray-500">
                         PNG, JPG up to 2MB
                       </p>
                     </div>
@@ -399,7 +404,7 @@ const UserPage = () => {
                 {previewUrl && (
                   <button 
                     type="button"
-                    className="w-full px-3 py-2 text-sm text-red-600 hover:text-red-700 text-center"
+                    className="w-full px-2 py-1 text-xs text-red-600 hover:text-red-700 text-center"
                     onClick={() => {
                       setPreviewUrl(null);
                       if (fileInputRef.current) {
@@ -414,36 +419,36 @@ const UserPage = () => {
 
               {/* Form Pengisian */}
               <div className="flex-1">
-                <form onSubmit={handleSubmit}>
-                  <div className="mb-4">
-                    <label className="block mb-2 text-gray-700">Username</label>
+                <form onSubmit={handleSubmit} className="space-y-2">
+                  <div>
+                    <label className="block mb-1 text-xs text-gray-700">Username</label>
                     <input
                       type="text"
                       name="username"
                       value={newUser.username}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-2 py-1 text-xs rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
                       required
                     />
                   </div>
-                  <div className="mb-4">
-                    <label className="block mb-2 text-gray-700">ID User</label>
+                  <div>
+                    <label className="block mb-1 text-xs text-gray-700">ID User</label>
                     <input
                       type="text"
                       name="idUser"
                       value={newUser.idUser}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-2 py-1 text-xs rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
                       required
                     />
                   </div>
-                  <div className="mb-4">
-                    <label className="block text-gray-700 mb-2">Job Title</label>
+                  <div>
+                    <label className="block text-xs text-gray-700 mb-1">Job Title</label>
                     <select
                       name="jobTitle"
                       value={newUser.jobTitle}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-2 py-1 text-xs rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
                       required
                     >
                       <option value="">Select Job Title</option>
@@ -456,11 +461,12 @@ const UserPage = () => {
                         ))}
                     </select>
                   </div>
-                  <div className="flex justify-end gap-2">
+                  <div className="flex justify-end gap-2 pt-2">
                     <Button
                       variant="gray"
                       size="small"
                       onClick={() => setIsModalOpen(false)}
+                      className="text-xs px-2 py-1"
                     >
                       Cancel
                     </Button>
@@ -468,6 +474,7 @@ const UserPage = () => {
                       variant="primary"
                       size="small"
                       type="submit"
+                      className="text-xs px-2 py-1"
                     >
                       Add User
                     </Button>
@@ -481,39 +488,39 @@ const UserPage = () => {
         {/* Edit User Modal */}
         {isEditModalOpen && (
           <Modal onClose={() => setIsEditModalOpen(false)}>
-            <h2 className="text-xl font-semibold mb-4 text-gray-700">
+            <h2 className="text-base font-semibold mb-2 text-gray-700">
               Edit User
             </h2>
-            <form onSubmit={handleEditSubmit}>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">Username</label>
+            <form onSubmit={handleEditSubmit} className="space-y-2">
+              <div>
+                <label className="block text-xs text-gray-700 mb-1">Username</label>
                 <input
                   type="text"
                   name="username"
                   value={newUser.username}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 rounded text-gray-700"
+                  className="w-full px-2 py-1 text-xs rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
                   required
                 />
               </div>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">ID User</label>
+              <div>
+                <label className="block text-xs text-gray-700 mb-1">ID User</label>
                 <input
                   type="text"
                   name="idUser"
                   value={newUser.idUser}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 rounded text-gray-700"
+                  className="w-full px-2 py-1 text-xs rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
                   required
                 />
               </div>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">Job Title</label>
+              <div>
+                <label className="block text-xs text-gray-700 mb-1">Job Title</label>
                 <select
                   name="jobTitle"
                   value={newUser.jobTitle}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 rounded text-gray-700"
+                  className="w-full px-2 py-1 text-xs rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
                   required
                 >
                   <option value="">Select Job Title</option>
@@ -526,11 +533,12 @@ const UserPage = () => {
                     ))}
                 </select>
               </div>
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2 pt-2">
                 <Button
                   variant="gray"
                   size="small"
                   onClick={() => setIsEditModalOpen(false)}
+                  className="text-xs px-2 py-1"
                 >
                   Cancel
                 </Button>
@@ -538,6 +546,7 @@ const UserPage = () => {
                   variant="primary"
                   size="small"
                   type="submit"
+                  className="text-xs px-2 py-1"
                 >
                   Save Changes
                 </Button>
@@ -549,15 +558,16 @@ const UserPage = () => {
         {/* Delete Modal */}
         {isDeleteModalOpen && (
           <Modal onClose={() => setIsDeleteModalOpen(false)}>
-            <h2 className="text-lg font-semibold text-gray-700">Delete User</h2>
-            <p className="text-sm text-gray-600 mt-2">
+            <h2 className="text-base font-semibold text-gray-700">Delete User</h2>
+            <p className="text-xs text-gray-600 mt-2">
               Apakah Anda yakin ingin menghapus user ini?
             </p>
-            <div className="flex justify-end mt-4 gap-2">
+            <div className="flex justify-end mt-3 gap-2">
               <Button
                 variant="gray"
                 size="small"
                 onClick={() => setIsDeleteModalOpen(false)}
+                className="text-xs px-2 py-1"
               >
                 Cancel
               </Button>
@@ -565,6 +575,7 @@ const UserPage = () => {
                 variant="red"
                 size="small"
                 onClick={() => setIsDeleteModalOpen(false)}
+                className="text-xs px-2 py-1"
               >
                 Hapus
               </Button>

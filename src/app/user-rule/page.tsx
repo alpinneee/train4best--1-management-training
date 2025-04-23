@@ -118,7 +118,7 @@ export default function UserRulePage(): ReactElement {
       header: "Status",
       accessor: (rule) => (
         <span
-          className={`px-2 py-1 rounded text-sm ${
+          className={`px-1.5 py-0.5 rounded text-xs ${
             rule.status === "Active"
               ? "bg-green-100 text-green-800"
               : "bg-red-100 text-red-800"
@@ -134,13 +134,13 @@ export default function UserRulePage(): ReactElement {
         <div className="flex gap-2">
           <button
             onClick={() => handleEditClick(rule)}
-            className="text-blue-600 hover:text-blue-800"
+            className="text-blue-600 hover:text-blue-800 text-xs"
           >
             Edit
           </button>
           <button
             onClick={() => setIsDeleteModalOpen(true)}
-            className="text-red-500 hover:text-red-700"
+            className="text-red-500 hover:text-red-700 text-xs"
           >
             Delete
           </button>
@@ -151,81 +151,89 @@ export default function UserRulePage(): ReactElement {
 
   return (
     <Layout>
-      <div className="p-6">
-        <h1 className="text-2xl text-gray-700 mb-4">User Rules</h1>
+      <div className="p-2">
+        <h1 className="text-lg md:text-xl text-gray-700 mb-2">
+          User Rules
+        </h1>
 
-        <div className="flex justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:justify-between gap-2 mb-2">
           <Button
             variant="primary"
-            size="medium"
+            size="small"
             onClick={() => setIsModalOpen(true)}
+            className="w-full sm:w-auto text-xs"
           >
             Add New Rule
           </Button>
           <input
             type="text"
             placeholder="Search..."
-            className="px-4 py-2 border rounded-lg"
+            className="px-2 py-1 text-xs border rounded-lg w-full sm:w-auto"
           />
         </div>
 
-        <Table columns={columns} data={userRules} />
+        <div className="overflow-x-auto -mx-2 px-2">
+          <Table columns={columns} data={userRules} />
+        </div>
 
         {/* Add Rule Modal */}
         {isModalOpen && (
           <Modal onClose={() => setIsModalOpen(false)}>
-            <h2 className="text-xl font-semibold mb-4 text-gray-700">
+            <h2 className="text-base font-semibold mb-2 text-gray-700">
               Add New Rule
             </h2>
-            <form onSubmit={handleSubmit}>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">Role Name</label>
+            <form onSubmit={handleSubmit} className="space-y-2">
+              <div>
+                <label className="block text-xs text-gray-700 mb-1">Role Name</label>
                 <input
                   type="text"
                   name="roleName"
                   value={newRule.roleName}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border rounded text-gray-700"
+                  className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                   required
                 />
               </div>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">Description</label>
+              <div>
+                <label className="block text-xs text-gray-700 mb-1">Description</label>
                 <input
                   type="text"
                   name="description"
                   value={newRule.description}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border rounded text-gray-700"
+                  className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                   required
                 />
               </div>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">Status</label>
+              <div>
+                <label className="block text-xs text-gray-700 mb-1">Status</label>
                 <select
                   name="status"
                   value={newRule.status}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border rounded text-gray-700"
+                  className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                 >
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
                 </select>
               </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  variant="gray"
+                  size="small"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                  className="text-xs px-2 py-1"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="primary"
+                  size="small"
                   type="submit"
-                  className="px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-800"
+                  className="text-xs px-2 py-1"
                 >
                   Add Rule
-                </button>
+                </Button>
               </div>
             </form>
           </Modal>
@@ -234,74 +242,87 @@ export default function UserRulePage(): ReactElement {
         {/* Edit Rule Modal */}
         {isEditModalOpen && (
           <Modal onClose={() => setIsEditModalOpen(false)}>
-            <h2 className="text-xl font-semibold mb-4 text-gray-700">
+            <h2 className="text-base font-semibold mb-2 text-gray-700">
               Edit Rule
             </h2>
-            <form onSubmit={handleEditSubmit}>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">Role Name</label>
+            <form onSubmit={handleEditSubmit} className="space-y-2">
+              <div>
+                <label className="block text-xs text-gray-700 mb-1">Role Name</label>
                 <input
                   type="text"
                   name="roleName"
                   value={newRule.roleName}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border rounded text-gray-700"
+                  className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                   required
                 />
               </div>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">Description</label>
+              <div>
+                <label className="block text-xs text-gray-700 mb-1">Description</label>
                 <input
                   type="text"
                   name="description"
                   value={newRule.description}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border rounded text-gray-700"
+                  className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                   required
                 />
               </div>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">Status</label>
+              <div>
+                <label className="block text-xs text-gray-700 mb-1">Status</label>
                 <select
                   name="status"
                   value={newRule.status}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border rounded text-gray-700"
+                  className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                 >
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
                 </select>
               </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  variant="gray"
+                  size="small"
                   onClick={() => setIsEditModalOpen(false)}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                  className="text-xs px-2 py-1"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="primary"
+                  size="small"
                   type="submit"
-                  className="px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-800"
+                  className="text-xs px-2 py-1"
                 >
                   Save Changes
-                </button>
+                </Button>
               </div>
             </form>
           </Modal>
         )}
 
+        {/* Delete Modal */}
         {isDeleteModalOpen && (
           <Modal onClose={() => setIsDeleteModalOpen(false)}>
-            <h2 className="text-lg font-semibold text-gray-700">Delete Rule</h2>
-            <p className="text-sm text-gray-600 mt-2">
+            <h2 className="text-base font-semibold text-gray-700">Delete Rule</h2>
+            <p className="text-xs text-gray-600 mt-2">
               Apakah Anda yakin ingin menghapus rule ini?
             </p>
-            <div className="flex justify-end mt-4">
+            <div className="flex justify-end mt-3 gap-2">
+              <Button
+                variant="gray"
+                size="small"
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="text-xs px-2 py-1"
+              >
+                Cancel
+              </Button>
               <Button
                 variant="red"
-                size="medium"
+                size="small"
                 onClick={() => setIsDeleteModalOpen(false)}
+                className="text-xs px-2 py-1"
               >
                 Hapus
               </Button>

@@ -130,23 +130,26 @@ const UserPage = (): ReactElement => {
 
   return (
     <Layout>
-      <div className="p-6">
-        <h1 className="text-2xl text-gray-700 mb-4">UserType</h1>
+      <div className="p-2">
+        <h1 className="text-lg md:text-xl text-gray-700 mb-2">
+          UserType
+        </h1>
 
-        <div className="flex justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:justify-between gap-2 mb-2">
           <Button
             variant="primary"
-            size="medium"
+            size="small"
             onClick={() => setIsModalOpen(true)}
+            className="w-full sm:w-auto text-xs"
           >
             Add New Usertype
           </Button>
 
-          <div className="flex gap-4 text-gray-700">
+          <div className="flex flex-col sm:flex-row gap-2 text-gray-700 w-full sm:w-auto">
             <select
               value={selectedUsertype}
               onChange={handleUsertypeChange}
-              className="px-4 py-2 border rounded-lg"
+              className="px-2 py-1 text-xs border rounded-lg w-full sm:w-auto"
             >
               {usertypes.map((type) => (
                 <option key={type} value={type}>
@@ -157,64 +160,69 @@ const UserPage = (): ReactElement => {
             <input
               type="text"
               placeholder="Search..."
-              className="px-4 py-2 border rounded-lg"
+              className="px-2 py-1 text-xs border rounded-lg w-full sm:w-auto"
             />
           </div>
         </div>
 
-        <Table
-          columns={columns}
-          data={currentUsers}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          itemsPerPage={itemsPerPage}
-          totalItems={filteredUsers.length}
-          onPageChange={setCurrentPage}
-        />
+        <div className="overflow-x-auto -mx-2 px-2">
+          <Table
+            columns={columns}
+            data={currentUsers}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            itemsPerPage={itemsPerPage}
+            totalItems={filteredUsers.length}
+            onPageChange={setCurrentPage}
+          />
+        </div>
 
         {/* Add Usertype Modal */}
         {isModalOpen && (
           <Modal onClose={() => setIsModalOpen(false)}>
-            <h2 className="text-xl font-semibold mb-4 text-gray-700">
+            <h2 className="text-base font-semibold mb-2 text-gray-700">
               Add New Usertype
             </h2>
-            <form onSubmit={handleSubmit}>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">ID Usertype</label>
+            <form onSubmit={handleSubmit} className="space-y-2">
+              <div>
+                <label className="block text-xs text-gray-700 mb-1">ID Usertype</label>
                 <input
                   type="text"
                   name="idUsertype"
                   value={newUser.idUsertype}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border rounded"
+                  className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                   required
                 />
               </div>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">Usertype</label>
+              <div>
+                <label className="block text-xs text-gray-700 mb-1">Usertype</label>
                 <input
                   type="text"
                   name="usertype"
                   value={newUser.usertype}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border rounded"
+                  className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                   required
                 />
               </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  variant="gray"
+                  size="small"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                  className="text-xs px-2 py-1"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="primary"
+                  size="small"
                   type="submit"
-                  className="px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-800"
+                  className="text-xs px-2 py-1"
                 >
                   Add Usertype
-                </button>
+                </Button>
               </div>
             </form>
           </Modal>
@@ -223,64 +231,75 @@ const UserPage = (): ReactElement => {
         {/* Edit Usertype Modal */}
         {isEditModalOpen && (
           <Modal onClose={() => setIsEditModalOpen(false)}>
-            <h2 className="text-xl font-semibold mb-4 text-gray-700">
+            <h2 className="text-base font-semibold mb-2 text-gray-700">
               Edit Usertype
             </h2>
-            <form onSubmit={handleEditSubmit}>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">ID Usertype</label>
+            <form onSubmit={handleEditSubmit} className="space-y-2">
+              <div>
+                <label className="block text-xs text-gray-700 mb-1">ID Usertype</label>
                 <input
                   type="text"
                   name="idUsertype"
                   value={newUser.idUsertype}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border rounded text-gray-700"
+                  className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                   required
                 />
               </div>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">Usertype</label>
+              <div>
+                <label className="block text-xs text-gray-700 mb-1">Usertype</label>
                 <input
                   type="text"
                   name="usertype"
                   value={newUser.usertype}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border rounded text-gray-700"
+                  className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                   required
                 />
               </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  variant="gray"
+                  size="small"
                   onClick={() => setIsEditModalOpen(false)}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                  className="text-xs px-2 py-1"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="primary"
+                  size="small"
                   type="submit"
-                  className="px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-800"
+                  className="text-xs px-2 py-1"
                 >
                   Save Changes
-                </button>
+                </Button>
               </div>
             </form>
           </Modal>
         )}
 
+        {/* Delete Modal */}
         {isDeleteModalOpen && (
           <Modal onClose={() => setIsDeleteModalOpen(false)}>
-            <h2 className="text-lg font-semibold text-gray-700">
-              Delete Usertype
-            </h2>
-            <p className="text-sm text-gray-600 mt-2">
+            <h2 className="text-base font-semibold text-gray-700">Delete Usertype</h2>
+            <p className="text-xs text-gray-600 mt-2">
               Apakah Anda yakin ingin menghapus usertype ini?
             </p>
-            <div className="flex justify-end mt-4">
+            <div className="flex justify-end mt-3 gap-2">
+              <Button
+                variant="gray"
+                size="small"
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="text-xs px-2 py-1"
+              >
+                Cancel
+              </Button>
               <Button
                 variant="red"
-                size="medium"
+                size="small"
                 onClick={() => setIsDeleteModalOpen(false)}
+                className="text-xs px-2 py-1"
               >
                 Hapus
               </Button>

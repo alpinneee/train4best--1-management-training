@@ -77,42 +77,38 @@ const CourseScheduleDetail = () => {
 
   return (
     <Layout>
-      <div className="p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl text-gray-700">Course Schedule Detail</h1>
+      <div className="p-2">
+        <div className="flex justify-between items-center mb-2">
+          <h1 className="text-lg md:text-xl text-gray-700">Course Schedule Detail</h1>
         </div>
 
         {/* Course Details Card */}
-        <div className="bg-gray-50 p-6 rounded-lg mb-6">
-          <h2 className="text-xl text-gray-700 mb-4">
+        <div className="bg-gray-50 p-3 rounded-lg mb-3">
+          <h2 className="text-base md:text-lg text-gray-700 mb-2">
             {courseDetails.className}
           </h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-gray-600 mb-2">Date :</p>
-              <p className="text-gray-600 mb-2">Registration Date :</p>
-              <p className="text-gray-600 mb-2">Location :</p>
-              <p className="text-gray-600 mb-2">Room :</p>
-              <p className="text-gray-600 mb-2">Price :</p>
-              <p className="text-gray-600 mb-2">Total Participant :</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="text-xs sm:text-sm">
+              <p className="text-gray-600 mb-1">Date :</p>
+              <p className="text-gray-600 mb-1">Registration Date :</p>
+              <p className="text-gray-600 mb-1">Location :</p>
+              <p className="text-gray-600 mb-1">Room :</p>
+              <p className="text-gray-600 mb-1">Price :</p>
+              <p className="text-gray-600 mb-1">Total Participant :</p>
               <p className="text-gray-600">Total Payment :</p>
             </div>
-            <div>
-              <p className="text-gray-800 mb-2">{courseDetails.date}</p>
-              <p className="text-gray-800 mb-2">
-                {courseDetails.registrationDate}
-              </p>
-              <p className="text-gray-800 mb-2">{courseDetails.location}</p>
-              <p className="text-gray-800 mb-2">{courseDetails.room}</p>
-              <p className="text-gray-800 mb-2">{courseDetails.price}</p>
-              <p className="text-gray-800 mb-2">
-                {courseDetails.totalParticipant}
-              </p>
-              <p className="text-gray-800">{courseDetails.totalPayment}</p>
+            <div className="text-xs sm:text-sm">
+              <p className="text-gray-800 mb-1">{courseDetails.date}</p>
+              <p className="text-gray-800 mb-1">{courseDetails.registrationDate}</p>
+              <p className="text-gray-800 mb-1">{courseDetails.location}</p>
+              <p className="text-gray-800 mb-1">{courseDetails.room}</p>
+              <p className="text-gray-800 mb-1">{courseDetails.price}</p>
+              <p className="text-gray-800 mb-1">{courseDetails.totalParticipant}</p>
+              <p className="text-gray-800 mb-2">{courseDetails.totalPayment}</p>
               <Button
-                className="float-right"
+                className="w-full sm:w-auto text-xs float-right"
                 variant="green"
-                size="medium"
+                size="small"
                 onClick={() => setIsEditModalOpen(true)}
               >
                 Edit Schedule
@@ -122,9 +118,9 @@ const CourseScheduleDetail = () => {
         </div>
 
         {/* Tabs */}
-        <div className="flex mb-6">
+        <div className="flex mb-3">
           <button
-            className={`px-6 py-3 text-center flex-1 ${
+            className={`px-3 py-2 text-center flex-1 text-xs ${
               activeTab === "participant"
                 ? "bg-blue-700 text-white"
                 : "bg-gray-100 text-gray-600"
@@ -134,7 +130,7 @@ const CourseScheduleDetail = () => {
             Participant
           </button>
           <button
-            className={`px-6 py-3 flex-1 ${
+            className={`px-3 py-2 flex-1 text-xs ${
               activeTab === "instructure"
                 ? "bg-blue-700 text-white"
                 : "bg-gray-100 text-gray-600"
@@ -148,399 +144,362 @@ const CourseScheduleDetail = () => {
         {/* Participant List */}
         {activeTab === "participant" && (
           <div>
-            <div className="flex justify-between mb-4">
-              <div className="flex gap-2">
-                <Button
-                  variant="primary"
-                  size="medium"
-                  onClick={() => setIsModalOpen(true)}
-                >
-                  Add Participant
-                </Button>
-              </div>
+            <div className="flex flex-col sm:flex-row sm:justify-between gap-2 mb-2">
+              <Button
+                variant="primary"
+                size="small"
+                onClick={() => setIsModalOpen(true)}
+                className="w-full sm:w-auto text-xs"
+              >
+                Add Participant
+              </Button>
               <input
                 type="text"
                 placeholder="Search..."
-                className="px-4 py-2 border rounded-lg"
+                className="w-full sm:w-auto px-2 py-1 text-xs border rounded-lg"
               />
             </div>
 
-            <table className="w-full bg-white rounded-lg shadow-md">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left p-3 text-gray-700">No</th>
-                  <th className="text-left p-3 text-gray-700">Participant</th>
-                  <th className="text-left p-3 text-gray-700">Present Day</th>
-                  <th className="text-left p-3 text-gray-700">
-                    Payment Status
-                  </th>
-                  <th className="text-left p-3 text-gray-700">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {participants.map((participant) => (
-                  <tr
-                    key={participant.no}
-                    className="border-b hover:bg-gray-50"
-                  >
-                    <td className="p-3 text-gray-700">{participant.no}</td>
-                    <td className="p-3 text-gray-700">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
-                        {participant.name}
-                      </div>
-                    </td>
-                    <td className="p-3 text-gray-700">
-                      {participant.presentDay}
-                    </td>
-                    <td className="p-3 text-gray-700">
-                      {participant.paymentStatus}
-                    </td>
-                    <td className="p-3">
-                      <div className="flex gap-2">
-                        <button
-                          className="p-2 border rounded hover:bg-gray-100"
-                          title="History"
-                        >
-                          <History size={16} className="text-gray-600" />
-                        </button>
-                        <button
-                          className="p-2 border rounded hover:bg-gray-100"
-                          title="Attendance"
-                        >
-                          <UserCheck size={16} className="text-gray-600" />
-                        </button>
-                        <button
-                          className="p-2 border rounded hover:bg-gray-100"
-                          title="Certificate"
-                        >
-                          <FileText size={16} className="text-gray-600" />
-                        </button>
-                        <button
-                          className="p-2 border rounded hover:bg-gray-100"
-                          title="Edit"
-                        >
-                          <Edit size={16} className="text-gray-600" />
-                        </button>
-                        <button
-                          className="p-2 border rounded hover:bg-gray-100"
-                          title="Delete"
-                        >
-                          <Trash2 size={16} className="text-red-500" />
-                        </button>
-                      </div>
-                    </td>
+            <div className="overflow-x-auto -mx-2 px-2">
+              <table className="w-full bg-white rounded-lg shadow-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left p-2 text-xs text-gray-700">No</th>
+                    <th className="text-left p-2 text-xs text-gray-700">Participant</th>
+                    <th className="text-left p-2 text-xs text-gray-700">Present Day</th>
+                    <th className="text-left p-2 text-xs text-gray-700">Payment Status</th>
+                    <th className="text-left p-2 text-xs text-gray-700">Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {participants.map((participant) => (
+                    <tr
+                      key={participant.no}
+                      className="border-b hover:bg-gray-50"
+                    >
+                      <td className="p-2 text-xs text-gray-700">{participant.no}</td>
+                      <td className="p-2 text-xs text-gray-700">
+                        <div className="flex items-center gap-1">
+                          <div className="w-6 h-6 bg-gray-300 rounded-full"></div>
+                          {participant.name}
+                        </div>
+                      </td>
+                      <td className="p-2 text-xs text-gray-700">{participant.presentDay}</td>
+                      <td className="p-2 text-xs text-gray-700">{participant.paymentStatus}</td>
+                      <td className="p-2">
+                        <div className="flex gap-1">
+                          <button
+                            className="p-1 border rounded hover:bg-gray-100"
+                            title="History"
+                          >
+                            <History size={14} className="text-gray-600" />
+                          </button>
+                          <button
+                            className="p-1 border rounded hover:bg-gray-100"
+                            title="Attendance"
+                          >
+                            <UserCheck size={14} className="text-gray-600" />
+                          </button>
+                          <button
+                            className="p-1 border rounded hover:bg-gray-100"
+                            title="Certificate"
+                          >
+                            <FileText size={14} className="text-gray-600" />
+                          </button>
+                          <button
+                            className="p-1 border rounded hover:bg-gray-100"
+                            title="Edit"
+                          >
+                            <Edit size={14} className="text-gray-600" />
+                          </button>
+                          <button
+                            className="p-1 border rounded hover:bg-gray-100"
+                            title="Delete"
+                          >
+                            <Trash2 size={14} className="text-red-500" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
         {/* Instructure Tab Content */}
         {activeTab === "instructure" && (
           <div>
-            <div className="flex justify-between mb-4">
-              <div className="flex gap-2">
-                <Button
-                  variant="primary"
-                  size="medium"
-                  onClick={() => setIsInstructureModalOpen(true)}
-                >
-                  Add Instructure
-                </Button>
-              </div>
+            <div className="flex flex-col sm:flex-row sm:justify-between gap-2 mb-2">
+              <Button
+                variant="primary"
+                size="small"
+                onClick={() => setIsInstructureModalOpen(true)}
+                className="w-full sm:w-auto text-xs"
+              >
+                Add Instructure
+              </Button>
             </div>
 
-            <table className="w-full bg-white rounded-lg shadow-md">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left p-3 text-gray-700">NO</th>
-                  <th className="text-left p-3 text-gray-700">Full Name</th>
-                  <th className="text-left p-3 text-gray-700">Phone Number</th>
-                  <th className="text-left p-3 text-gray-700">Profiency</th>
-                  <th className="text-left p-3 text-gray-700">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b hover:bg-gray-50">
-                  <td className="p-3 text-gray-700">1</td>
-                  <td className="p-3 text-gray-700">Sandero Taeil Ishara</td>
-                  <td className="p-3 text-gray-700">0895-1525-4981</td>
-                  <td className="p-3 text-gray-700">Programming</td>
-                  <td className="p-3">
-                    <div className="flex gap-2">
-                      <button className="flex items-center gap-1 text-gray-600">
-                        <FileText size={16} /> Detail
-                      </button>
-                      <button className="flex items-center gap-1 text-red-500">
-                        <Trash2 size={16} /> Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-                <tr className="border-b hover:bg-gray-50">
-                  <td className="p-3 text-gray-700">2</td>
-                  <td className="p-3 text-gray-700">Silvana Introvert</td>
-                  <td className="p-3 text-gray-700">0823-1765-3904</td>
-                  <td className="p-3 text-gray-700">Programming</td>
-                  <td className="p-3">
-                    <div className="flex gap-2">
-                      <button className="flex items-center gap-1 text-gray-600">
-                        <FileText size={16} /> Detail
-                      </button>
-                      <button className="flex items-center gap-1 text-red-500">
-                        <Trash2 size={16} /> Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <div className="overflow-x-auto -mx-2 px-2">
+              <table className="w-full bg-white rounded-lg shadow-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left p-2 text-xs text-gray-700">NO</th>
+                    <th className="text-left p-2 text-xs text-gray-700">Full Name</th>
+                    <th className="text-left p-2 text-xs text-gray-700">Phone Number</th>
+                    <th className="text-left p-2 text-xs text-gray-700">Profiency</th>
+                    <th className="text-left p-2 text-xs text-gray-700">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b hover:bg-gray-50">
+                    <td className="p-2 text-xs text-gray-700">1</td>
+                    <td className="p-2 text-xs text-gray-700">Sandero Taeil Ishara</td>
+                    <td className="p-2 text-xs text-gray-700">0895-1525-4981</td>
+                    <td className="p-2 text-xs text-gray-700">Programming</td>
+                    <td className="p-2">
+                      <div className="flex gap-1">
+                        <button className="flex items-center gap-1 text-xs text-gray-600">
+                          <FileText size={14} /> Detail
+                        </button>
+                        <button className="flex items-center gap-1 text-xs text-red-500">
+                          <Trash2 size={14} /> Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr className="border-b hover:bg-gray-50">
+                    <td className="p-2 text-xs text-gray-700">2</td>
+                    <td className="p-2 text-xs text-gray-700">Silvana Introvert</td>
+                    <td className="p-2 text-xs text-gray-700">0823-1765-3904</td>
+                    <td className="p-2 text-xs text-gray-700">Programming</td>
+                    <td className="p-2">
+                      <div className="flex gap-1">
+                        <button className="flex items-center gap-1 text-xs text-gray-600">
+                          <FileText size={14} /> Detail
+                        </button>
+                        <button className="flex items-center gap-1 text-xs text-red-500">
+                          <Trash2 size={14} /> Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
         {/* Edit Schedule Modal */}
         {isEditModalOpen && (
           <Modal onClose={() => setIsEditModalOpen(false)}>
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg w-[600px]">
-              <h2 className="text-xl font-semibold mb-4 text-gray-700">
-                Edit Course Schedule
-              </h2>
-              <form onSubmit={handleEditSubmit}>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="mb-4">
-                    <label className="block text-gray-700 mb-2">
-                      Class Name
-                    </label>
-                    <input
-                      type="text"
-                      name="className"
-                      value={editedCourse.className}
-                      onChange={handleEditInputChange}
-                      className="w-full px-3 py-2 border rounded text-gray-700"
-                      required
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-gray-700 mb-2">Date</label>
-                    <input
-                      type="text"
-                      name="date"
-                      value={editedCourse.date}
-                      onChange={handleEditInputChange}
-                      className="w-full px-3 py-2 border rounded text-gray-700"
-                      placeholder="DD MMM YYYY - DD MMM YYYY"
-                      required
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-gray-700 mb-2">
-                      Registration Date
-                    </label>
-                    <input
-                      type="text"
-                      name="registrationDate"
-                      value={editedCourse.registrationDate}
-                      onChange={handleEditInputChange}
-                      className="w-full px-3 py-2 border rounded text-gray-700"
-                      placeholder="DD MMM YYYY"
-                      required
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-gray-700 mb-2">Location</label>
-                    <input
-                      type="text"
-                      name="location"
-                      value={editedCourse.location}
-                      onChange={handleEditInputChange}
-                      className="w-full px-3 py-2 border rounded text-gray-700"
-                      required
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-gray-700 mb-2">Room</label>
-                    <input
-                      type="text"
-                      name="room"
-                      value={editedCourse.room}
-                      onChange={handleEditInputChange}
-                      className="w-full px-3 py-2 border rounded text-gray-700"
-                      required
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-gray-700 mb-2">Price</label>
-                    <input
-                      type="text"
-                      name="price"
-                      value={editedCourse.price}
-                      onChange={handleEditInputChange}
-                      className="w-full px-3 py-2 border rounded text-gray-700"
-                      required
-                    />
-                  </div>
+            <h2 className="text-base font-semibold mb-2 text-gray-700">Edit Course Schedule</h2>
+            <form onSubmit={handleEditSubmit}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="mb-2">
+                  <label className="block text-xs text-gray-700 mb-1">Class Name</label>
+                  <input
+                    type="text"
+                    name="className"
+                    value={editedCourse.className}
+                    onChange={handleEditInputChange}
+                    className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    required
+                  />
                 </div>
-                <div className="flex justify-end gap-2 mt-4">
-                  <button
-                    type="button"
-                    onClick={() => setIsEditModalOpen(false)}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-800 rounded"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-emerald-500 text-white rounded hover:bg-emerald-600"
-                  >
-                    Save Changes
-                  </button>
+                <div className="mb-2">
+                  <label className="block text-xs text-gray-700 mb-1">Date</label>
+                  <input
+                    type="text"
+                    name="date"
+                    value={editedCourse.date}
+                    onChange={handleEditInputChange}
+                    className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder="DD MMM YYYY - DD MMM YYYY"
+                    required
+                  />
                 </div>
-              </form>
-            </div>
-          </div>
+                <div className="mb-2">
+                  <label className="block text-xs text-gray-700 mb-1">Registration Date</label>
+                  <input
+                    type="text"
+                    name="registrationDate"
+                    value={editedCourse.registrationDate}
+                    onChange={handleEditInputChange}
+                    className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder="DD MMM YYYY"
+                    required
+                  />
+                </div>
+                <div className="mb-2">
+                  <label className="block text-xs text-gray-700 mb-1">Location</label>
+                  <input
+                    type="text"
+                    name="location"
+                    value={editedCourse.location}
+                    onChange={handleEditInputChange}
+                    className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                <div className="mb-2">
+                  <label className="block text-xs text-gray-700 mb-1">Room</label>
+                  <input
+                    type="text"
+                    name="room"
+                    value={editedCourse.room}
+                    onChange={handleEditInputChange}
+                    className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                <div className="mb-2">
+                  <label className="block text-xs text-gray-700 mb-1">Price</label>
+                  <input
+                    type="text"
+                    name="price"
+                    value={editedCourse.price}
+                    onChange={handleEditInputChange}
+                    className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-2">
+                <Button
+                  variant="gray"
+                  size="small"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="text-xs px-2 py-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="green"
+                  size="small"
+                  type="submit"
+                  className="text-xs px-2 py-1"
+                >
+                  Save Changes
+                </Button>
+              </div>
+            </form>
           </Modal>
         )}
 
+        {/* Add Participant Modal */}
         {isModalOpen && (
           <Modal onClose={() => setIsModalOpen(false)}>
-            <div className="w-[450px]">
-              <h2 className="text-xl font-semibold mb-6 text-gray-700">Add Participant</h2>
-              <form onSubmit={handleAddParticipant}>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-gray-700 mb-2">
-                      Participant Name
-                    </label>
-                    <input
-                      type="text"
-                      value={newParticipant.name}
-                      onChange={(e) =>
-                        setNewParticipant({
-                          ...newParticipant,
-                          name: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 border rounded-lg text-gray-700"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-700 mb-2">
-                      Present Day
-                    </label>
-                    <input
-                      type="text"
-                      value={newParticipant.presentDay}
-                      onChange={(e) =>
-                        setNewParticipant({
-                          ...newParticipant,
-                          presentDay: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 border rounded-lg text-gray-700"
-                      disabled
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-700 mb-2">
-                      Payment Status
-                    </label>
-                    <input
-                      type="text"
-                      value={newParticipant.paymentStatus}
-                      onChange={(e) =>
-                        setNewParticipant({
-                          ...newParticipant,
-                          paymentStatus: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 border rounded-lg text-gray-700"
-                      disabled
-                    />
-                  </div>
+            <h2 className="text-base font-semibold mb-2 text-gray-700">Add Participant</h2>
+            <form onSubmit={handleAddParticipant}>
+              <div className="space-y-2">
+                <div>
+                  <label className="block text-xs text-gray-700 mb-1">Participant Name</label>
+                  <input
+                    type="text"
+                    value={newParticipant.name}
+                    onChange={(e) => setNewParticipant({ ...newParticipant, name: e.target.value })}
+                    className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    required
+                  />
                 </div>
-                <div className="flex justify-end gap-3 mt-6">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-800 rounded-lg"
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    Save
-                  </button>
+                <div>
+                  <label className="block text-xs text-gray-700 mb-1">Present Day</label>
+                  <input
+                    type="text"
+                    value={newParticipant.presentDay}
+                    className="w-full px-2 py-1 text-xs border rounded bg-gray-50"
+                    disabled
+                  />
                 </div>
-              </form>
-            </div>
+                <div>
+                  <label className="block text-xs text-gray-700 mb-1">Payment Status</label>
+                  <input
+                    type="text"
+                    value={newParticipant.paymentStatus}
+                    className="w-full px-2 py-1 text-xs border rounded bg-gray-50"
+                    disabled
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-2">
+                <Button
+                  variant="gray"
+                  size="small"
+                  onClick={() => setIsModalOpen(false)}
+                  className="text-xs px-2 py-1"
+                >
+                  Back
+                </Button>
+                <Button
+                  variant="primary"
+                  size="small"
+                  type="submit"
+                  className="text-xs px-2 py-1"
+                >
+                  Save
+                </Button>
+              </div>
+            </form>
           </Modal>
         )}
 
+        {/* Add Instructure Modal */}
         {isInstructureModalOpen && (
           <Modal onClose={() => setIsInstructureModalOpen(false)}>
-            <div className="w-[450px]">
-              <h2 className="text-xl font-semibold mb-6 text-gray-700">Add Instructure</h2>
-              <form onSubmit={handleAddInstructure}>
-                <div className="space-y-4">
-                  <div> 
-                    <label className="block text-gray-700 mb-2">
-                      Instructure Name
-                    </label>
-                    <input
-                      type="text"
-                      value={newInstructure.name}
-                      onChange={(e) =>
-                        setNewInstructure({
-                          ...newInstructure,
-                          name: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 border rounded-lg text-gray-700"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-700 mb-2">Role</label>
-                    <input
-                      type="text"
-                      value={newInstructure.role}
-                      className="w-full px-3 py-2 border rounded-lg text-gray-700"
-                      disabled
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-700 mb-2">Status</label>
-                    <input
-                      type="text"
-                      value={newInstructure.status}
-                      className="w-full px-3 py-2 border rounded-lg text-gray-700"
-                      disabled
-                    />
-                  </div>
+            <h2 className="text-base font-semibold mb-2 text-gray-700">Add Instructure</h2>
+            <form onSubmit={handleAddInstructure}>
+              <div className="space-y-2">
+                <div>
+                  <label className="block text-xs text-gray-700 mb-1">Instructure Name</label>
+                  <input
+                    type="text"
+                    value={newInstructure.name}
+                    onChange={(e) => setNewInstructure({ ...newInstructure, name: e.target.value })}
+                    className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    required
+                  />
                 </div>
-                <div className="flex justify-end gap-3 mt-6">
-                  <button
-                    type="button"
-                    onClick={() => setIsInstructureModalOpen(false)}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-800 rounded-lg"
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    Save
-                  </button>
+                <div>
+                  <label className="block text-xs text-gray-700 mb-1">Role</label>
+                  <input
+                    type="text"
+                    value={newInstructure.role}
+                    className="w-full px-2 py-1 text-xs border rounded bg-gray-50"
+                    disabled
+                  />
                 </div>
-              </form>
-            </div>
+                <div>
+                  <label className="block text-xs text-gray-700 mb-1">Status</label>
+                  <input
+                    type="text"
+                    value={newInstructure.status}
+                    className="w-full px-2 py-1 text-xs border rounded bg-gray-50"
+                    disabled
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-2">
+                <Button
+                  variant="gray"
+                  size="small"
+                  onClick={() => setIsInstructureModalOpen(false)}
+                  className="text-xs px-2 py-1"
+                >
+                  Back
+                </Button>
+                <Button
+                  variant="primary"
+                  size="small"
+                  type="submit"
+                  className="text-xs px-2 py-1"
+                >
+                  Save
+                </Button>
+              </div>
+            </form>
           </Modal>
         )}
       </div>

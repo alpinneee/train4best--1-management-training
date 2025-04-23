@@ -15,6 +15,7 @@ interface Certificate {
 interface Column<T> {
   header: string;
   accessor: keyof T | ((data: T) => React.ReactNode);
+  className?: string;
 }
 
 const CertificatePage = () => {
@@ -53,22 +54,39 @@ const CertificatePage = () => {
   ];
 
   const columns: Column<Certificate>[] = [
-    { header: "No", accessor: "no" },
-    { header: "Name", accessor: "name" },
-    { header: "Certificate Number", accessor: "certificateNumber" },
-    { header: "Issue Date", accessor: "issueDate" },
+    { 
+      header: "No", 
+      accessor: "no",
+      className: "w-12 text-center"
+    },
+    { 
+      header: "Name", 
+      accessor: "name",
+      className: "min-w-[120px]"
+    },
+    { 
+      header: "Certificate Number", 
+      accessor: "certificateNumber",
+      className: "min-w-[140px]"
+    },
+    { 
+      header: "Issue Date", 
+      accessor: "issueDate",
+      className: "min-w-[100px]"
+    },
     {
       header: "Action",
       accessor: () => (
-        <div className="flex gap-2">
-          <button className="flex items-center gap-1 text-gray-600 hover:text-gray-800">
-            <Printer size={20} /> Print
+        <div className="flex gap-1">
+          <button className="flex items-center gap-1 text-gray-600 hover:text-gray-800 text-xs p-1">
+            <Printer size={14} /> Print
           </button>
-          <button className="flex items-center gap-1 text-gray-600 hover:text-gray-800">
-            <FileText size={20} /> Detail
+          <button className="flex items-center gap-1 text-gray-600 hover:text-gray-800 text-xs p-1">
+            <FileText size={14} /> Detail
           </button>
         </div>
       ),
+      className: "min-w-[120px]"
     },
   ];
 
@@ -83,45 +101,58 @@ const CertificatePage = () => {
 
   return (
     <Layout>
-      <div className="p-6">
-        <h1 className="text-2xl text-gray-700 mb-6">Certificate Expired</h1>
+      <div className="p-2">
+        <h1 className="text-lg md:text-xl text-gray-700 mb-2">Certificate Expired</h1>
 
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2">
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <input
               type="date"
-              className="px-4 py-2 border rounded-lg text-gray-700"
+              className="w-full sm:w-auto px-2 py-1 text-xs border rounded"
               placeholder="Start Date"
             />
             <input
               type="date"
-              className="px-4 py-2 border rounded-lg text-gray-700"
+              className="w-full sm:w-auto px-2 py-1 text-xs border rounded"
               placeholder="End Date"
             />
           </div>
 
-          <div className="flex gap-4">
-            <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
-              <Printer size={20} />
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <button className="w-full sm:w-auto flex items-center justify-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs hover:bg-gray-200">
+              <Printer size={14} />
               Print File
             </button>
-            <input
-              type="text"
-              placeholder="Search..."
-              className="px-4 py-2 border rounded-lg"
-            />
+            <div className="relative w-full sm:w-auto">
+              <input
+                type="text"
+                placeholder="Search..."
+                className="w-full px-2 py-1 pl-7 text-xs border rounded"
+              />
+              <svg 
+                className="absolute left-2 top-1/2 -translate-y-1/2" 
+                xmlns="http://www.w3.org/2000/svg" 
+                width="14" 
+                height="14" 
+                viewBox="0 0 24 24"
+              >
+                <path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5A6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5S14 7.01 14 9.5S11.99 14 9.5 14z"/>
+              </svg>
+            </div>
           </div>
         </div>
 
-        <Table
-          columns={columns}
-          data={getCurrentPageItems()}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          itemsPerPage={ITEMS_PER_PAGE}
-          totalItems={certificates.length}
-          onPageChange={setCurrentPage}
-        />
+        <div className="overflow-x-auto -mx-2 px-2">
+          <Table
+            columns={columns}
+            data={getCurrentPageItems()}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            itemsPerPage={ITEMS_PER_PAGE}
+            totalItems={certificates.length}
+            onPageChange={setCurrentPage}
+          />
+        </div>
       </div>
     </Layout>
   );
