@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Eye, PenSquare, Plus, Trash2 } from "lucide-react";
+import { Eye, PenSquare, Trash2 } from "lucide-react";
 import { useState } from "react";
 import Pagination from "@/components/common/Pagination";
 import Button from "@/components/common/button";
