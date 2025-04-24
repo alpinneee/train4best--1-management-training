@@ -31,13 +31,13 @@ const Modal: React.FC<ModalProps> = ({ onClose, children }) => {
     >
       <div className="flex items-center justify-center min-h-screen">
         <div 
-          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" 
+          className="fixed inset-0 bg-gray-300 bg-opacity-75 transition-opacity" 
           onClick={onClose}
         ></div>
         
         <div 
           ref={modalRef}
-          className="relative bg-gray-700 rounded-2xl w-full sm:w-[500px] mx-auto z-[10000] p-3 sm:p-4 max-h-[90vh] overflow-y-auto shadow-lg"
+          className="relative rounded-2xl w-full sm:w-[500px] mx-auto z-[10000] p-3 sm:p-4 max-h-[90vh] overflow-y-auto "
         >
           <button 
             onClick={onClose} 
