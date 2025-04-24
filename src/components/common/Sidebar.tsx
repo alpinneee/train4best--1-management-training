@@ -165,7 +165,7 @@ const Sidebar: FC<SidebarProps> = ({ isMobileOpen, onMobileClose }) => {
                     <div className="space-y-2">
                       <button
                         onClick={() => toggleMenu(item.title)}
-                        className="flex items-center justify-between w-full p-2 text-gray-700 hover:bg-gray-200 rounded-lg"
+                        className="flex items-center justify-between w-full p-2 text-gray-700 hover:bg-gray-100 rounded-lg"
                       >
                         <div className="flex items-center gap-2">
                           {React.cloneElement(item.icon, { size: 10 })}
@@ -175,28 +175,32 @@ const Sidebar: FC<SidebarProps> = ({ isMobileOpen, onMobileClose }) => {
                         </div>
                         <ChevronDown
                           size={10}
-                          className={`transform transition-transform ${
+                          className={`transform transition-transform duration-300 ${
                             openMenus.includes(item.title) ? "rotate-180" : ""
                           }`}
                         />
                       </button>
                       <div
-                        className={`ml-7 space-y-2 ${
-                          openMenus.includes(item.title) ? "block" : "hidden"
+                        className={`ml-7 mb-4 transform transition-all duration-300 ease-in-out ${
+                          openMenus.includes(item.title) 
+                          ? "opacity-100 max-h-96 translate-y-0" 
+                          : "opacity-0 max-h-0 -translate-y-2 overflow-hidden"
                         }`}
                       >
-                        {item.submenu.map((subItem) => (
-                          <Link
-                            key={subItem.path}
-                            href={subItem.path}
-                            className={`flex items-center gap-2 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 py-1.5 px-2 rounded transition-colors ${
-                              subItem.className || ""
-                            }`}
-                          >
-                            {React.cloneElement(subItem.icon, { size: 10 })}
-                            <span>{subItem.title}</span>
-                          </Link>
-                        ))}
+                        <div className="bg-white rounded-lg p-1">
+                          {item.submenu.map((subItem) => (
+                            <Link
+                              key={subItem.path}
+                              href={subItem.path}
+                              className={`flex items-center gap-2 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 py-1.5 px-2 rounded transition-colors ${
+                                subItem.className || ""
+                              }`}
+                            >
+                              {React.cloneElement(subItem.icon, { size: 10 })}
+                              <span>{subItem.title}</span>
+                            </Link>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   ) : (
