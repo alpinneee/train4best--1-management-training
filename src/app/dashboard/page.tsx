@@ -48,6 +48,24 @@ const certificationTypeData = [
 
 const COLORS = ["#4338ca", "#fb923c", "#fbbf24"];
 
+// Tambahkan konfigurasi locale untuk kalender
+const locale = {
+  locale: "id-ID",
+  formatDay: (locale: string | undefined, date: Date) => date.getDate().toString(),
+  formatMonthYear: (locale: string | undefined, date: Date) => {
+    return new Intl.DateTimeFormat('id-ID', { month: 'long', year: 'numeric' }).format(date);
+  },
+  formatMonth: (locale: string | undefined, date: Date) => {
+    return new Intl.DateTimeFormat('id-ID', { month: 'long' }).format(date);
+  },
+  formatWeekday: (locale: string | undefined, date: Date) => {
+    return new Intl.DateTimeFormat('id-ID', { weekday: 'long' }).format(date);
+  },
+  formatShortWeekday: (locale: string | undefined, date: Date) => {
+    return new Intl.DateTimeFormat('id-ID', { weekday: 'short' }).format(date);
+  }
+};
+
 export default function Dashboard() {
   const upcomingTrainings = [
     {
@@ -195,7 +213,15 @@ export default function Dashboard() {
                 Training Calendar
               </h2>
               <div className="calendar-container text-xs"> {/* Added text-xs for smaller calendar text */}
-                <Calendar className="w-full border-none shadow-none text-black" />
+                <Calendar 
+                  className="w-full border-none shadow-none text-black"
+                  locale={locale.locale}
+                  formatDay={locale.formatDay}
+                  formatMonth={locale.formatMonth}
+                  formatMonthYear={locale.formatMonthYear}
+                  formatWeekday={locale.formatWeekday}
+                  formatShortWeekday={locale.formatShortWeekday}
+                />
               </div>
               <div className="mt-2"> {/* Reduced margin */}
                 <h3 className="font-semibold text-gray-700 mb-1 text-xs"> {/* Reduced text and margin */}
