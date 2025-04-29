@@ -1,126 +1,13 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-
-// Definisi tipe untuk Google User
-interface GoogleUser {
-  getBasicProfile(): {
-    getId(): string;
-    getName(): string;
-    getImageUrl(): string;
-    getEmail(): string;
-  };
-  getAuthResponse(): {
-    id_token: string;
-  };
-}
-
-// Definisi tipe untuk Window
-declare global {
-  interface Window {
-    gapi: {
-      auth2: {
-        getAuthInstance(): {
-          signOut(): Promise<void>;
-        };
-      };
-    };
-    google: unknown;
-    onSignIn(googleUser: GoogleUser): void;
-  }
-}
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userProfile, setUserProfile] = useState<{
-    name: string;
-    email: string;
-    imageUrl: string;
-  } | null>(null);
-
-  useEffect(() => {
-    window.onSignIn = async (googleUser: GoogleUser) => {
-      const profile = googleUser.getBasicProfile();
-      const userData = {
-        id: profile.getId(),
-        name: profile.getName(),
-        imageUrl: profile.getImageUrl(),
-        email: profile.getEmail(),
-      };
-      
-      // Kirim token ke backend
-      const id_token = googleUser.getAuthResponse().id_token;
-      try {
-        const response = await fetch('/api/auth/google', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ token: id_token, userData }),
-        });
-        
-        if (response.ok) {
-          setIsLoggedIn(true);
-          setUserProfile({
-            name: userData.name,
-            email: userData.email,
-            imageUrl: userData.imageUrl
-          });
-          console.log('Login berhasil:', userData);
-        } else {
-          console.error('Login gagal');
-        }
-      } catch (error) {
-        console.error('Error saat login:', error);
-      }
-    };
-  }, []);
-
-  const handleSignOut = async () => {
-    try {
-      const auth2 = window.gapi.auth2.getAuthInstance();
-      await auth2.signOut();
-      setIsLoggedIn(false);
-      setUserProfile(null);
-      console.log('User signed out.');
-    } catch (error) {
-      console.error('Error saat logout:', error);
-    }
-  };
-
-  if (isLoggedIn && userProfile) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="p-5 rounded-lg bg-white shadow-md"
-      >
-        <div className="flex flex-col items-center space-y-4">
-          <Image
-            src={userProfile.imageUrl}
-            alt="Profile"
-            width={80}
-            height={80}
-            className="rounded-full"
-          />
-          <h2 className="text-xl font-semibold">{userProfile.name}</h2>
-          <p className="text-gray-600">{userProfile.email}</p>
-          <button
-            onClick={handleSignOut}
-            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-          >
-            Sign Out
-          </button>
-        </div>
-      </motion.div>
-    );
-  }
 
   return (
     <motion.div
@@ -265,9 +152,6 @@ const LoginPage = () => {
                 transition={{ duration: 0.6, delay: 0.8 }}
                 className="intro-x mt-6"
               >
-                <div className="text-center mb-4 text-gray-500">
-                  - OR -
-                </div>
                 <div className="g-signin2 min-w-full xl:min-w-[350px] rounded-md overflow-hidden" data-width="350" data-height="40" data-longtitle="true" data-onsuccess="onSignIn" data-theme="dark"></div>
               </motion.div>
             </div>

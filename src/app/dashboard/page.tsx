@@ -24,7 +24,7 @@ import {
   BookOpenIcon,
 } from "@heroicons/react/24/outline";
 import { motion } from "framer-motion";
-
+import Link from "next/link";
 const trainingData = [
   { name: "Jan", value: 15 },
   { name: "Feb", value: 20 },
@@ -116,18 +116,90 @@ export default function Dashboard() {
       >
         <motion.div
           variants={itemVariants}
-          className="flex justify-between items-center mb-2" // Reduced margin from mb-4 to mb-2
+          className="flex justify-between items-center mb-2"
         >
-          <h1 className="text-lg font-bold text-gray-700"> {/* Reduced from text-xl to text-lg */}
+          <h1 className="text-lg font-bold text-gray-700">
             Training Dashboard
           </h1>
-          <button className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-0.5"> {/* Reduced text and gap */}
+          <button className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-0.5">
             Refresh Data
           </button>
         </motion.div>
 
+        {/* Menu Cepat */}
+        <motion.div 
+          className="mb-4"
+          variants={containerVariants}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+            <Link href="/dashboard/training">
+              <motion.div variants={itemVariants}>
+                <Card className="p-3 hover:bg-gray-50 cursor-pointer transition-all group">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
+                      <UserGroupIcon className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-700">Kelola Pelatihan</h3>
+                      <p className="text-xs text-gray-500">Atur jadwal dan materi</p>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+            </Link>
+
+            <Link href="/dashboard/participants">
+              <motion.div variants={itemVariants}>
+                <Card className="p-3 hover:bg-gray-50 cursor-pointer transition-all group">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors">
+                      <UsersIcon className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-700">Peserta</h3>
+                      <p className="text-xs text-gray-500">Kelola data peserta</p>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+            </Link>
+
+            <Link href="/dashboard/certification">
+              <motion.div variants={itemVariants}>
+                <Card className="p-3 hover:bg-gray-50 cursor-pointer transition-all group">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-purple-100 rounded-lg group-hover:bg-purple-200 transition-colors">
+                      <DocumentCheckIcon className="w-5 h-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-700">Sertifikasi</h3>
+                      <p className="text-xs text-gray-500">Kelola sertifikat</p>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+            </Link>
+
+            <Link href="/dashboard/course-type">
+              <motion.div variants={itemVariants}>
+                <Card className="p-3 hover:bg-gray-50 cursor-pointer transition-all group">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-orange-100 rounded-lg group-hover:bg-orange-200 transition-colors">
+                      <BookOpenIcon className="w-5 h-5 text-orange-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-700">Materi</h3>
+                      <p className="text-xs text-gray-500">Kelola konten</p>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+            </Link>
+          </div>
+        </motion.div>
+
         <motion.div
-          className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-2 mb-4" // Reduced gap from 4 to 2 and margin from 6 to 4
+          className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-2 mb-4"
           variants={containerVariants}
         >
           <motion.div variants={itemVariants}>
