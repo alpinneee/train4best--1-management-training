@@ -9,23 +9,43 @@ import Modal from "@/components/common/Modal";
 import Card from "@/components/common/card";
 import Layout from "@/components/common/Layout";
 
+interface CourseType {
+  id: number;
+  name: string;
+  image: string;
+  createdAt: string;
+  status: 'active' | 'inactive';
+}
+
 export default function CourseType() {
   const courseTypes = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
   const [currentPage, setCurrentPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit' | 'preview'>('add');
-  const [selectedCourseType, setSelectedCourseType] = useState<any>(null);
+  const [selectedCourseType, setSelectedCourseType] = useState<CourseType | null>(null);
   const itemsPerPage = 8;
   const totalPages = Math.ceil(courseTypes.length / itemsPerPage);
 
-  const handleEdit = (courseType: any) => {
-    setSelectedCourseType(courseType);
+  const handleEdit = (courseType: number) => {
+    setSelectedCourseType({
+      id: courseType,
+      name: 'Online',
+      image: courseType % 2 === 0 ? "/code.jpg" : "/aiot.jpg",
+      createdAt: '01 Januari 2024',
+      status: 'active'
+    });
     setModalMode('edit');
     setIsModalOpen(true);
   };
 
-  const handlePreview = (courseType: any) => {
-    setSelectedCourseType(courseType);
+  const handlePreview = (courseType: number) => {
+    setSelectedCourseType({
+      id: courseType,
+      name: 'Online',
+      image: courseType % 2 === 0 ? "/code.jpg" : "/aiot.jpg",
+      createdAt: '01 Januari 2024',
+      status: 'active'
+    });
     setModalMode('preview');
     setIsModalOpen(true);
   };
@@ -50,7 +70,7 @@ export default function CourseType() {
             <h2 className="text-base font-semibold text-gray-700">Detail Course Type</h2>
             <div className="relative h-48 w-full rounded-lg overflow-hidden">
               <Image
-                src={selectedCourseType % 2 === 0 ? "/code.jpg" : "/aiot.jpg"}
+                src={selectedCourseType?.image || "/code.jpg"}
                 alt="Course Type Preview"
                 fill
                 className="object-cover"
@@ -59,16 +79,16 @@ export default function CourseType() {
             <div className="space-y-2">
               <div>
                 <h3 className="text-xs font-medium text-gray-500">Nama Course Type</h3>
-                <p className="text-sm text-gray-700">Online</p>
+                <p className="text-sm text-gray-700">{selectedCourseType?.name}</p>
               </div>
               <div>
                 <h3 className="text-xs font-medium text-gray-500">Tanggal Dibuat</h3>
-                <p className="text-sm text-gray-700">01 Januari 2024</p>
+                <p className="text-sm text-gray-700">{selectedCourseType?.createdAt}</p>
               </div>
               <div>
                 <h3 className="text-xs font-medium text-gray-500">Status</h3>
                 <span className="inline-block px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-full">
-                  Aktif
+                  {selectedCourseType?.status === 'active' ? 'Aktif' : 'Tidak Aktif'}
                 </span>
               </div>
             </div>
