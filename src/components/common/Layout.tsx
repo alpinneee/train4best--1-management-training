@@ -3,11 +3,12 @@ import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
 // import Footer from './Footer'; tidak terpakai
 
-interface LayoutProps {
-  children: ReactNode;
+export interface LayoutProps {
+  children: React.ReactNode;
+  variant?: 'admin' | 'participant';
 }
 
-const Layout: FC<LayoutProps> = ({ children }) => {
+const Layout: FC<LayoutProps> = ({ children, variant = 'admin' }) => {
   // Tambahkan state untuk mobile sidebar
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
@@ -22,7 +23,11 @@ const Layout: FC<LayoutProps> = ({ children }) => {
       <div className="flex flex-1">
         <Sidebar
           isMobileOpen={isMobileOpen}
-          onMobileClose={handleMobileOpen}
+          onMobileClose={() => {
+            setIsMobileOpen(false);
+            document.body.style.overflow = 'auto';
+          }}
+          variant={variant}
         />
         <main className="flex-1 p-4 bg-gray-50">{children}</main>
       </div>

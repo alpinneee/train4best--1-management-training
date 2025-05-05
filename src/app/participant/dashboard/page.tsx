@@ -1,179 +1,247 @@
 "use client";
 
-import React, { useState } from "react";
-import Image from "next/image";
-import Navbar from "@/components/common/Navbar";
-import Sidebar from "@/components/common/Sidebar";
+import { useState } from "react";
+import Layout from "@/components/common/Layout";
+import { 
+  BookOpen, 
+  FileText, 
+  CreditCard, 
+  Calendar, 
+  Clock, 
+  CheckCircle2,
+  AlertCircle
+} from "lucide-react";
 
-const courses = [
-  {
-    id: 1,
-    name: "AIoT",
-    type: "Online",
-    description: [
-      "Membangun sistem AIoT",
-      "Mengembangkan aplikasi smart home, smart agriculture, smart healthcare",
-    ],
-    image: "/aiot.jpg",
-  },
-  {
-    id: 2,
-    name: "Programmer",
-    type: "Online",
-    description: ["introduction (pengenalan web)", "Frontend, backend"],
-    image: "/programmer.jpg",
-  },
-  {
-    id: 3,
-    name: "AIoT",
-    type: "Online",
-    description: [
-      "Membangun sistem AIoT",
-      "Mengembangkan aplikasi smart home, smart agriculture, smart healthcare",
-    ],
-    image: "/aiot.jpg",
-  },
-  {
-    id: 4,
-    name: "Programmer",
-    type: "Online",
-    description: ["introduction (pengenalan web)", "Frontend, backend"],
-    image: "/programmer.jpg",
-  },
-];
+interface Course {
+  id: number;
+  name: string;
+  progress: number;
+  nextSession: string;
+  status: "active" | "completed" | "upcoming";
+}
+
+interface Certificate {
+  id: number;
+  courseName: string;
+  issueDate: string;
+  expiryDate: string;
+  status: "valid" | "expired" | "expiring";
+}
 
 const DashboardPage = () => {
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const filteredCourses = courses.filter((course) =>
-    course.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const [activeTab, setActiveTab] = useState("courses");
 
-  const handleMobileOpen = () => {
-    setIsMobileOpen(!isMobileOpen);
-  };
+  const courses: Course[] = [
+    {
+      id: 1,
+      name: "AIoT Fundamentals",
+      progress: 75,
+      nextSession: "2024-03-15",
+      status: "active"
+    },
+    {
+      id: 2,
+      name: "Web Development",
+      progress: 100,
+      nextSession: "2024-02-20",
+      status: "completed"
+    },
+    {
+      id: 3,
+      name: "Data Science",
+      progress: 0,
+      nextSession: "2024-04-01",
+      status: "upcoming"
+    }
+  ];
+
+  const certificates: Certificate[] = [
+    {
+      id: 1,
+      courseName: "Web Development",
+      issueDate: "2024-02-20",
+      expiryDate: "2025-02-20",
+      status: "valid"
+    },
+    {
+      id: 2,
+      courseName: "AIoT Fundamentals",
+      issueDate: "2023-12-15",
+      expiryDate: "2024-12-15",
+      status: "expiring"
+    }
+  ];
+
+  const stats = [
+    {
+      title: "Active Courses",
+      value: "2",
+      icon: <BookOpen className="w-5 h-5" />,
+      color: "bg-blue-100 text-blue-600"
+    },
+    {
+      title: "Certificates",
+      value: "2",
+      icon: <FileText className="w-5 h-5" />,
+      color: "bg-green-100 text-green-600"
+    },
+    {
+      title: "Pending Payments",
+      value: "1",
+      icon: <CreditCard className="w-5 h-5" />,
+      color: "bg-yellow-100 text-yellow-600"
+    },
+    {
+      title: "Upcoming Sessions",
+      value: "2",
+      icon: <Calendar className="w-5 h-5" />,
+      color: "bg-purple-100 text-purple-600"
+    }
+  ];
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar onMobileMenuClick={handleMobileOpen} />
-      <div className="flex flex-1">
-        <Sidebar isMobileOpen={isMobileOpen} onMobileClose={handleMobileOpen} />
-        <main className="flex-1 p-6 bg-green-50">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4">
-            <h1 className="text-2xl font-semibold text-gray-600 mb-2 sm:mb-0">
-              Courses
-            </h1>
-            <div className="relative w-full sm:w-64">
-              <input
-                type="text"
-                placeholder="Search..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border text-gray-700 border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-300"
-              />
-              <span className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <svg
-                  className="w-5 h-5 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
-              </span>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            {filteredCourses.map((course) => (
-              <div
-                key={course.id}
-                className="bg-white rounded-lg shadow p-4 flex flex-col"
-              >
-                <div className="h-32 w-full relative mb-2">
-                  <Image
-                    src={course.image}
-                    alt={course.name}
-                    fill
-                    className="object-cover rounded-t-lg"
-                  />
+    <Layout variant="participant">
+      <div className="p-4">
+        {/* Stats Overview */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {stats.map((stat, index) => (
+            <div key={index} className="bg-white rounded-lg shadow p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">{stat.title}</p>
+                  <p className="text-2xl font-semibold text-gray-700">{stat.value}</p>
                 </div>
-                <div className="flex-1 flex flex-col">
-                  <div className="mb-2">
-                    <div className="font-semibold text-sm">
-                      Course Name : {course.name}
-                    </div>
-                    <div className="text-xs text-gray-600">
-                      Course Type : {course.type}
-                    </div>
-                    <div className="text-xs mt-1">
-                      <span className="font-semibold">Description :</span>
-                      <ul className="list-disc ml-4">
-                        {course.description.map((desc, idx) => (
-                          <li key={idx}>{desc}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center mt-auto pt-2">
-                    <span className="text-gray-400">
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-                        />
-                      </svg>
-                    </span>
-                    <span className="text-gray-400">
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M19 21H5a2 2 0 01-2-2V7a2 2 0 012-2h4l2-2 2 2h4a2 2 0 012 2v12a2 2 0 01-2 2z"
-                        />
-                      </svg>
-                    </span>
-                  </div>
+                <div className={`p-2 rounded-full ${stat.color}`}>
+                  {stat.icon}
                 </div>
               </div>
-            ))}
+            </div>
+          ))}
+        </div>
+
+        {/* Tabs */}
+        <div className="bg-white rounded-lg shadow mb-6">
+          <div className="border-b border-gray-200">
+            <nav className="flex -mb-px">
+              <button
+                onClick={() => setActiveTab("courses")}
+                className={`py-3 px-4 text-sm font-medium ${
+                  activeTab === "courses"
+                    ? "border-b-2 border-blue-500 text-blue-600"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                My Courses
+              </button>
+              <button
+                onClick={() => setActiveTab("certificates")}
+                className={`py-3 px-4 text-sm font-medium ${
+                  activeTab === "certificates"
+                    ? "border-b-2 border-blue-500 text-blue-600"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Certificates
+              </button>
+            </nav>
           </div>
-          {/* Pagination */}
-          <div className="flex justify-center items-center mt-8 gap-2">
-            <button className="p-1 rounded hover:bg-gray-200" disabled>
-              {"<<"}
-            </button>
-            <button className="p-1 rounded hover:bg-gray-200" disabled>
-              {"<"}
-            </button>
-            <button className="px-3 py-1 rounded bg-gray-300 text-gray-700 font-semibold">
-              1
-            </button>
-            <button className="p-1 rounded hover:bg-gray-200">2</button>
-            <button className="p-1 rounded hover:bg-gray-200">3</button>
-            <button className="p-1 rounded hover:bg-gray-200">{">"}</button>
-            <button className="p-1 rounded hover:bg-gray-200">{" >>"}</button>
+
+          {/* Tab Content */}
+          <div className="p-4">
+            {activeTab === "courses" && (
+              <div className="space-y-4">
+                {courses.map((course) => (
+                  <div key={course.id} className="border rounded-lg p-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-medium text-gray-700">{course.name}</h3>
+                        <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                          <Clock className="w-4 h-4" />
+                          <span>Next session: {course.nextSession}</span>
+                        </div>
+                      </div>
+                      <div className={`px-2 py-1 rounded-full text-xs ${
+                        course.status === "active" 
+                          ? "bg-green-100 text-green-600"
+                          : course.status === "completed"
+                          ? "bg-blue-100 text-blue-600"
+                          : "bg-yellow-100 text-yellow-600"
+                      }`}>
+                        {course.status}
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-gray-700">Progress</span>
+                        <span>{course.progress}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full"
+                          style={{ width: `${course.progress}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {activeTab === "certificates" && (
+              <div className="space-y-4">
+                {certificates.map((cert) => (
+                  <div key={cert.id} className="border rounded-lg p-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-medium text-gray-700">{cert.courseName}</h3>
+                        <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                          <Calendar className="w-4 h-4" />
+                          <span>Issued: {cert.issueDate}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                          <Calendar className="w-4 h-4" />
+                          <span>Expires: {cert.expiryDate}</span>
+                        </div>
+                      </div>
+                      <div className={`px-2 py-1 rounded-full text-xs ${
+                        cert.status === "valid"
+                          ? "bg-green-100 text-green-600"
+                          : cert.status === "expiring"
+                          ? "bg-yellow-100 text-yellow-600"
+                          : "bg-red-100 text-red-600"
+                      }`}>
+                        {cert.status}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        </main>
+        </div>
+
+        {/* Notifications */}
+        <div className="bg-white rounded-lg shadow p-4">
+          <h3 className="font-medium mb-3 text-gray-700">Important Notifications</h3>
+          <div className="space-y-3">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-yellow-500 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-gray-700">Payment Due</p>
+                <p className="text-xs text-gray-500">Payment for Data Science course is due in 3 days</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-gray-700">Certificate Available</p>
+                <p className="text-xs text-gray-500">Your Web Development certificate is ready to download</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </Layout>
   );
 };
 
