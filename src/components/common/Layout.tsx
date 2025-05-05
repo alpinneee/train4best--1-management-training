@@ -1,4 +1,4 @@
-import { FC, ReactNode, useState } from "react";
+import { FC, useState } from "react";
 import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
 // import Footer from './Footer'; tidak terpakai
