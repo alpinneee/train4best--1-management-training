@@ -28,6 +28,29 @@ interface MenuItem {
   }[];
 }
 
+const instructureMenuItems: MenuItem[] = [
+  {
+    title: "Dashboard",
+    icon: <LayoutDashboard size={12} />,
+    path: "/instructure/dashboard",
+  },
+  {
+    title: "My Courses",
+    icon: <BookOpen size={20} />,
+    path: "/instructure/courses",
+  },
+  {
+    title: "Students",
+    icon: <Users size={20} />,
+    path: "/instructure/students",
+  },
+  {
+    title: "Assignments",
+    icon: <FileText size={20} />,
+    path: "/instructure/assignments",
+  }
+];
+
 const adminMenuItems: MenuItem[] = [
   {
     title: "Dashboard",
@@ -115,7 +138,7 @@ const participantMenuItems: MenuItem[] = [
 export interface SidebarProps {
   isMobileOpen: boolean;
   onMobileClose: () => void;
-  variant?: 'admin' | 'participant';
+  variant?: 'admin' | 'participant' | 'instructure';
 }
 
 const Sidebar: FC<SidebarProps> = ({ isMobileOpen, onMobileClose, variant = 'admin' }) => {
@@ -125,7 +148,7 @@ const Sidebar: FC<SidebarProps> = ({ isMobileOpen, onMobileClose, variant = 'adm
       : []
   );
 
-  const menuItems = variant === 'admin' ? adminMenuItems : participantMenuItems;
+  const menuItems = variant === 'admin' ? adminMenuItems : variant === 'participant' ? participantMenuItems : instructureMenuItems;
 
   const toggleMenu = (title: string) => {
     setOpenMenus((prev) => {

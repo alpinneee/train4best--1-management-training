@@ -5,7 +5,7 @@ import Sidebar from "./Sidebar";
 
 export interface LayoutProps {
   children: React.ReactNode;
-  variant?: 'admin' | 'participant';
+  variant?: 'admin' | 'participant' | 'instructure';
 }
 
 const Layout: FC<LayoutProps> = ({ children, variant = 'admin' }) => {

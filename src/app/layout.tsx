@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import Script from 'next/script';
 import { NotificationProvider } from '@/context/NotificationContext';
 import Notification from '@/components/common/Notification';
+import SessionProvider from '@/components/providers/SessionProvider';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -26,10 +27,12 @@ export default function RootLayout({
       </head>
       <body className={`${inter.className} bg-gray-50`}>
         <Script src="https://apis.google.com/js/platform.js" strategy="afterInteractive" />
-        <NotificationProvider>
-          {children}
-          <Notification />
-        </NotificationProvider>
+        <SessionProvider>
+          <NotificationProvider>
+            {children}
+            <Notification />
+          </NotificationProvider>
+        </SessionProvider>
       </body>
     </html>
   )
