@@ -7,7 +7,6 @@ import {
   Users, 
   Clock, 
   Calendar,
-  CheckCircle2,
   AlertCircle,
   GraduationCap,
   MessageSquare
