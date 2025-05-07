@@ -9,11 +9,7 @@ const nextConfig = {
         hostname: '*',
       },
     ],
-  },
-  experimental: {
-    appDir: true,
-  },
-  dir: 'src',
+  }
 }
 
 module.exports = nextConfig 

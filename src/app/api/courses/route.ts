@@ -25,6 +25,7 @@ export async function GET() {
 
     return NextResponse.json(courses)
   } catch (error) {
+    console.error("Error fetching courses:", error)
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }
@@ -71,6 +72,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(course)
   } catch (error) {
+    console.error("Error creating course:", error)
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }

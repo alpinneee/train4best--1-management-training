@@ -69,6 +69,7 @@ export async function GET() {
     })
     return NextResponse.json(enrollments)
   } catch (error) {
+    console.error("Error in enrollment operation:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }
@@ -158,6 +159,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(enrollment)
   } catch (error) {
+    console.error("Error in enrollment operation:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }

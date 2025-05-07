@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { toast } from "react-hot-toast";
 
 const LoginForm = () => {
   const router = useRouter();
@@ -50,9 +51,9 @@ const LoginForm = () => {
           setError("Invalid user role");
       }
     } catch (error) {
-      setError("An error occurred during login");
-    } finally {
+      console.error("Login error:", error);
       setLoading(false);
+      toast.error("Terjadi kesalahan saat login");
     }
   };
 
@@ -205,26 +206,6 @@ const LoginForm = () => {
                 </motion.div>
               </form>
 
-              {/* Google Sign-In Button */}
-              <motion.div
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ duration: 0.6, delay: 0.8 }}
-                className="intro-x mt-6"
-              >
-                <button
-                  onClick={() => signIn("google")}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  <Image
-                    src="/img/google.svg"
-                    alt="Google"
-                    width={20}
-                    height={20}
-                  />
-                  Sign in with Google
-                </button>
-              </motion.div>
             </div>
           </motion.div>
           {/* END: Login Form */}
