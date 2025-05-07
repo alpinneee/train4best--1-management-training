@@ -10,6 +10,10 @@ const nextConfig = {
       },
     ],
   },
+  experimental: {
+    appDir: true,
+  },
+  dir: 'src',
 }
 
 module.exports = nextConfig 
