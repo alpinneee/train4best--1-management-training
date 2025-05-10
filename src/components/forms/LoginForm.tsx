@@ -29,15 +29,22 @@ const LoginForm = () => {
 
       if (result?.error) {
         setError("Invalid email or password");
+        setLoading(false);
         return;
       }
 
-      // Fetch user data to get role
-      const response = await fetch("/api/user");
-      const userData = await response.json();
+      // Get the session data
+      const session = await fetch("/api/auth/session");
+      const sessionData = await session.json();
+      
+      if (!sessionData?.user?.role) {
+        setError("Gagal mendapatkan data pengguna");
+        setLoading(false);
+        return;
+      }
 
       // Redirect based on role
-      switch (userData.role) {
+      switch (sessionData.user.role) {
         case "super_admin":
           router.push("/dashboard");
           break;
@@ -48,7 +55,8 @@ const LoginForm = () => {
           router.push("/participant/dashboard");
           break;
         default:
-          setError("Invalid user role");
+          setError("Role pengguna tidak valid");
+          setLoading(false);
       }
     } catch (error) {
       console.error("Login error:", error);
@@ -199,7 +207,7 @@ const LoginForm = () => {
                   </button>
                   <Link
                     href="/register"
-                    className="mt-3 w-full px-4 py-3 align-top xl:mt-0 xl:w-32 transition duration-200 border shadow-sm inline-flex items-center justify-center rounded-md font-medium cursor-pointer focus:ring-4 focus:ring-[#373A8D] focus:ring-opacity-20 focus-visible:outline-none dark:focus:ring-slate-700 dark:focus:ring-opacity-50 [&:hover:not(:disabled)]:bg-opacity-90 [&:hover:not(:disabled)]:border-opacity-90 border-secondary text-slate-500 dark:border-darkmode-100/40 dark:text-slate-300 [&:hover:not(:disabled)]:bg-secondary/20 [&:hover:not(:disabled)]:dark:bg-darkmode-100/10"
+                    className="mt-3 w-full px-4 py-3 align-top xl:mt-0 xl:w-32 transition duration-200 border shadow-sm inline-flex items-center justify-center rounded-md font-medium cursor-pointer focus:ring-4 focus:ring-[#373A8D] focus:ring-opacity-20 focus-visible:outline-none dark:focus:ring-slate-700 dark:focus:ring-opacity-50 [&:hover:not(:disabled)]:bg-opacity-90 [&:hover:not(:disabled)]:border-opacity-90 border-secondary text-slate-700 dark:border-darkmode-100/40 dark:text-slate-700 [&:hover:not(:disabled)]:bg-secondary/20 [&:hover:not(:disabled)]:dark:bg-darkmode-100/10"
                   >
                     Register
                   </Link>

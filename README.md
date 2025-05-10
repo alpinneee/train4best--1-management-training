@@ -1,10 +1,80 @@
-# Train4Best - Sistem Manajemen Pelatihan
+# Sistem Manajemen Pelatihan Train4Best
 
-Train4Best adalah platform manajemen pelatihan modern yang dibangun dengan Next.js, Prisma, dan MySQL. Platform ini dirancang untuk memudahkan pengelolaan kursus, peserta, dan sertifikasi pelatihan.
+Sistem manajemen pelatihan komprehensif yang dibangun dengan Next.js, Prisma, dan NextAuth.js.
+
+## Fitur
+
+### Autentikasi & Manajemen Pengguna
+- Kontrol akses berbasis peran (Super Admin, Instruktur, Peserta)
+- Autentikasi aman menggunakan NextAuth.js
+- Registrasi pengguna dengan email dan password
+- Manajemen profil dengan dashboard khusus setiap peran
+
+### Administrasi Pengguna (Super Admin)
+- Operasi CRUD pengguna lengkap
+- Manajemen dan penugasan peran
+- Penanganan password aman dengan bcrypt
+- Daftar pengguna dengan filter berdasarkan peran
+
+### Manajemen Kursus
+- Pembuatan dan penjadwalan kursus
+- Manajemen pendaftaran
+- Pelacakan kemajuan
+- Manajemen sertifikat
+
+## Teknologi yang Digunakan
+- Next.js 13+ (App Router)
+- Prisma (MySQL)
+- NextAuth.js
+- TypeScript
+- Tailwind CSS
+- Framer Motion
+
+## Memulai
+
+1. Clone repository:
+```bash
+git clone https://github.com/yourusername/train4best--1-management-training.git
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Siapkan variabel lingkungan:
+```bash
+cp .env.example .env
+```
+Isi konfigurasi database dan NextAuth Anda.
+
+4. Jalankan migrasi database:
+```bash
+npx prisma migrate dev
+```
+
+5. Jalankan server development:
+```bash
+npm run dev
+```
+
+## Peran Pengguna Default
+
+- **Super Admin**: Akses penuh ke sistem
+- **Instruktur**: Manajemen kursus dan pelacakan siswa
+- **Peserta**: Pendaftaran kursus dan pelacakan kemajuan
+
+## Kontribusi
+
+1. Fork repository
+2. Buat branch fitur Anda
+3. Commit perubahan Anda
+4. Push ke branch
+5. Buat Pull Request
 
 ## 🚀 Fitur Utama
 
-- **Multi-role Authentication**
+- **Autentikasi Multi-peran**
   - Super Admin
   - Instruktur
   - Peserta

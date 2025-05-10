@@ -16,6 +16,8 @@ const RegistrationForm = () => {
   });
 
   const [isVisible, setIsVisible] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setIsVisible(true);
@@ -29,9 +31,52 @@ const RegistrationForm = () => {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Form submitted:", formData);
+    setError("");
+    setLoading(true);
+
+    // Validasi password
+    if (formData.password !== formData.passwordConfirmation) {
+      setError("Password tidak cocok");
+      setLoading(false);
+      return;
+    }
+
+    // Validasi agreement
+    if (!formData.agreeToPolicy) {
+      setError("Anda harus menyetujui kebijakan privasi");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Terjadi kesalahan");
+      }
+
+      // Redirect ke halaman login setelah berhasil
+      window.location.href = "/login";
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -98,7 +143,7 @@ const RegistrationForm = () => {
                   placeholder="First Name"
                   value={formData.firstName}
                   onChange={handleChange}
-                  className="intro-x block min-w-full px-4 py-3 xl:min-w-[350px] disabled:bg-slate-100 disabled:cursor-not-allowed dark:disabled:bg-darkmode-800/50 dark:disabled:border-transparent transition duration-200 ease-in-out w-full text-sm border-slate-200 shadow-sm rounded-md placeholder:text-slate-400/90 focus:ring-4 focus:ring-[#373A8D] focus:ring-opacity-20 focus:border-[#373A8D] focus:border-opacity-40 dark:bg-darkmode-800 dark:border-transparent dark:focus:ring-slate-700 dark:focus:ring-opacity-50 dark:placeholder:text-slate-500/80"
+                  className="intro-x block min-w-full px-4 py-3 xl:min-w-[350px] disabled:bg-slate-100 disabled:cursor-not-allowed dark:disabled:bg-darkmode-800/50 dark:disabled:border-transparent transition duration-200 ease-in-out w-full text-sm border-slate-200 shadow-sm rounded-md placeholder:text-slate-400/90 focus:ring-4 focus:ring-[#373A8D] focus:ring-opacity-20 focus:border-[#373A8D] focus:border-opacity-40 dark:bg-darkmode-800 dark:border-transparent dark:focus:ring-slate-700 dark:focus:ring-opacity-50 dark:placeholder:text-slate-500/80 text-slate-700"
                 />
                 <input
                   type="text"
@@ -106,7 +151,7 @@ const RegistrationForm = () => {
                   placeholder="Last Name"
                   value={formData.lastName}
                   onChange={handleChange}
-                  className="intro-x mt-4 block min-w-full px-4 py-3 xl:min-w-[350px] disabled:bg-slate-100 disabled:cursor-not-allowed dark:disabled:bg-darkmode-800/50 dark:disabled:border-transparent transition duration-200 ease-in-out w-full text-sm border-slate-200 shadow-sm rounded-md placeholder:text-slate-400/90 focus:ring-4 focus:ring-[#373A8D] focus:ring-opacity-20 focus:border-[#373A8D] focus:border-opacity-40 dark:bg-darkmode-800 dark:border-transparent dark:focus:ring-slate-700 dark:focus:ring-opacity-50 dark:placeholder:text-slate-500/80"
+                  className="intro-x mt-4 block min-w-full px-4 py-3 xl:min-w-[350px] disabled:bg-slate-100 disabled:cursor-not-allowed dark:disabled:bg-darkmode-800/50 dark:disabled:border-transparent transition duration-200 ease-in-out w-full text-sm border-slate-200 shadow-sm rounded-md placeholder:text-slate-400/90 focus:ring-4 focus:ring-[#373A8D] focus:ring-opacity-20 focus:border-[#373A8D] focus:border-opacity-40 dark:bg-darkmode-800 dark:border-transparent dark:focus:ring-slate-700 dark:focus:ring-opacity-50 dark:placeholder:text-slate-500/80 text-slate-700"
                 />
                 <input
                   type="email"
@@ -114,7 +159,7 @@ const RegistrationForm = () => {
                   placeholder="Email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="intro-x mt-4 block min-w-full px-4 py-3 xl:min-w-[350px] disabled:bg-slate-100 disabled:cursor-not-allowed dark:disabled:bg-darkmode-800/50 dark:disabled:border-transparent transition duration-200 ease-in-out w-full text-sm border-slate-200 shadow-sm rounded-md placeholder:text-slate-400/90 focus:ring-4 focus:ring-[#373A8D] focus:ring-opacity-20 focus:border-[#373A8D] focus:border-opacity-40 dark:bg-darkmode-800 dark:border-transparent dark:focus:ring-slate-700 dark:focus:ring-opacity-50 dark:placeholder:text-slate-500/80"
+                  className="intro-x mt-4 block min-w-full px-4 py-3 xl:min-w-[350px] disabled:bg-slate-100 disabled:cursor-not-allowed dark:disabled:bg-darkmode-800/50 dark:disabled:border-transparent transition duration-200 ease-in-out w-full text-sm border-slate-200 shadow-sm rounded-md placeholder:text-slate-400/90 focus:ring-4 focus:ring-[#373A8D] focus:ring-opacity-20 focus:border-[#373A8D] focus:border-opacity-40 dark:bg-darkmode-800 dark:border-transparent dark:focus:ring-slate-700 dark:focus:ring-opacity-50 dark:placeholder:text-slate-500/80 text-slate-700"
                 />
                 <input
                   type="password"
@@ -122,7 +167,7 @@ const RegistrationForm = () => {
                   placeholder="Password"
                   value={formData.password}
                   onChange={handleChange}
-                  className="intro-x mt-4 block min-w-full px-4 py-3 xl:min-w-[350px] disabled:bg-slate-100 disabled:cursor-not-allowed dark:disabled:bg-darkmode-800/50 dark:disabled:border-transparent transition duration-200 ease-in-out w-full text-sm border-slate-200 shadow-sm rounded-md placeholder:text-slate-400/90 focus:ring-4 focus:ring-[#373A8D] focus:ring-opacity-20 focus:border-[#373A8D] focus:border-opacity-40 dark:bg-darkmode-800 dark:border-transparent dark:focus:ring-slate-700 dark:focus:ring-opacity-50 dark:placeholder:text-slate-500/80"
+                  className="intro-x mt-4 block min-w-full px-4 py-3 xl:min-w-[350px] disabled:bg-slate-100 disabled:cursor-not-allowed dark:disabled:bg-darkmode-800/50 dark:disabled:border-transparent transition duration-200 ease-in-out w-full text-sm border-slate-200 shadow-sm rounded-md placeholder:text-slate-400/90 focus:ring-4 focus:ring-[#373A8D] focus:ring-opacity-20 focus:border-[#373A8D] focus:border-opacity-40 dark:bg-darkmode-800 dark:border-transparent dark:focus:ring-slate-700 dark:focus:ring-opacity-50 dark:placeholder:text-slate-500/80 text-slate-700"
                 />
                 <div className="intro-x mt-3 grid h-1 w-full grid-cols-12 gap-4">
                   <div className="col-span-3 h-full rounded bg-success"></div>
@@ -142,7 +187,7 @@ const RegistrationForm = () => {
                   placeholder="Password Confirmation"
                   value={formData.passwordConfirmation}
                   onChange={handleChange}
-                  className="intro-x mt-4 block min-w-full px-4 py-3 xl:min-w-[350px] disabled:bg-slate-100 disabled:cursor-not-allowed dark:disabled:bg-darkmode-800/50 dark:disabled:border-transparent transition duration-200 ease-in-out w-full text-sm border-slate-200 shadow-sm rounded-md placeholder:text-slate-400/90 focus:ring-4 focus:ring-[#373A8D] focus:ring-opacity-20 focus:border-[#373A8D] focus:border-opacity-40 dark:bg-darkmode-800 dark:border-transparent dark:focus:ring-slate-700 dark:focus:ring-opacity-50 dark:placeholder:text-slate-500/80"
+                  className="intro-x mt-4 block min-w-full px-4 py-3 xl:min-w-[350px] disabled:bg-slate-100 disabled:cursor-not-allowed dark:disabled:bg-darkmode-800/50 dark:disabled:border-transparent transition duration-200 ease-in-out w-full text-sm border-slate-200 shadow-sm rounded-md placeholder:text-slate-400/90 focus:ring-4 focus:ring-[#373A8D] focus:ring-opacity-20 focus:border-[#373A8D] focus:border-opacity-40 dark:bg-darkmode-800 dark:border-transparent dark:focus:ring-slate-700 dark:focus:ring-opacity-50 dark:placeholder:text-slate-500/80 text-slate-700"
                 />
                 <div className="intro-x mt-4 flex items-center text-xs text-slate-600 dark:text-slate-500 sm:text-sm">
                   <input
@@ -162,12 +207,19 @@ const RegistrationForm = () => {
                     Privacy Policy
                   </Link>
                 </div>
+                {/* Tampilkan pesan error jika ada */}
+                {error && (
+                  <div className="intro-x mt-4 text-red-500 text-sm">
+                    {error}
+                  </div>
+                )}
                 <div className="intro-x mt-5 text-center xl:mt-8 xl:text-left">
                   <button
                     type="submit"
-                    className="w-full px-4 py-3 align-top xl:mr-3 xl:w-32 transition duration-200 border shadow-sm inline-flex items-center justify-center rounded-md font-medium cursor-pointer focus:ring-4 focus:ring-[#373A8D] focus:ring-opacity-20 focus-visible:outline-none dark:focus:ring-slate-700 dark:focus:ring-opacity-50 [&:hover:not(:disabled)]:bg-opacity-90 [&:hover:not(:disabled)]:border-opacity-90 bg-[#373A8D] border-[#373A8D] text-white"
+                    disabled={loading}
+                    className="w-full px-4 py-3 align-top xl:mr-3 xl:w-32 transition duration-200 border shadow-sm inline-flex items-center justify-center rounded-md font-medium cursor-pointer focus:ring-4 focus:ring-[#373A8D] focus:ring-opacity-20 focus-visible:outline-none dark:focus:ring-slate-700 dark:focus:ring-opacity-50 [&:hover:not(:disabled)]:bg-opacity-90 [&:hover:not(:disabled)]:border-opacity-90 bg-[#373A8D] border-[#373A8D] text-white disabled:opacity-70"
                   >
-                    Register
+                    {loading ? "Loading..." : "Register"}
                   </button>
                   <Link
                     href="/login"

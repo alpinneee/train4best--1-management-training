@@ -4,6 +4,7 @@ import React, { FC, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Bell } from "lucide-react";
+import { signOut } from "next-auth/react"
 
 interface NavbarProps {
   onMobileMenuClick: () => void;
@@ -128,7 +129,10 @@ const Navbar: FC<NavbarProps> = ({ onMobileMenuClick }) => {
                     <span className="text-sm">Help</span>
                   </Link>
 
-                  <button className="flex items-center w-full px-4 py-2.5 hover:bg-indigo-600/30 text-left transition-colors">
+                  <button 
+                    onClick={() => signOut({ callbackUrl: '/login' })}
+                    className="flex items-center w-full px-4 py-2.5 hover:bg-indigo-600/30 text-left transition-colors"
+                  >
                     <span className="text-sm">Log Out</span>
                   </button>
                 </div>

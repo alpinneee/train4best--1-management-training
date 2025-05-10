@@ -77,7 +77,7 @@ export async function PATCH(
 
     return NextResponse.json(updatedEnrollment)
   } catch (error) {
-    console.error("Error updating enrollment:", error);
+    console.error("Error updating enrollment:", error)
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }

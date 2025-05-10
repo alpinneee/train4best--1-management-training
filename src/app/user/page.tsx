@@ -1,18 +1,18 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import Layout from "@/components/common/Layout";
 import Button from "@/components/common/button";
 import Modal from "@/components/common/Modal";
 import Table from "@/components/common/table";
-import Image from 'next/image';
+import { toast } from "react-hot-toast";
 
 interface User {
-  no: number;
-  username: string;
-  idUser: string;
-  jobTitle: string;
-  photo?: string;
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  createdAt: string;
 }
 
 interface Column {
@@ -21,240 +21,126 @@ interface Column {
 }
 
 const UserPage = () => {
-  const [users, setUsers] = useState<User[]>([
-    {
-      no: 1,
-      username: "Sandero Taeil Ishara",
-      idUser: "S0848T", 
-      jobTitle: "Programming",
-    },
-    {
-      no: 2,
-      username: "Mikael Ferdinand",
-      idUser: "S0848T",
-      jobTitle: "Marketing Specialist",
-    },
-    {
-      no: 3,
-      username: "Swara Ajeng Mahesa", 
-      idUser: "S0848T",
-      jobTitle: "Sales Manager",
-    },
-    {
-      no: 4,
-      username: "Dywantara Suroso",
-      idUser: "S0848T",
-      jobTitle: "Financial Analist",
-    },
-    {
-      no: 5,
-      username: "Citra Anugerah",
-      idUser: "S0848T",
-      jobTitle: "Programming",
-    },
-    {
-      no: 6,
-      username: "Dywantara Suroso",
-      idUser: "S0848T",
-      jobTitle: "Financial Analist",
-    },
-    {
-      no: 7,
-      username: "Citra Anugerah",
-      idUser: "S0848T",
-      jobTitle: "Programming",
-    },
-    {
-      no: 8,
-      username: "Dywantara Suroso",
-      idUser: "S0848T",
-      jobTitle: "Financial Analist",
-    },
-    {
-      no: 9,
-      username: "Citra Anugerah",
-      idUser: "S0848T",
-      jobTitle: "Programming",
-    },
-    {
-      no: 10,
-      username: "Dywantara Suroso",
-      idUser: "S0848T",
-      jobTitle: "Financial Analist",
-    },
-    {
-      no: 11,
-      username: "Citra Anugerah",
-      idUser: "S0848T",
-      jobTitle: "Programming",
-    },
-    {
-      no: 12,
-      username: "Dywantara Suroso",
-      idUser: "S0848T",
-      jobTitle: "Financial Analist",
-    },
-    {
-      no: 13,
-      username: "Citra Anugerah",
-      idUser: "S0848T",
-      jobTitle: "Programming",
-    },
-    {
-      no: 14,
-      username: "Dywantara Suroso",
-      idUser: "S0848T",
-      jobTitle: "Financial Analist",
-    },
-    {
-      no: 15,
-      username: "Citra Anugerah",
-      idUser: "S0848T",
-      jobTitle: "Programming",
-    },
-  ]);
-
+  const [users, setUsers] = useState<User[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedJobTitle, setSelectedJobTitle] = useState("all");
+  const [selectedRole, setSelectedRole] = useState("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  
   const [newUser, setNewUser] = useState({
     username: "",
     idUser: "",
     jobTitle: "",
-    photo: "",
+    password: "password123",
   });
-  const itemsPerPage = 10;
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const jobTitles = ["all", ...new Set(users.map((user) => user.jobTitle))];
+  const itemsPerPage = 10;
+
+  // Fetch users on component mount
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch("/api/user");
+      if (!response.ok) {
+        throw new Error("Failed to fetch users");
+      }
+      const data = await response.json();
+      setUsers(data.users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      toast.error("Gagal mengambil data user");
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await fetch("/api/user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: newUser.username,
+          idUser: newUser.idUser,
+          jobTitle: newUser.jobTitle, // jobTitle akan digunakan sebagai role
+          password: newUser.password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Gagal menambah user");
+      }
+
+      // Refresh user list
+      await fetchUsers();
+      
+      // Reset form
+      setNewUser({
+        username: "",
+        idUser: "",
+        jobTitle: "",
+        password: "password123",
+      });
+      
+      setIsModalOpen(false);
+      toast.success("User berhasil ditambahkan");
+    } catch (err: any) {
+      setError(err.message);
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const roles = ["all", "super_admin", "instructor", "participant"];
 
   const filteredUsers =
-    selectedJobTitle === "all"
+    selectedRole === "all"
       ? users
-      : users.filter((user) => user.jobTitle === selectedJobTitle);
+      : users.filter((user) => user.role === selectedRole);
 
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentUsers = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
 
-  const handleJobTitleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedJobTitle(e.target.value);
+  const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedRole(e.target.value);
     setCurrentPage(1);
-  };
-
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setNewUser((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleEditClick = (user: User) => {
-    setSelectedUser(user);
-    setNewUser({
-      username: user.username,
-      idUser: user.idUser,
-      jobTitle: user.jobTitle,
-      photo: user.photo || '',
-    });
-    setPreviewUrl(user.photo || null);
-    setIsEditModalOpen(true);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const newUserData: User = {
-      no: users.length + 1,
-      username: newUser.username,
-      idUser: newUser.idUser,
-      jobTitle: newUser.jobTitle,
-      photo: previewUrl || '',
-    };
-
-    setUsers(prev => [...prev, newUserData]);
-    setIsModalOpen(false);
-    
-    setNewUser({
-      username: "",
-      idUser: "",
-      jobTitle: "",
-      photo: "",
-    });
-    setPreviewUrl(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const handleEditSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (selectedUser) {
-      setUsers((prevUsers) =>
-        prevUsers.map((user) =>
-          user.no === selectedUser.no 
-            ? { 
-                ...selectedUser, 
-                ...newUser,
-                photo: previewUrl || user.photo || '',
-              } 
-            : user
-        )
-      );
-    }
-    setIsEditModalOpen(false);
-    setSelectedUser(null);
-    setNewUser({
-      username: "",
-      idUser: "",
-      jobTitle: "",
-      photo: "",
-    });
-    setPreviewUrl(null);
-  };
-
-  const handleFile = (file: File) => {
-    if (file && file.type.startsWith('image/')) {
-      if (file.size > 2 * 1024 * 1024) {
-        alert('File terlalu besar. Maksimal 2MB');
-        return;
-      }
-      
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    } else {
-      alert('Please upload an image file (PNG or JPG)');
-    }
   };
 
   const columns: Column[] = [
     {
       header: "No",
-      accessor: "no",
+      accessor: (user: User) => {
+        const index = users.indexOf(user);
+        return index + 1;
+      },
     },
     {
-      header: "Username", 
-      accessor: "username",
+      header: "Name",
+      accessor: "name",
     },
     {
-      header: "ID User",
-      accessor: "idUser",
+      header: "Email",
+      accessor: "email",
     },
     {
-      header: "Job Title",
-      accessor: "jobTitle", 
+      header: "Role",
+      accessor: "role",
     },
     {
       header: "Action",
@@ -267,7 +153,10 @@ const UserPage = () => {
             Edit
           </button>
           <button
-            onClick={() => setIsDeleteModalOpen(true)}
+            onClick={() => {
+              setSelectedUser(user);
+              setIsDeleteModalOpen(true);
+            }}
             className="text-red-500 hover:text-red-700"
           >
             Delete
@@ -277,11 +166,92 @@ const UserPage = () => {
     },
   ];
 
+  const handleEditClick = (user: User) => {
+    setSelectedUser(user);
+    setNewUser({
+      username: user.name,
+      idUser: "",
+      jobTitle: user.role,
+      password: "password123",
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+    
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await fetch(`/api/user/${selectedUser.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: newUser.username,
+          jobTitle: newUser.jobTitle,
+          password: newUser.password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Gagal mengupdate user");
+      }
+
+      // Refresh user list
+      await fetchUsers();
+      
+      setIsEditModalOpen(false);
+      setSelectedUser(null);
+      setNewUser({
+        username: "",
+        idUser: "",
+        jobTitle: "",
+        password: "password123",
+      });
+      
+      toast.success("User berhasil diupdate");
+    } catch (err: any) {
+      setError(err.message);
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedUser) return;
+
+    try {
+      const response = await fetch(`/api/user/${selectedUser.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Gagal menghapus user");
+      }
+
+      // Refresh user list
+      await fetchUsers();
+      setIsDeleteModalOpen(false);
+      setSelectedUser(null);
+      toast.success("User berhasil dihapus");
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
   return (
     <Layout>
       <div className="flex flex-col gap-2 p-2">
         <h1 className="text-lg md:text-xl text-gray-700 mb-2">
-          Users
+          Users Management
         </h1>
 
         <div className="mb-2 flex flex-col sm:flex-row sm:justify-between gap-2">
@@ -296,13 +266,13 @@ const UserPage = () => {
 
           <div className="flex flex-col sm:flex-row gap-2 text-gray-700 w-full sm:w-auto">
             <select
-              value={selectedJobTitle}
-              onChange={handleJobTitleChange}
+              value={selectedRole}
+              onChange={handleRoleChange}
               className="px-2 py-1 text-xs rounded-lg w-full sm:w-auto"
             >
-              {jobTitles.map((title) => (
-                <option key={title} value={title}>
-                  {title === "all" ? "All Job Titles" : title}
+              {roles.map((role) => (
+                <option key={role} value={role}>
+                  {role === "all" ? "All Roles" : role}
                 </option>
               ))}
             </select>
@@ -313,6 +283,12 @@ const UserPage = () => {
             />
           </div>
         </div>
+
+        {error && (
+          <div className="text-red-500 text-sm mb-2">
+            {error}
+          </div>
+        )}
 
         <div className="overflow-x-auto -mx-2 px-2">
           <Table
@@ -332,156 +308,68 @@ const UserPage = () => {
             <h2 className="text-base font-semibold mb-2 text-gray-700">
               Add New User
             </h2>
-            <div className="flex flex-col md:flex-row gap-4">
-              {/* Bagian Upload Foto */}
-              <div className="w-full md:w-1/3">
-                <div 
-                  className={`aspect-square bg-gray-100 rounded-lg flex flex-col items-center justify-center border-2 border-dashed ${
-                    isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
-                  } mb-2 relative cursor-pointer`}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setIsDragging(true);
-                  }}
-                  onDragLeave={(e) => {
-                    e.preventDefault();
-                    setIsDragging(false);
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setIsDragging(false);
-                    const file = e.dataTransfer.files[0];
-                    handleFile(file);
-                  }}
-                  onClick={() => fileInputRef.current?.click()}
+            <form onSubmit={handleSubmit} className="space-y-2">
+              <div>
+                <label className="block mb-1 text-xs text-gray-700">Username</label>
+                <input
+                  type="text"
+                  name="username"
+                  value={newUser.username}
+                  onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+                  className="w-full px-2 py-1 text-xs rounded border border-gray-300"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block mb-1 text-xs text-gray-700">ID User</label>
+                <input
+                  type="text"
+                  name="idUser"
+                  value={newUser.idUser}
+                  onChange={(e) => setNewUser({ ...newUser, idUser: e.target.value })}
+                  className="w-full px-2 py-1 text-xs rounded border border-gray-300"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-700 mb-1">Role</label>
+                <select
+                  name="jobTitle"
+                  value={newUser.jobTitle}
+                  onChange={(e) => setNewUser({ ...newUser, jobTitle: e.target.value })}
+                  className="w-full px-2 py-1 text-xs rounded border border-gray-300"
+                  required
                 >
-                  {previewUrl ? (
-                    <div className="relative w-full h-full">
-                      <Image 
-                        src={previewUrl} 
-                        alt="Preview" 
-                        fill
-                        className="object-cover rounded-lg"
-                        sizes="(max-width: 768px) 100vw, 33vw"
-                      />
-                    </div>
-                  ) : (
-                    <div className="text-center p-2">
-                      <svg 
-                        className="mx-auto h-8 w-8 text-gray-400"
-                        stroke="currentColor" 
-                        fill="none" 
-                        viewBox="0 0 48 48"
-                      >
-                        <path 
-                          d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" 
-                          strokeWidth={2} 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round" 
-                        />
-                      </svg>
-                      <p className="mt-1 text-xs text-gray-600">
-                        Click to upload or drag and drop
-                      </p>
-                      <p className="mt-0.5 text-[10px] text-gray-500">
-                        PNG, JPG up to 2MB
-                      </p>
-                    </div>
-                  )}
-                  <input 
-                    ref={fileInputRef}
-                    type="file" 
-                    className="hidden" 
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        handleFile(file);
-                      }
-                    }}
-                  />
-                </div>
-                {previewUrl && (
-                  <button 
-                    type="button"
-                    className="w-full px-2 py-1 text-xs text-red-600 hover:text-red-700 text-center"
-                    onClick={() => {
-                      setPreviewUrl(null);
-                      if (fileInputRef.current) {
-                        fileInputRef.current.value = '';
-                      }
-                    }}
-                  >
-                    Remove Photo
-                  </button>
-                )}
+                  <option value="">Select Role</option>
+                  {roles
+                    .filter((role) => role !== "all")
+                    .map((role) => (
+                      <option key={role} value={role}>
+                        {role}
+                      </option>
+                    ))}
+                </select>
               </div>
-
-              {/* Form Pengisian */}
-              <div className="flex-1">
-                <form onSubmit={handleSubmit} className="space-y-2">
-                  <div>
-                    <label className="block mb-1 text-xs text-gray-700">Username</label>
-                    <input
-                      type="text"
-                      name="username"
-                      value={newUser.username}
-                      onChange={handleInputChange}
-                      className="w-full px-2 py-1 text-xs rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block mb-1 text-xs text-gray-700">ID User</label>
-                    <input
-                      type="text"
-                      name="idUser"
-                      value={newUser.idUser}
-                      onChange={handleInputChange}
-                      className="w-full px-2 py-1 text-xs rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-700 mb-1">Job Title</label>
-                    <select
-                      name="jobTitle"
-                      value={newUser.jobTitle}
-                      onChange={handleInputChange}
-                      className="w-full px-2 py-1 text-xs rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    >
-                      <option value="">Select Job Title</option>
-                      {jobTitles
-                        .filter((title) => title !== "all")
-                        .map((title) => (
-                          <option key={title} value={title}>
-                            {title}
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-                  <div className="flex justify-end gap-2 pt-2">
-                    <Button
-                      variant="gray"
-                      size="small"
-                      onClick={() => setIsModalOpen(false)}
-                      className="text-xs px-2 py-1"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="primary"
-                      size="small"
-                      type="submit"
-                      className="text-xs px-2 py-1"
-                    >
-                      Add User
-                    </Button>
-                  </div>
-                </form>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  variant="gray"
+                  size="small"
+                  onClick={() => setIsModalOpen(false)}
+                  className="text-xs px-2 py-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  size="small"
+                  type="submit"
+                  disabled={loading}
+                  className="text-xs px-2 py-1"
+                >
+                  {loading ? "Adding..." : "Add User"}
+                </Button>
               </div>
-            </div>
+            </form>
           </Modal>
         )}
 
@@ -491,6 +379,11 @@ const UserPage = () => {
             <h2 className="text-base font-semibold mb-2 text-gray-700">
               Edit User
             </h2>
+            {error && (
+              <div className="text-red-500 text-sm mb-2">
+                {error}
+              </div>
+            )}
             <form onSubmit={handleEditSubmit} className="space-y-2">
               <div>
                 <label className="block text-xs text-gray-700 mb-1">Username</label>
@@ -498,40 +391,43 @@ const UserPage = () => {
                   type="text"
                   name="username"
                   value={newUser.username}
-                  onChange={handleInputChange}
-                  className="w-full px-2 py-1 text-xs rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                  onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+                  className="w-full px-2 py-1 text-xs rounded border border-gray-300"
                   required
+                  disabled={loading}
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-700 mb-1">ID User</label>
-                <input
-                  type="text"
-                  name="idUser"
-                  value={newUser.idUser}
-                  onChange={handleInputChange}
-                  className="w-full px-2 py-1 text-xs rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-700 mb-1">Job Title</label>
+                <label className="block text-xs text-gray-700 mb-1">Role</label>
                 <select
                   name="jobTitle"
                   value={newUser.jobTitle}
-                  onChange={handleInputChange}
-                  className="w-full px-2 py-1 text-xs rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                  onChange={(e) => setNewUser({ ...newUser, jobTitle: e.target.value })}
+                  className="w-full px-2 py-1 text-xs rounded border border-gray-300"
                   required
+                  disabled={loading}
                 >
-                  <option value="">Select Job Title</option>
-                  {jobTitles
-                    .filter((title) => title !== "all")
-                    .map((title) => (
-                      <option key={title} value={title}>
-                        {title}
+                  <option value="">Select Role</option>
+                  {roles
+                    .filter((role) => role !== "all")
+                    .map((role) => (
+                      <option key={role} value={role}>
+                        {role}
                       </option>
                     ))}
                 </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-700 mb-1">New Password (Optional)</label>
+                <input
+                  type="password"
+                  name="password"
+                  value={newUser.password}
+                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                  className="w-full px-2 py-1 text-xs rounded border border-gray-300"
+                  placeholder="Leave unchanged to keep current password"
+                  disabled={loading}
+                />
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button
@@ -539,6 +435,7 @@ const UserPage = () => {
                   size="small"
                   onClick={() => setIsEditModalOpen(false)}
                   className="text-xs px-2 py-1"
+                  disabled={loading}
                 >
                   Cancel
                 </Button>
@@ -547,8 +444,9 @@ const UserPage = () => {
                   size="small"
                   type="submit"
                   className="text-xs px-2 py-1"
+                  disabled={loading}
                 >
-                  Save Changes
+                  {loading ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
             </form>
@@ -574,7 +472,7 @@ const UserPage = () => {
               <Button
                 variant="red"
                 size="small"
-                onClick={() => setIsDeleteModalOpen(false)}
+                onClick={handleDelete}
                 className="text-xs px-2 py-1"
               >
                 Hapus
