@@ -17,8 +17,10 @@ const publicRoutes = [
   "/", 
   "/login", 
   "/debug-login", 
+  "/debug-auth",
   "/register", 
   "/api/auth", 
+  "/api/debug-token",
   "/_next", 
   "/favicon.ico", 
   "/img"
@@ -62,8 +64,11 @@ export default async function middleware(request: NextRequestWithAuth) {
       secret: process.env.NEXTAUTH_SECRET,
     }) as CustomToken | null
 
+    console.log("NextAuth token in middleware:", token);
+
     // Jika tidak ada token, redirect ke login
     if (!token) {
+      console.log("No token found, redirecting to login");
       const response = NextResponse.redirect(new URL("/login", request.url))
       // Hapus semua cookie auth yang mungkin invalid
       response.cookies.delete("next-auth.session-token")
@@ -74,6 +79,7 @@ export default async function middleware(request: NextRequestWithAuth) {
 
     // Cek expiry token
     if (token.exp && Date.now() >= token.exp * 1000) {
+      console.log("Token expired, redirecting to login");
       const response = NextResponse.redirect(new URL("/login", request.url))
       // Hapus semua cookie auth yang expired
       response.cookies.delete("next-auth.session-token")

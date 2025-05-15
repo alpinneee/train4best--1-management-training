@@ -43,8 +43,8 @@ const LoginForm = () => {
       if (result?.ok) {
         toast.success("Login berhasil!");
         
-        // Tunggu session diperbarui
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Tunggu session diperbarui dengan timeout lebih lama
+        await new Promise(resolve => setTimeout(resolve, 1500));
         
         // Cek session setelah login
         const response = await fetch('/api/auth/session');
@@ -59,16 +59,30 @@ const LoginForm = () => {
 
         // Tentukan redirect berdasarkan userType dari session
         const userType = sessionData.user.userType;
+        console.log("Detected userType:", userType);
+        
         let redirectPath = '/dashboard'; // default
 
-        if (userType === 'instructor') {
-          redirectPath = '/instructure/dashboard';
-        } else if (userType === 'participant') {
-          redirectPath = '/participant/dashboard';
+        if (userType) {
+          // Convert to lowercase to ensure consistent checking
+          const userTypeLower = userType.toLowerCase();
+          
+          if (userTypeLower === 'instructor') {
+            redirectPath = '/instructure/dashboard';
+          } else if (userTypeLower === 'participant') {
+            redirectPath = '/participant/dashboard';
+          } else if (userTypeLower === 'admin') {
+            redirectPath = '/dashboard';
+          } else {
+            console.warn("Unknown userType:", userType);
+          }
+        } else {
+          console.warn("userType is missing in session");
         }
 
         console.log("Redirecting to:", redirectPath);
-        router.push(redirectPath);
+        // Use window.location for a hard redirect to avoid client-side routing issues
+        window.location.href = redirectPath;
       }
     } catch (error) {
       console.error("Login error:", error);

@@ -130,7 +130,12 @@ const Navbar: FC<NavbarProps> = ({ onMobileMenuClick }) => {
                   </Link>
 
                   <button 
-                    onClick={() => signOut({ callbackUrl: '/login' })}
+                    onClick={async () => {
+                      // Call our custom logout endpoint first to clear all cookies
+                      await fetch('/api/auth/logout');
+                      // Then use NextAuth signOut
+                      signOut({ callbackUrl: '/login' });
+                    }}
                     className="flex items-center w-full px-4 py-2.5 hover:bg-indigo-600/30 text-left transition-colors"
                   >
                     <span className="text-sm">Log Out</span>

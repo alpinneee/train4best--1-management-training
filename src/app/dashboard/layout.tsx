@@ -15,6 +15,9 @@ export default function DashboardLayout({
   useEffect(() => {
     async function checkAuth() {
       try {
+        // Add a small delay to ensure cookies and auth state are properly initialized
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         // Cek token debug
         const debugResponse = await fetch("/api/auth/verify-debug-token");
         const debugData = await debugResponse.json();
@@ -22,6 +25,16 @@ export default function DashboardLayout({
         if (debugData.authenticated) {
           console.log("Debug authentication successful:", debugData.user);
           setDebugInfo(`Auth berhasil sebagai: ${debugData.user.userType}`);
+          
+          // Check if userType is admin for the dashboard
+          if (debugData.user.userType?.toLowerCase() !== "admin") {
+            console.log(`User type ${debugData.user.userType} not allowed in admin dashboard`);
+            const redirectPath = 
+              debugData.user.userType?.toLowerCase() === "instructor" ? "/instructure/dashboard" : "/participant/dashboard";
+            window.location.href = redirectPath;
+            return;
+          }
+          
           setLoading(false);
           return;
         }
@@ -29,26 +42,30 @@ export default function DashboardLayout({
         // Cek NextAuth session jika debug token tidak ada
         const response = await fetch("/api/auth/session");
         const session = await response.json();
+        console.log("Dashboard layout - session check:", session);
         
         if (!session?.user) {
           console.log("No session found, redirecting to login");
-          router.replace("/login");
+          window.location.href = "/login";
           return;
         }
         
         const userType = session.user.userType;
-        if (userType !== "admin") {
+        console.log("Dashboard layout - userType:", userType);
+        
+        if (userType?.toLowerCase() !== "admin") {
           console.log(`User type ${userType} not allowed in admin dashboard`);
           const redirectPath = 
-            userType === "instructor" ? "/instructure/dashboard" : "/participant/dashboard";
-          router.replace(redirectPath);
+            userType?.toLowerCase() === "instructor" ? "/instructure/dashboard" : "/participant/dashboard";
+          window.location.href = redirectPath;
           return;
         }
         
         setLoading(false);
       } catch (error) {
-        console.error("Auth check error:", error);
-        router.replace("/login");
+        console.error("Auth check error in dashboard layout:", error);
+        // Use window.location for reliable redirects
+        window.location.href = "/login";
       }
     }
     

@@ -33,6 +33,13 @@ const handler = NextAuth({
             throw new Error('Kata sandi salah')
           }
 
+          // Log the user data to debug
+          console.log("User login success:", {
+            id: user.id,
+            email: user.email,
+            userType: user.userType.usertype
+          })
+
           // Return simplified user object
           return {
             id: user.id,
@@ -59,33 +66,68 @@ const handler = NextAuth({
     async jwt({ token, user }) {
       try {
         if (user) {
-          token.id = user.id
-          token.email = user.email
-          token.name = user.name
-          token.userType = user.userType
+          // Log to debug the user object passed from authorize
+          console.log("JWT callback user:", user);
+          
+          // Store values on the token
+          token.id = user.id;
+          token.email = user.email;
+          token.name = user.name;
+          
+          // Important: Make sure userType is correctly transferred
+          console.log("User's userType from authorize:", user.userType);
+          
+          // Store userType consistently in lowercase
+          const userTypeValue = typeof user.userType === 'string' ? user.userType.toLowerCase() : '';
+          token.userType = userTypeValue;
+          
+          console.log("JWT token after setting userType:", token);
         }
-        return token
+        
+        // Log the token to ensure userType is present
+        console.log("Final JWT token:", {
+          id: token.id,
+          email: token.email,
+          userType: token.userType,
+        });
+        
+        return token;
       } catch (error) {
-        console.error('Error in JWT callback:', error)
-        return token
+        console.error('Error in JWT callback:', error);
+        return token;
       }
     },
     async session({ session, token }) {
       try {
         if (token && session.user) {
-          session.user.id = token.id as string
-          session.user.name = token.name as string
-          session.user.email = token.email as string
-          session.user.userType = token.userType as string
+          // Log to debug the values being set in session
+          console.log("Session callback token:", token);
+          
+          // Make sure userType from token is properly transferred to session
+          session.user.id = token.id as string;
+          session.user.name = token.name as string;
+          session.user.email = token.email as string;
+          
+          // Add logs to track userType
+          console.log("Token userType before setting:", token.userType);
+          session.user.userType = token.userType as string;
+          console.log("Session userType after setting:", session.user.userType);
+          
+          // Log the final session object
+          console.log("Final session object:", {
+            id: session.user.id,
+            email: session.user.email,
+            userType: session.user.userType
+          });
         }
-        return session
+        return session;
       } catch (error) {
-        console.error('Error in session callback:', error)
-        return session
+        console.error('Error in session callback:', error);
+        return session;
       }
     }
   },
-  debug: false,
+  debug: true, // Enable debug logs
   secret: process.env.NEXTAUTH_SECRET
 })
 
