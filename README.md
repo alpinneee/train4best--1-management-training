@@ -165,6 +165,82 @@ EMAIL_SERVER_PASSWORD="your-password"
 EMAIL_FROM="noreply@example.com"
 ```
 
+## 📚 Panduan Instalasi dan Konfigurasi Database
+
+### 1. Instalasi MySQL
+
+#### Windows
+- Unduh MySQL Installer dari [situs resmi MySQL](https://dev.mysql.com/downloads/installer/)
+- Pilih "Developer Default" saat instalasi
+- Ikuti petunjuk instalasi dan atur password untuk pengguna root
+- Pastikan layanan MySQL berjalan
+
+#### macOS
+```bash
+brew install mysql
+brew services start mysql
+```
+
+#### Linux (Ubuntu/Debian)
+```bash
+sudo apt update
+sudo apt install mysql-server
+sudo systemctl start mysql
+sudo mysql_secure_installation
+```
+
+### 2. Buat Database
+
+Buka terminal MySQL:
+
+```bash
+# Windows
+mysql -u root -p
+
+# macOS/Linux
+sudo mysql -u root -p
+```
+
+Buat database dan pengguna:
+
+```sql
+CREATE DATABASE train4best;
+CREATE USER 'train4best_user'@'localhost' IDENTIFIED BY 'password_anda';
+GRANT ALL PRIVILEGES ON train4best.* TO 'train4best_user'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
+```
+
+### 3. Konfigurasi Database di Project
+
+Ubah string koneksi di file `.env`:
+
+```
+DATABASE_URL="mysql://train4best_user:password_anda@localhost:3306/train4best"
+```
+
+Ganti `password_anda` dengan password yang Anda buat sebelumnya.
+
+### 4. Setup Database dengan Prisma
+
+```bash
+# Generate Prisma Client
+npx prisma generate
+
+# Jalankan migrasi database (buat skema tabel)
+npx prisma migrate dev --name init
+```
+
+### 5. Mengelola Database dengan Prisma Studio
+
+Untuk UI visual database:
+
+```bash
+npx prisma studio
+```
+
+Akses di browser: http://localhost:5555
+
 ### 4. Setup Database
 
 ```bash
@@ -221,6 +297,40 @@ Aplikasi akan berjalan di `http://localhost:3000`
    ```bash
    rm -rf .next
    npm run dev
+   ```
+
+### Troubleshooting Database
+
+1. **Periksa Apakah MySQL Berjalan**:
+   ```bash
+   # Windows
+   net start mysql
+
+   # macOS
+   brew services list
+
+   # Linux
+   sudo systemctl status mysql
+   ```
+
+2. **Reset Prisma Jika Perlu**:
+   ```bash
+   # Hapus dan regenerate Prisma client
+   rm -rf node_modules/.prisma
+   npx prisma generate
+
+   # Atau reset database
+   npx prisma migrate reset
+   ```
+
+3. **Periksa Port MySQL** (default 3306)
+
+4. **Akses Database Langsung untuk Pemeriksaan**:
+   ```bash
+   mysql -u train4best_user -p
+   # Kemudian ketik:
+   USE train4best;
+   SHOW TABLES;
    ```
 
 ## 🤝 Kontribusi

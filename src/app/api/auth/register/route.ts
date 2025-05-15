@@ -26,24 +26,54 @@ export async function POST(req: Request) {
       );
     }
 
+    // Dapatkan participant userType
+    const participantType = await prisma.userType.findFirst({
+      where: { usertype: 'participant' }
+    });
+
+    if (!participantType) {
+      return NextResponse.json(
+        { error: "Tipe user participant tidak ditemukan" },
+        { status: 500 }
+      );
+    }
+
+    // Generate username dari email
+    const username = email.split('@')[0];
+
     // Hash password
     const hashedPassword = await hash(password, 12);
 
-    // Buat user baru dengan role participant
+    // Buat user baru
     const user = await prisma.user.create({
       data: {
-        name: `${firstName} ${lastName}`,
+        username,
         email,
         password: hashedPassword,
-        role: "participant", // Pastikan role default adalah participant
+        userTypeId: participantType.id,
+        participants: {
+          create: {
+            full_name: `${firstName} ${lastName}`,
+            address: '', // Bisa diupdate nanti
+            phone_number: '', // Bisa diupdate nanti
+            birth_date: new Date(), // Bisa diupdate nanti
+            gender: 'other' // Bisa diupdate nanti
+          }
+        }
       },
+      include: {
+        userType: true,
+        participants: true
+      }
     });
 
     return NextResponse.json({
       user: {
-        name: user.name,
+        id: user.id,
+        username: user.username,
         email: user.email,
-        role: user.role,
+        userType: user.userType.usertype,
+        fullName: user.participants[0]?.full_name
       },
     });
     

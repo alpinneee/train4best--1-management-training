@@ -4,12 +4,14 @@ import Script from 'next/script';
 import { NotificationProvider } from '@/context/NotificationContext';
 import Notification from '@/components/common/Notification';
 import SessionProvider from '@/components/providers/SessionProvider';
+import { Toaster } from "react-hot-toast";
+import type { Metadata } from "next";
 
 const inter = Inter({ subsets: ["latin"] });
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Train4Best",
-  description: "Train4Best Application",
+  description: "Management Training Platform",
 };
 
 export default function RootLayout({
@@ -32,6 +34,7 @@ export default function RootLayout({
             {children}
             <Notification />
           </NotificationProvider>
+          <Toaster />
         </SessionProvider>
       </body>
     </html>

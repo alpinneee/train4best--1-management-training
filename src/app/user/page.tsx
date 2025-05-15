@@ -28,12 +28,12 @@ const UserPage = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   
   const [newUser, setNewUser] = useState({
     username: "",
-    idUser: "",
     jobTitle: "",
     password: "password123",
   });
@@ -46,16 +46,21 @@ const UserPage = () => {
   }, []);
 
   const fetchUsers = async () => {
+    setLoading(true);
+    setError("");
     try {
       const response = await fetch("/api/user");
       if (!response.ok) {
         throw new Error("Failed to fetch users");
       }
       const data = await response.json();
-      setUsers(data.users);
+      setUsers(data.users || []);
     } catch (error) {
       console.error("Error fetching users:", error);
-      toast.error("Gagal mengambil data user");
+      setError("Failed to load users. Please try again.");
+      toast.error("Failed to load users");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -65,6 +70,10 @@ const UserPage = () => {
     setLoading(true);
 
     try {
+      if (!newUser.username || !newUser.jobTitle) {
+        throw new Error("Username and role are required");
+      }
+
       const response = await fetch("/api/user", {
         method: "POST",
         headers: {
@@ -72,8 +81,7 @@ const UserPage = () => {
         },
         body: JSON.stringify({
           username: newUser.username,
-          idUser: newUser.idUser,
-          jobTitle: newUser.jobTitle, // jobTitle akan digunakan sebagai role
+          jobTitle: newUser.jobTitle,
           password: newUser.password,
         }),
       });
@@ -81,22 +89,21 @@ const UserPage = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Gagal menambah user");
+        throw new Error(data.error || "Failed to add user");
       }
 
-      // Refresh user list
-      await fetchUsers();
+      // Add the new user to the state
+      setUsers(prev => [...prev, data]);
       
       // Reset form
       setNewUser({
         username: "",
-        idUser: "",
         jobTitle: "",
         password: "password123",
       });
       
       setIsModalOpen(false);
-      toast.success("User berhasil ditambahkan");
+      toast.success("User added successfully");
     } catch (err: any) {
       setError(err.message);
       toast.error(err.message);
@@ -105,12 +112,19 @@ const UserPage = () => {
     }
   };
 
-  const roles = ["all", "super_admin", "instructor", "participant"];
+  // Get unique roles from users
+  const uniqueRoles = Array.from(new Set(users.map(user => user.role)));
+  const roles = ["all", ...uniqueRoles];
 
-  const filteredUsers =
-    selectedRole === "all"
-      ? users
-      : users.filter((user) => user.role === selectedRole);
+  // Filter by role and search term
+  const filteredUsers = users
+    .filter(user => selectedRole === "all" || user.role === selectedRole)
+    .filter(user => 
+      searchTerm === "" || 
+      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.role.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -122,11 +136,117 @@ const UserPage = () => {
     setCurrentPage(1);
   };
 
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleEditClick = (user: User) => {
+    setSelectedUser(user);
+    setNewUser({
+      username: user.name,
+      jobTitle: user.role,
+      password: "", // Empty password means don't change it
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+    
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await fetch(`/api/user/${selectedUser.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: newUser.username,
+          jobTitle: newUser.jobTitle,
+          password: newUser.password || undefined, // Only send password if changed
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to update user");
+      }
+
+      // Update user in state
+      setUsers(prev => 
+        prev.map(user => user.id === selectedUser.id ? data : user)
+      );
+      
+      setIsEditModalOpen(false);
+      setSelectedUser(null);
+      setNewUser({
+        username: "",
+        jobTitle: "",
+        password: "",
+      });
+      
+      toast.success("User updated successfully");
+    } catch (err: any) {
+      setError(err.message);
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (force = false) => {
+    if (!selectedUser) return;
+    
+    setLoading(true);
+    setError("");
+
+    try {
+      const url = force 
+        ? `/api/user/${selectedUser.id}?force=true` 
+        : `/api/user/${selectedUser.id}`;
+      
+      const response = await fetch(url, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        
+        // If error is about associated records and we're not forcing deletion
+        if (data.error === 'Cannot delete user that has associated records' && !force) {
+          setLoading(false);
+          // Set custom error with action button
+          setError("This user has associated records. Delete anyway?");
+          return; // Stop here and wait for user decision
+        }
+        
+        throw new Error(data.error || "Failed to delete user");
+      }
+
+      // Remove user from state
+      setUsers(prev => prev.filter(user => user.id !== selectedUser.id));
+      
+      setIsDeleteModalOpen(false);
+      setSelectedUser(null);
+      toast.success("User deleted successfully");
+    } catch (error: any) {
+      setError(error.message);
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const columns: Column[] = [
     {
       header: "No",
       accessor: (user: User) => {
-        const index = users.indexOf(user);
+        const index = filteredUsers.indexOf(user);
         return index + 1;
       },
     },
@@ -166,86 +286,13 @@ const UserPage = () => {
     },
   ];
 
-  const handleEditClick = (user: User) => {
-    setSelectedUser(user);
-    setNewUser({
-      username: user.name,
-      idUser: "",
-      jobTitle: user.role,
-      password: "password123",
-    });
-    setIsEditModalOpen(true);
-  };
-
-  const handleEditSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedUser) return;
-    
-    setError("");
-    setLoading(true);
-
-    try {
-      const response = await fetch(`/api/user/${selectedUser.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          username: newUser.username,
-          jobTitle: newUser.jobTitle,
-          password: newUser.password,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Gagal mengupdate user");
-      }
-
-      // Refresh user list
-      await fetchUsers();
-      
-      setIsEditModalOpen(false);
-      setSelectedUser(null);
-      setNewUser({
-        username: "",
-        idUser: "",
-        jobTitle: "",
-        password: "password123",
-      });
-      
-      toast.success("User berhasil diupdate");
-    } catch (err: any) {
-      setError(err.message);
-      toast.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!selectedUser) return;
-
-    try {
-      const response = await fetch(`/api/user/${selectedUser.id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Gagal menghapus user");
-      }
-
-      // Refresh user list
-      await fetchUsers();
-      setIsDeleteModalOpen(false);
-      setSelectedUser(null);
-      toast.success("User berhasil dihapus");
-    } catch (error: any) {
-      toast.error(error.message);
-    }
-  };
+  if (loading && users.length === 0) {
+    return (
+      <Layout>
+        <div className="p-2 text-center">Loading users...</div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -253,6 +300,18 @@ const UserPage = () => {
         <h1 className="text-lg md:text-xl text-gray-700 mb-2">
           Users Management
         </h1>
+
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 mb-2 rounded relative">
+            <span className="block sm:inline">{error}</span>
+            <button 
+              className="absolute top-0 bottom-0 right-0 px-4 py-2"
+              onClick={() => setError("")}
+            >
+              &times;
+            </button>
+          </div>
+        )}
 
         <div className="mb-2 flex flex-col sm:flex-row sm:justify-between gap-2">
           <Button
@@ -279,28 +338,28 @@ const UserPage = () => {
             <input
               type="text"
               placeholder="Search..."
+              value={searchTerm}
+              onChange={handleSearchChange}
               className="px-2 py-1 text-xs rounded-lg w-full sm:w-auto"
             />
           </div>
         </div>
 
-        {error && (
-          <div className="text-red-500 text-sm mb-2">
-            {error}
+        {users.length === 0 && !loading ? (
+          <div className="text-center py-4 text-gray-500">No users found</div>
+        ) : (
+          <div className="overflow-x-auto -mx-2 px-2">
+            <Table
+              columns={columns}
+              data={currentUsers}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              itemsPerPage={itemsPerPage}
+              totalItems={filteredUsers.length}
+              onPageChange={setCurrentPage}
+            />
           </div>
         )}
-
-        <div className="overflow-x-auto -mx-2 px-2">
-          <Table
-            columns={columns}
-            data={currentUsers}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            itemsPerPage={itemsPerPage}
-            totalItems={filteredUsers.length}
-            onPageChange={setCurrentPage}
-          />
-        </div>
 
         {/* Add User Modal */}
         {isModalOpen && (
@@ -321,17 +380,6 @@ const UserPage = () => {
                 />
               </div>
               <div>
-                <label className="block mb-1 text-xs text-gray-700">ID User</label>
-                <input
-                  type="text"
-                  name="idUser"
-                  value={newUser.idUser}
-                  onChange={(e) => setNewUser({ ...newUser, idUser: e.target.value })}
-                  className="w-full px-2 py-1 text-xs rounded border border-gray-300"
-                  required
-                />
-              </div>
-              <div>
                 <label className="block text-xs text-gray-700 mb-1">Role</label>
                 <select
                   name="jobTitle"
@@ -341,14 +389,23 @@ const UserPage = () => {
                   required
                 >
                   <option value="">Select Role</option>
-                  {roles
-                    .filter((role) => role !== "all")
-                    .map((role) => (
-                      <option key={role} value={role}>
-                        {role}
-                      </option>
-                    ))}
+                  {uniqueRoles.map((role) => (
+                    <option key={role} value={role}>
+                      {role}
+                    </option>
+                  ))}
                 </select>
+              </div>
+              <div>
+                <label className="block mb-1 text-xs text-gray-700">Password</label>
+                <input
+                  type="password"
+                  name="password"
+                  value={newUser.password}
+                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                  className="w-full px-2 py-1 text-xs rounded border border-gray-300"
+                  required
+                />
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button
@@ -379,11 +436,6 @@ const UserPage = () => {
             <h2 className="text-base font-semibold mb-2 text-gray-700">
               Edit User
             </h2>
-            {error && (
-              <div className="text-red-500 text-sm mb-2">
-                {error}
-              </div>
-            )}
             <form onSubmit={handleEditSubmit} className="space-y-2">
               <div>
                 <label className="block text-xs text-gray-700 mb-1">Username</label>
@@ -408,13 +460,11 @@ const UserPage = () => {
                   disabled={loading}
                 >
                   <option value="">Select Role</option>
-                  {roles
-                    .filter((role) => role !== "all")
-                    .map((role) => (
-                      <option key={role} value={role}>
-                        {role}
-                      </option>
-                    ))}
+                  {uniqueRoles.map((role) => (
+                    <option key={role} value={role}>
+                      {role}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -425,9 +475,10 @@ const UserPage = () => {
                   value={newUser.password}
                   onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                   className="w-full px-2 py-1 text-xs rounded border border-gray-300"
-                  placeholder="Leave unchanged to keep current password"
+                  placeholder="Leave empty to keep current password"
                   disabled={loading}
                 />
+                <p className="text-xs text-gray-500 mt-1">Leave empty to keep current password</p>
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button
@@ -454,29 +505,48 @@ const UserPage = () => {
         )}
 
         {/* Delete Modal */}
-        {isDeleteModalOpen && (
+        {isDeleteModalOpen && selectedUser && (
           <Modal onClose={() => setIsDeleteModalOpen(false)}>
             <h2 className="text-base font-semibold text-gray-700">Delete User</h2>
             <p className="text-xs text-gray-600 mt-2">
-              Apakah Anda yakin ingin menghapus user ini?
+              Are you sure you want to delete user <span className="font-semibold">{selectedUser.name}</span>?
             </p>
+            {error && error.includes("associated records") && (
+              <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-3 py-2 mt-2 rounded text-xs">
+                <p>Warning: This user has associated records. Force deletion may cause data inconsistency.</p>
+              </div>
+            )}
             <div className="flex justify-end mt-3 gap-2">
               <Button
                 variant="gray"
                 size="small"
                 onClick={() => setIsDeleteModalOpen(false)}
                 className="text-xs px-2 py-1"
+                disabled={loading}
               >
                 Cancel
               </Button>
-              <Button
-                variant="red"
-                size="small"
-                onClick={handleDelete}
-                className="text-xs px-2 py-1"
-              >
-                Hapus
-              </Button>
+              {error && error.includes("associated records") ? (
+                <Button
+                  variant="red"
+                  size="small"
+                  onClick={() => handleDelete(true)}
+                  className="text-xs px-2 py-1"
+                  disabled={loading}
+                >
+                  Force Delete
+                </Button>
+              ) : (
+                <Button
+                  variant="red"
+                  size="small"
+                  onClick={() => handleDelete()}
+                  className="text-xs px-2 py-1"
+                  disabled={loading}
+                >
+                  {loading ? "Deleting..." : "Delete"}
+                </Button>
+              )}
             </div>
           </Modal>
         )}

@@ -3,14 +3,16 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 
 const LoginForm = () => {
   const router = useRouter();
+  const { data: session } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,49 +23,71 @@ const LoginForm = () => {
     setLoading(true);
 
     try {
+      console.log("Login attempt with:", { email });
+      
+      // Gunakan signIn dari NextAuth
       const result = await signIn("credentials", {
         email,
         password,
         redirect: false,
       });
 
+      console.log("SignIn result:", result);
+
       if (result?.error) {
-        setError("Invalid email or password");
-        setLoading(false);
+        setError(result.error);
+        toast.error(result.error);
         return;
       }
 
-      // Get the session data
-      const session = await fetch("/api/auth/session");
-      const sessionData = await session.json();
-      
-      if (!sessionData?.user?.role) {
-        setError("Gagal mendapatkan data pengguna");
-        setLoading(false);
-        return;
-      }
+      if (result?.ok) {
+        toast.success("Login berhasil!");
+        
+        // Tunggu session diperbarui
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Cek session setelah login
+        const response = await fetch('/api/auth/session');
+        const sessionData = await response.json();
+        console.log("Session after login:", sessionData);
 
-      // Redirect based on role
-      switch (sessionData.user.role) {
-        case "super_admin":
-          router.push("/dashboard");
-          break;
-        case "instructor":
-          router.push("/instructure/dashboard");
-          break;
-        case "participant":
-          router.push("/participant/dashboard");
-          break;
-        default:
-          setError("Role pengguna tidak valid");
-          setLoading(false);
+        if (!sessionData?.user) {
+          console.error("Session tidak ditemukan setelah login");
+          toast.error("Terjadi masalah dengan session");
+          return;
+        }
+
+        // Tentukan redirect berdasarkan userType dari session
+        const userType = sessionData.user.userType;
+        let redirectPath = '/dashboard'; // default
+
+        if (userType === 'instructor') {
+          redirectPath = '/instructure/dashboard';
+        } else if (userType === 'participant') {
+          redirectPath = '/participant/dashboard';
+        }
+
+        console.log("Redirecting to:", redirectPath);
+        router.push(redirectPath);
       }
     } catch (error) {
       console.error("Login error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Terjadi kesalahan saat login";
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
       setLoading(false);
-      toast.error("Terjadi kesalahan saat login");
     }
   };
+
+  // Tampilkan link ke debug login
+  const DebugLoginLink = () => (
+    <div className="mt-4 text-center">
+      <Link href="/debug-login" className="text-xs text-gray-500 hover:underline">
+        Login Debug
+      </Link>
+    </div>
+  );
 
   return (
     <motion.div
@@ -104,7 +128,7 @@ const LoginForm = () => {
                 transition={{ duration: 0.6, delay: 0.4 }}
                 className="-intro-x mt-10 text-4xl font-medium leading-tight text-white"
               >
-                Welcome To Train4best
+                Selamat Datang di Train4best
               </motion.div>
               <motion.div
                 initial={{ y: 20, opacity: 0 }}
@@ -112,7 +136,7 @@ const LoginForm = () => {
                 transition={{ duration: 0.6, delay: 0.6 }}
                 className="-intro-x mt-5 text-lg text-white text-opacity-70 dark:text-slate-400"
               >
-                Customer service : +62 821-3023-7117
+                Layanan pelanggan : +62 821-3023-7117
               </motion.div>
             </div>
           </motion.div>
@@ -132,7 +156,7 @@ const LoginForm = () => {
                 transition={{ duration: 0.6, delay: 0.3 }}
                 className="intro-x text-center text-2xl font-bold text-black xl:text-left xl:text-3xl"
               >
-                Sign In
+                Masuk
               </motion.h2>
               <motion.div
                 initial={{ y: -20, opacity: 0 }}
@@ -140,7 +164,7 @@ const LoginForm = () => {
                 transition={{ duration: 0.6, delay: 0.4 }}
                 className="intro-x mt-2 text-center text-slate-400 xl:hidden"
               >
-                Welcome To Train4best
+                Selamat Datang di Train4best
               </motion.div>
 
               {error && (
@@ -163,13 +187,31 @@ const LoginForm = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     className="intro-x block min-w-full px-4 py-3 xl:min-w-[350px] disabled:bg-slate-100 disabled:cursor-not-allowed dark:disabled:bg-darkmode-800/50 dark:disabled:border-transparent transition duration-200 ease-in-out w-full text-sm border-slate-200 shadow-sm rounded-md placeholder:text-slate-400/90 focus:ring-4 focus:ring-[#373A8D] focus:ring-opacity-20 focus:border-[#373A8D] focus:border-opacity-40 dark:bg-darkmode-800 dark:border-transparent dark:focus:ring-slate-700 dark:focus:ring-opacity-50 dark:placeholder:text-slate-500/80 text-black"
                   />
-                  <input
-                    type="password"
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="intro-x mt-4 block min-w-full px-4 py-3 xl:min-w-[350px] disabled:bg-slate-100 disabled:cursor-not-allowed dark:disabled:bg-darkmode-800/50 dark:disabled:border-transparent transition duration-200 ease-in-out w-full text-sm border-slate-200 shadow-sm rounded-md placeholder:text-slate-400/90 focus:ring-4 focus:ring-[#373A8D] focus:ring-opacity-20 focus:border-[#373A8D] focus:border-opacity-40 dark:bg-darkmode-800 dark:border-transparent dark:focus:ring-slate-700 dark:focus:ring-opacity-50 dark:placeholder:text-slate-500/80 text-black"
-                  />
+                  <div className="intro-x mt-4 relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Kata Sandi"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="block min-w-full px-4 py-3 xl:min-w-[350px] disabled:bg-slate-100 disabled:cursor-not-allowed dark:disabled:bg-darkmode-800/50 dark:disabled:border-transparent transition duration-200 ease-in-out w-full text-sm border-slate-200 shadow-sm rounded-md placeholder:text-slate-400/90 focus:ring-4 focus:ring-[#373A8D] focus:ring-opacity-20 focus:border-[#373A8D] focus:border-opacity-40 dark:bg-darkmode-800 dark:border-transparent dark:focus:ring-slate-700 dark:focus:ring-opacity-50 dark:placeholder:text-slate-500/80 text-black"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 to-black"
+                    >
+                      {showPassword ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                        </svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 </motion.div>
                 <motion.div
                   initial={{ y: 20, opacity: 0 }}
@@ -185,11 +227,11 @@ const LoginForm = () => {
                       className="mr-2 border transition-all duration-100 ease-in-out shadow-sm border-slate-200 cursor-pointer rounded focus:ring-4 focus:ring-[#373A8D] focus:ring-opacity-20"
                     />
                     <label className="cursor-pointer select-none">
-                      Remember me
+                      Ingat saya
                     </label>
                   </div>
                   <Link href="/forgot-password" className="text-[#373A8D]">
-                    Forgot Password?
+                    Lupa Kata Sandi?
                   </Link>
                 </motion.div>
                 <motion.div
@@ -203,17 +245,18 @@ const LoginForm = () => {
                     disabled={loading}
                     className="w-full px-4 py-3 align-top xl:mr-3 xl:w-32 transition duration-200 border shadow-sm inline-flex items-center justify-center rounded-md font-medium cursor-pointer focus:ring-4 focus:ring-[#373A8D] focus:ring-opacity-20 focus-visible:outline-none dark:focus:ring-slate-700 dark:focus:ring-opacity-50 [&:hover:not(:disabled)]:bg-opacity-90 [&:hover:not(:disabled)]:border-opacity-90 bg-[#373A8D] border-[#373A8D] text-white disabled:opacity-70"
                   >
-                    {loading ? "Loading..." : "Login"}
+                    {loading ? "Memuat..." : "Masuk"}
                   </button>
                   <Link
                     href="/register"
                     className="mt-3 w-full px-4 py-3 align-top xl:mt-0 xl:w-32 transition duration-200 border shadow-sm inline-flex items-center justify-center rounded-md font-medium cursor-pointer focus:ring-4 focus:ring-[#373A8D] focus:ring-opacity-20 focus-visible:outline-none dark:focus:ring-slate-700 dark:focus:ring-opacity-50 [&:hover:not(:disabled)]:bg-opacity-90 [&:hover:not(:disabled)]:border-opacity-90 border-secondary text-slate-700 dark:border-darkmode-100/40 dark:text-slate-700 [&:hover:not(:disabled)]:bg-secondary/20 [&:hover:not(:disabled)]:dark:bg-darkmode-100/10"
                   >
-                    Register
+                    Daftar
                   </Link>
                 </motion.div>
               </form>
 
+              <DebugLoginLink />
             </div>
           </motion.div>
           {/* END: Login Form */}

@@ -1,5 +1,4 @@
 import NextAuth from "next-auth/next"
-import GoogleProvider from "next-auth/providers/google"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
@@ -10,61 +9,84 @@ const handler = NextAuth({
       name: "Credentials",
       credentials: {
         email: { label: "Email", type: "text" },
-        password: { label: "Password", type: "password" }
+        password: { label: "Kata Sandi", type: "password" }
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          throw new Error('Please enter an email and password')
-        }
-
-        const user = await prisma.user.findUnique({
-          where: {
-            email: credentials.email
+        try {
+          if (!credentials?.email || !credentials?.password) {
+            throw new Error('Mohon masukkan email dan kata sandi')
           }
-        })
 
-        if (!user || !user.password) {
-          throw new Error('No user found')
-        }
+          // Find user with userType
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email },
+            include: { userType: true }
+          })
 
-        const isValid = await bcrypt.compare(credentials.password, user.password)
+          if (!user) {
+            throw new Error('Pengguna tidak ditemukan')
+          }
 
-        if (!isValid) {
-          throw new Error('Invalid password')
-        }
+          // Verify password
+          const isValid = await bcrypt.compare(credentials.password, user.password)
+          if (!isValid) {
+            throw new Error('Kata sandi salah')
+          }
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
+          // Return simplified user object
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.username,
+            userType: user.userType.usertype
+          }
+        } catch (error) {
+          console.error('Kesalahan otorisasi:', error)
+          throw error
         }
       }
-    }),
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
+    })
   ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.role = user.role
-        token.id = user.id
-      }
-      return token
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.role = token.role as string
-        session.user.id = token.id as string
-      }
-      return session
-    }
-  },
   pages: {
     signIn: '/login',
+    error: '/login',
   },
+  session: {
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  callbacks: {
+    async jwt({ token, user }) {
+      try {
+        if (user) {
+          token.id = user.id
+          token.email = user.email
+          token.name = user.name
+          token.userType = user.userType
+        }
+        return token
+      } catch (error) {
+        console.error('Error in JWT callback:', error)
+        return token
+      }
+    },
+    async session({ session, token }) {
+      try {
+        if (token && session.user) {
+          session.user.id = token.id as string
+          session.user.name = token.name as string
+          session.user.email = token.email as string
+          session.user.userType = token.userType as string
+        }
+        return session
+      } catch (error) {
+        console.error('Error in session callback:', error)
+        return session
+      }
+    }
+  },
+  debug: false,
+  secret: process.env.NEXTAUTH_SECRET
 })
 
 export { handler as GET, handler as POST }

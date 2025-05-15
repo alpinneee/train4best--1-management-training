@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { Eye, PenSquare, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Eye, PenSquare, Trash2, Plus } from "lucide-react";
+import { useState, useEffect } from "react";
 import Pagination from "@/components/common/Pagination";
 import Button from "@/components/common/button";
 import Modal from "@/components/common/Modal";
@@ -10,151 +10,318 @@ import Card from "@/components/common/card";
 import Layout from "@/components/common/Layout";
 
 interface CourseType {
-  id: number;
-  name: string;
-  image: string;
-  createdAt: string;
-  status: 'active' | 'inactive';
+  id: string;
+  course_type: string;
 }
 
-export default function CourseType() {
-  const courseTypes = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+export default function CourseTypePage() {
+  const [courseTypes, setCourseTypes] = useState<CourseType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [itemsPerPage] = useState(8);
+  const [searchTerm, setSearchTerm] = useState("");
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<'add' | 'edit' | 'preview'>('add');
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedCourseType, setSelectedCourseType] = useState<CourseType | null>(null);
-  const itemsPerPage = 8;
-  const totalPages = Math.ceil(courseTypes.length / itemsPerPage);
+  const [newCourseType, setNewCourseType] = useState({
+    course_type: ''
+  });
 
-  const handleEdit = (courseType: number) => {
-    setSelectedCourseType({
-      id: courseType,
-      name: 'Online',
-      image: courseType % 2 === 0 ? "/code.jpg" : "/aiot.jpg",
-      createdAt: '01 Januari 2024',
-      status: 'active'
+  // Load course types on initial render
+  useEffect(() => {
+    fetchCourseTypes();
+  }, [currentPage, searchTerm]);
+
+  // Fetch course types with pagination
+  const fetchCourseTypes = async () => {
+    setLoading(true);
+    try {
+      const queryParams = new URLSearchParams({
+        search: searchTerm
+      });
+      
+      const response = await fetch(`/api/course-types?${queryParams}`);
+      
+      if (!response.ok) {
+        throw new Error(`Server responded with ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Handle pagination on client side for now
+      const indexOfLastItem = currentPage * itemsPerPage;
+      const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+      const currentItems = data.slice(indexOfFirstItem, indexOfLastItem);
+      
+      setCourseTypes(data);
+      setTotalPages(Math.ceil(data.length / itemsPerPage));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load course types');
+      setCourseTypes([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setNewCourseType(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const response = await fetch('/api/course-types', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newCourseType),
+      });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to create course type');
+      }
+      
+      // Reset form and close modal
+      setIsModalOpen(false);
+      setNewCourseType({
+        course_type: ''
+      });
+      
+      // Refresh course types
+      fetchCourseTypes();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'An error occurred');
+    }
+  };
+
+  const handleEditCourseType = (courseType: CourseType) => {
+    setSelectedCourseType(courseType);
+    setNewCourseType({
+      course_type: courseType.course_type
     });
-    setModalMode('edit');
-    setIsModalOpen(true);
+    setIsEditModalOpen(true);
   };
 
-  const handlePreview = (courseType: number) => {
-    setSelectedCourseType({
-      id: courseType,
-      name: 'Online',
-      image: courseType % 2 === 0 ? "/code.jpg" : "/aiot.jpg",
-      createdAt: '01 Januari 2024',
-      status: 'active'
-    });
-    setModalMode('preview');
-    setIsModalOpen(true);
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedCourseType) return;
+    
+    try {
+      const response = await fetch(`/api/course-types/${selectedCourseType.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newCourseType),
+      });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to update course type');
+      }
+      
+      // Reset form and close modal
+      setIsEditModalOpen(false);
+      setSelectedCourseType(null);
+      setNewCourseType({
+        course_type: ''
+      });
+      
+      // Refresh course types
+      fetchCourseTypes();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'An error occurred');
+    }
   };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedCourseType(null);
-    setModalMode('add');
+  const handlePreviewCourseType = (courseType: CourseType) => {
+    setSelectedCourseType(courseType);
+    setIsPreviewModalOpen(true);
   };
 
+  const handleDeleteClick = (courseType: CourseType) => {
+    setSelectedCourseType(courseType);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedCourseType) return;
+    
+    try {
+      const response = await fetch(`/api/course-types/${selectedCourseType.id}`, {
+        method: 'DELETE',
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        if (data.hint && data.hint.includes('force=true') && 
+            window.confirm(`${data.error}\n\nAre you sure you want to delete this course type and all related courses?`)) {
+          // Force delete if there are related courses
+          const forceResponse = await fetch(`/api/course-types/${selectedCourseType.id}?force=true`, {
+            method: 'DELETE',
+          });
+          
+          if (!forceResponse.ok) {
+            const forceData = await forceResponse.json();
+            throw new Error(forceData.error || 'Failed to delete course type');
+          }
+        } else {
+          throw new Error(data.error || 'Failed to delete course type');
+        }
+      }
+      
+      // Close modal and refresh data
+      setIsDeleteModalOpen(false);
+      setSelectedCourseType(null);
+      fetchCourseTypes();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'An error occurred');
+    }
+  };
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1);
+  };
+
+  // Get paginated items
   const getCurrentItems = () => {
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     return courseTypes.slice(indexOfFirstItem, indexOfLastItem);
   };
 
-  const renderModalContent = () => {
-    switch (modalMode) {
-      case 'preview':
-        return (
-          <div className="space-y-4">
-            <h2 className="text-base font-semibold text-gray-700">Detail Course Type</h2>
-            <div className="relative h-48 w-full rounded-lg overflow-hidden">
-              <Image
-                src={selectedCourseType?.image || "/code.jpg"}
-                alt="Course Type Preview"
-                fill
-                className="object-cover"
-              />
-            </div>
-            <div className="space-y-2">
-              <div>
-                <h3 className="text-xs font-medium text-gray-500">Nama Course Type</h3>
-                <p className="text-sm text-gray-700">{selectedCourseType?.name}</p>
-              </div>
-              <div>
-                <h3 className="text-xs font-medium text-gray-500">Tanggal Dibuat</h3>
-                <p className="text-sm text-gray-700">{selectedCourseType?.createdAt}</p>
-              </div>
-              <div>
-                <h3 className="text-xs font-medium text-gray-500">Status</h3>
-                <span className="inline-block px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-full">
-                  {selectedCourseType?.status === 'active' ? 'Aktif' : 'Tidak Aktif'}
-                </span>
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <Button
-                variant="gray"
-                size="small"
-                onClick={handleCloseModal}
-                className="text-xs px-3 py-1"
-              >
-                Tutup
-              </Button>
-            </div>
-          </div>
-        );
+  return (
+    <Layout>
+      <div className="p-2">
+        <h1 className="text-lg md:text-xl text-gray-600 mb-2">
+          Course Type
+        </h1>
 
-      default:
-        return (
-          <>
-            <h2 className="text-base font-semibold mb-2 text-gray-700">
-              {modalMode === 'add' ? 'Add New Course Type' : 'Edit Course Type'}
-            </h2>
-            <form className="space-y-2">
+        <div className="flex flex-col sm:flex-row sm:justify-between gap-2 mb-2">
+          <Button
+            variant="primary"
+            size="small"
+            onClick={() => setIsModalOpen(true)}
+            className="w-full sm:w-auto text-xs"
+          >
+            <Plus size={14} className="mr-1" /> Add Course Type
+          </Button>
+          <input 
+            type="text" 
+            placeholder="Search..." 
+            value={searchTerm}
+            onChange={handleSearch}
+            className="w-full sm:w-auto px-2 py-1 text-xs border rounded-lg"
+          />
+        </div>
+
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded mb-4">
+            {error}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="flex justify-center py-10">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+            {getCurrentItems().length > 0 ? (
+              getCurrentItems().map((courseType, index) => (
+                <div
+                  key={courseType.id}
+                  className="bg-white rounded-lg shadow-sm overflow-hidden"
+                >
+                  <Card>
+                    <div className="relative h-32 w-full bg-gray-100 flex items-center justify-center">
+                      <div className="text-3xl font-bold text-gray-300">
+                        {courseType.course_type.substring(0, 2).toUpperCase()}
+                      </div>
+                    </div>
+                    <div className="p-2">
+                      <p className="text-xs text-gray-700 mb-2">Course Type: {courseType.course_type}</p>
+                      <div className="flex justify-between">
+                        <button 
+                          className="text-gray-600 p-1"
+                          onClick={() => handlePreviewCourseType(courseType)}
+                        >
+                          <Eye size={14} />
+                        </button>
+                        <div className="flex gap-1">
+                          <button 
+                            className="text-gray-600 p-1"
+                            onClick={() => handleEditCourseType(courseType)}
+                          >
+                            <PenSquare size={14} />
+                          </button>
+                          <button 
+                            className="text-red-500 p-1"
+                            onClick={() => handleDeleteClick(courseType)}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              ))
+            ) : (
+              <div className="col-span-full text-center py-8 text-gray-500">
+                No course types found
+              </div>
+            )}
+          </div>
+        )}
+
+        {totalPages > 1 && (
+          <div className="mt-2">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        )}
+
+        {/* Add Course Type Modal */}
+        {isModalOpen && (
+          <Modal onClose={() => setIsModalOpen(false)}>
+            <h2 className="text-base font-semibold mb-2 text-gray-700">Add New Course Type</h2>
+            <form onSubmit={handleSubmit} className="space-y-2">
               <div>
                 <label className="block text-xs text-gray-700 mb-1">Course Type Name</label>
                 <input
                   type="text"
+                  name="course_type"
+                  value={newCourseType.course_type}
+                  onChange={handleInputChange}
                   placeholder="Enter course type name"
-                  defaultValue={modalMode === 'edit' ? 'Online' : ''}
                   className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  required
                 />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-700 mb-1">Image</label>
-                <div 
-                  className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-blue-500 transition-colors duration-200"
-                  onClick={() => document.getElementById('image-upload')?.click()}
-                >
-                  <div className="flex flex-col items-center justify-center gap-2">
-                    <div className="text-gray-400">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                    <p className="text-xs text-gray-500">Pilih atau seret file Anda ke sini</p>
-                  </div>
-                  <input 
-                    id="image-upload"
-                    type="file" 
-                    className="hidden" 
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        // Handle file upload logic here
-                        console.log('File selected:', file);
-                      }
-                    }}
-                  />
-                </div>
               </div>
               <div className="flex justify-end gap-2">
                 <Button
                   variant="gray"
                   size="small"
-                  onClick={handleCloseModal}
+                  onClick={() => setIsModalOpen(false)}
                   className="text-xs px-2 py-1"
                 >
                   Cancel
@@ -165,92 +332,114 @@ export default function CourseType() {
                   type="submit"
                   className="text-xs px-2 py-1"
                 >
-                  {modalMode === 'add' ? 'Submit' : 'Update'}
+                  Submit
                 </Button>
               </div>
             </form>
-          </>
-        );
-    }
-  };
+          </Modal>
+        )}
 
-  return (
-    <Layout>
-      <div className="p-2">
-        <h1 className="text-lg md:text-xl text-gray-600 mb-2">
-          Course Type
-        </h1>
+        {/* Edit Course Type Modal */}
+        {isEditModalOpen && selectedCourseType && (
+          <Modal onClose={() => setIsEditModalOpen(false)}>
+            <h2 className="text-base font-semibold mb-2 text-gray-700">Edit Course Type</h2>
+            <form onSubmit={handleEditSubmit} className="space-y-2">
+              <div>
+                <label className="block text-xs text-gray-700 mb-1">Course Type Name</label>
+                <input
+                  type="text"
+                  name="course_type"
+                  value={newCourseType.course_type}
+                  onChange={handleInputChange}
+                  placeholder="Enter course type name"
+                  className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  required
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="gray"
+                  size="small"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="text-xs px-2 py-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  size="small"
+                  type="submit"
+                  className="text-xs px-2 py-1"
+                >
+                  Save Changes
+                </Button>
+              </div>
+            </form>
+          </Modal>
+        )}
 
-        <div className="mb-2">
-          <Button
-            variant="primary"
-            size="small"
-            onClick={() => {
-              setModalMode('add');
-              setIsModalOpen(true);
-            }}
-            className="w-full sm:w-auto text-xs"
-          >
-            Add Course Type
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-          {getCurrentItems().map((item) => (
-            <div
-              key={item}
-              className="bg-white rounded-lg shadow-sm overflow-hidden"
-            >
-              <Card>
-                <div className="relative h-32 w-full">
-                  <Image
-                    src={item % 2 === 0 ? "/code.jpg" : "/aiot.jpg"}
-                    alt="Course Type"
-                    fill
-                    className="object-cover"
-                  />
+        {/* Preview Course Type Modal */}
+        {isPreviewModalOpen && selectedCourseType && (
+          <Modal onClose={() => setIsPreviewModalOpen(false)}>
+            <div className="space-y-4">
+              <h2 className="text-base font-semibold text-gray-700">Course Type Details</h2>
+              <div className="bg-gray-100 h-48 w-full rounded-lg flex items-center justify-center">
+                <div className="text-6xl font-bold text-gray-300">
+                  {selectedCourseType.course_type.substring(0, 2).toUpperCase()}
                 </div>
-                <div className="p-2">
-                  <p className="text-xs text-gray-700 mb-2">Course Type : Online</p>
-                  <div className="flex justify-between">
-                    <button 
-                      className="text-gray-600 p-1"
-                      onClick={() => handlePreview(item)}
-                    >
-                      <Eye size={14} />
-                    </button>
-                    <div className="flex gap-1">
-                      <button 
-                        className="text-gray-600 p-1"
-                        onClick={() => handleEdit(item)}
-                      >
-                        <PenSquare size={14} />
-                      </button>
-                      <button className="text-red-500 p-1">
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
+              </div>
+              <div className="space-y-2">
+                <div>
+                  <h3 className="text-xs font-medium text-gray-500">Name</h3>
+                  <p className="text-sm text-gray-700">{selectedCourseType.course_type}</p>
                 </div>
-              </Card>
+                <div>
+                  <h3 className="text-xs font-medium text-gray-500">ID</h3>
+                  <p className="text-sm text-gray-700">{selectedCourseType.id}</p>
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  variant="gray"
+                  size="small"
+                  onClick={() => setIsPreviewModalOpen(false)}
+                  className="text-xs px-3 py-1"
+                >
+                  Close
+                </Button>
+              </div>
             </div>
-          ))}
-        </div>
+          </Modal>
+        )}
 
-        <div className="mt-2">
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-          />
-        </div>
+        {/* Delete Modal */}
+        {isDeleteModalOpen && selectedCourseType && (
+          <Modal onClose={() => setIsDeleteModalOpen(false)}>
+            <h2 className="text-base font-semibold text-gray-700">Delete Course Type</h2>
+            <p className="text-xs text-gray-600 mt-2">
+              Are you sure you want to delete <strong>{selectedCourseType.course_type}</strong>?
+            </p>
+            <div className="flex justify-end mt-2">
+              <Button 
+                variant="gray" 
+                size="small"
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="text-xs px-2 py-1 mr-2"
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="red" 
+                size="small"
+                onClick={handleDeleteConfirm}
+                className="text-xs px-2 py-1"
+              >
+                Delete
+              </Button>
+            </div>
+          </Modal>
+        )}
       </div>
-
-      {isModalOpen && (
-        <Modal onClose={handleCloseModal}>
-          {renderModalContent()}
-        </Modal>
-      )}
     </Layout>
   );
 }
