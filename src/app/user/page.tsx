@@ -375,7 +375,7 @@ const UserPage = () => {
                   name="username"
                   value={newUser.username}
                   onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                  className="w-full px-2 py-1 text-xs rounded border border-gray-300"
+                  className="w-full px-2 py-1 text-xs rounded border border-gray-300 text-gray-700"
                   required
                 />
               </div>
@@ -385,7 +385,7 @@ const UserPage = () => {
                   name="jobTitle"
                   value={newUser.jobTitle}
                   onChange={(e) => setNewUser({ ...newUser, jobTitle: e.target.value })}
-                  className="w-full px-2 py-1 text-xs rounded border border-gray-300"
+                  className="w-full px-2 py-1 text-xs rounded border border-gray-300 text-gray-700"
                   required
                 >
                   <option value="">Select Role</option>
@@ -403,7 +403,7 @@ const UserPage = () => {
                   name="password"
                   value={newUser.password}
                   onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                  className="w-full px-2 py-1 text-xs rounded border border-gray-300"
+                  className="w-full px-2 py-1 text-xs rounded border border-gray-300 text-gray-700"
                   required
                 />
               </div>
@@ -444,7 +444,7 @@ const UserPage = () => {
                   name="username"
                   value={newUser.username}
                   onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                  className="w-full px-2 py-1 text-xs rounded border border-gray-300"
+                  className="w-full px-2 py-1 text-xs rounded border border-gray-300 text-gray-700"
                   required
                   disabled={loading}
                 />
@@ -455,7 +455,7 @@ const UserPage = () => {
                   name="jobTitle"
                   value={newUser.jobTitle}
                   onChange={(e) => setNewUser({ ...newUser, jobTitle: e.target.value })}
-                  className="w-full px-2 py-1 text-xs rounded border border-gray-300"
+                  className="w-full px-2 py-1 text-xs rounded border border-gray-300 text-gray-700"
                   required
                   disabled={loading}
                 >
@@ -474,7 +474,7 @@ const UserPage = () => {
                   name="password"
                   value={newUser.password}
                   onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                  className="w-full px-2 py-1 text-xs rounded border border-gray-300"
+                  className="w-full px-2 py-1 text-xs rounded border border-gray-300 text-gray-700"
                   placeholder="Leave empty to keep current password"
                   disabled={loading}
                 />

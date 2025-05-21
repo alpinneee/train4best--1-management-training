@@ -3,165 +3,197 @@ import { getServerSession } from "next-auth/next"
 import { prisma } from "@/lib/prisma"
 
 // GET /api/enrollments - Mendapatkan semua pendaftaran
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const session = await getServerSession()
-    if (!session?.user) {
+    const { searchParams } = new URL(request.url)
+    const participantId = searchParams.get('participantId')
+
+    if (!participantId) {
       return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
+        { error: "Participant ID is required" },
+        { status: 400 }
       )
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email! },
-    })
-
-    if (!user) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      )
-    }
-
-    // Jika user adalah instruktur, tampilkan semua pendaftaran untuk kursus yang dia ajar
-    if (user.role === "instructor") {
-      const enrollments = await prisma.enrollment.findMany({
-        where: {
-          course: {
-            instructorId: user.id,
-          },
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              image: true,
-            },
-          },
-          course: true,
-        },
-      })
-      return NextResponse.json(enrollments)
-    }
-
-    // Jika user adalah peserta, tampilkan pendaftaran mereka sendiri
-    const enrollments = await prisma.enrollment.findMany({
+    // Get enrollments for the participant
+    const enrollments = await prisma.courseRegistration.findMany({
       where: {
-        userId: user.id,
+        participantId,
       },
       include: {
-        course: {
+        class: {
           include: {
-            instructor: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                image: true,
-              },
-            },
+            course: true,
           },
         },
+        payments: true,
+      },
+      orderBy: {
+        reg_date: 'desc',
       },
     })
-    return NextResponse.json(enrollments)
+
+    return NextResponse.json({
+      data: enrollments.map(enrollment => ({
+        id: enrollment.id,
+        registrationDate: enrollment.reg_date,
+        status: enrollment.reg_status,
+        amount: enrollment.payment,
+        paymentStatus: enrollment.payment_status,
+        className: enrollment.class.course.course_name,
+        classStart: enrollment.class.start_date,
+        classEnd: enrollment.class.end_date,
+        location: enrollment.class.location,
+        payment: enrollment.payments[0] || null,
+      })),
+    })
   } catch (error) {
-    console.error("Error in enrollment operation:", error);
+    console.error("Error fetching enrollments:", error)
+    
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      { 
+        error: "Failed to fetch enrollments",
+        details: error instanceof Error ? error.message : "Unknown error"
+      },
       { status: 500 }
     )
   }
 }
 
-// POST /api/enrollments - Membuat pendaftaran baru
+// POST /api/enrollments - Create a new course enrollment
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession()
-    if (!session?.user) {
+    const { participantId, classId, payment_method } = await request.json()
+
+    // Validate required fields
+    if (!participantId || !classId) {
       return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      )
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email! },
-    })
-
-    if (!user) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      )
-    }
-
-    const body = await request.json()
-    const { courseId } = body
-
-    // Cek apakah kursus ada
-    const course = await prisma.course.findUnique({
-      where: { id: courseId },
-      include: {
-        _count: {
-          select: {
-            enrollments: true,
-          },
-        },
-      },
-    })
-
-    if (!course) {
-      return NextResponse.json(
-        { error: "Course not found" },
-        { status: 404 }
-      )
-    }
-
-    // Cek apakah kursus sudah penuh
-    if (course._count.enrollments >= course.capacity) {
-      return NextResponse.json(
-        { error: "Course is full" },
+        { error: "Participant ID and Class ID are required" },
         { status: 400 }
       )
     }
 
-    // Cek apakah user sudah mendaftar
-    const existingEnrollment = await prisma.enrollment.findUnique({
+    // Check if participant exists
+    const participant = await prisma.participant.findUnique({
+      where: { id: participantId },
+    })
+
+    if (!participant) {
+      return NextResponse.json(
+        { error: "Participant not found" },
+        { status: 404 }
+      )
+    }
+
+    // Check if class exists and has available quota
+    const classData = await prisma.class.findUnique({
+      where: { id: classId },
+    })
+
+    if (!classData) {
+      return NextResponse.json(
+        { error: "Class not found" },
+        { status: 404 }
+      )
+    }
+
+    // Check if the class is still open for registration
+    const currentDate = new Date()
+    if (currentDate < new Date(classData.start_reg_date) || 
+        currentDate > new Date(classData.end_reg_date)) {
+      return NextResponse.json(
+        { error: "Registration period for this class is closed" },
+        { status: 400 }
+      )
+    }
+
+    // Check if there's available quota
+    // First, count existing registrations
+    const registrationCount = await prisma.courseRegistration.count({
+      where: { classId },
+    })
+
+    if (registrationCount >= classData.quota) {
+      return NextResponse.json(
+        { error: "Class is already full" },
+        { status: 400 }
+      )
+    }
+
+    // Check if participant is already registered for this class
+    const existingRegistration = await prisma.courseRegistration.findFirst({
       where: {
-        userId_courseId: {
-          userId: user.id,
-          courseId: course.id,
-        },
+        participantId,
+        classId,
       },
     })
 
-    if (existingEnrollment) {
+    if (existingRegistration) {
       return NextResponse.json(
-        { error: "Already enrolled in this course" },
+        { error: "You are already registered for this class" },
         { status: 400 }
       )
     }
 
-    // Buat pendaftaran baru
-    const enrollment = await prisma.enrollment.create({
-      data: {
-        userId: user.id,
-        courseId: course.id,
-      },
-      include: {
-        course: true,
-      },
+    // Create a registration ID
+    const registrationId = `reg_${Date.now()}`
+
+    // Create the registration in a transaction
+    const newRegistration = await prisma.$transaction(async (prisma) => {
+      // Create the course registration
+      const registration = await prisma.courseRegistration.create({
+        data: {
+          id: registrationId,
+          reg_date: new Date(),
+          reg_status: "Pending",
+          payment: classData.price,
+          payment_status: "Unpaid",
+          payment_method: payment_method || "Transfer Bank",
+          present_day: 0,
+          classId,
+          participantId,
+        },
+      })
+
+      // Create a payment record
+      const payment = await prisma.payment.create({
+        data: {
+          id: `payment_${Date.now()}`,
+          paymentDate: new Date(),
+          amount: classData.price,
+          paymentMethod: payment_method || "Transfer Bank",
+          referenceNumber: `REF${Date.now()}`,
+          status: "Unpaid",
+          registrationId: registration.id,
+        },
+      })
+
+      return {
+        registration,
+        payment,
+      }
     })
 
-    return NextResponse.json(enrollment)
+    return NextResponse.json({
+      id: newRegistration.registration.id,
+      registrationDate: newRegistration.registration.reg_date,
+      amount: newRegistration.registration.payment,
+      paymentStatus: newRegistration.registration.payment_status,
+      referenceNumber: newRegistration.payment.referenceNumber,
+      message: "Registration successful. Please complete your payment.",
+    }, { status: 201 })
   } catch (error) {
-    console.error("Error in enrollment operation:", error);
+    console.error("Error creating enrollment:", error)
+    
+    if (error instanceof Error) {
+      return NextResponse.json(
+        { error: `Failed to create enrollment: ${error.message}` },
+        { status: 500 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      { error: "Failed to create enrollment" },
       { status: 500 }
     )
   }

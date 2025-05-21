@@ -140,8 +140,7 @@ const ParticipantPage = () => {
 
   // Menampilkan detail participant
   const handleDetailClick = (participant: Participant) => {
-    setSelectedParticipant(participant);
-    setIsDetailModalOpen(true);
+    router.push(`/participant/${participant.id}`);
   };
 
   // Mengonfirmasi penghapusan participant

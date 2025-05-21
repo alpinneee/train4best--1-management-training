@@ -1,10 +1,10 @@
 "use client";
 
-import React, { FC, useState } from "react";
+import React, { FC, useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Bell } from "lucide-react";
-import { signOut } from "next-auth/react"
+import { signOut, useSession } from "next-auth/react"
 
 interface NavbarProps {
   onMobileMenuClick: () => void;
@@ -12,6 +12,21 @@ interface NavbarProps {
 
 const Navbar: FC<NavbarProps> = ({ onMobileMenuClick }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const { data: session, status } = useSession();
+  const [userData, setUserData] = useState({
+    name: "",
+    role: ""
+  });
+
+  useEffect(() => {
+    // Update user data when session changes
+    if (session?.user) {
+      setUserData({
+        name: session.user.name || "User",
+        role: session.user.userType || "User"
+      });
+    }
+  }, [session]);
 
   return (
     <nav className="bg-[#362d98] text-white py-1.5 px-4 mt-3 mx-4 rounded-2xl shadow-md">
@@ -97,8 +112,8 @@ const Navbar: FC<NavbarProps> = ({ onMobileMenuClick }) => {
               {isProfileOpen && (
                 <div className="absolute right-0 mt-3 w-48 bg-[#362d98] rounded-2xl shadow-lg overflow-hidden z-50 border border-white/10">
                   <div className="px-4 py-3 border-b border-indigo-600/30">
-                    <p className="font-semibold text-sm">John Deo</p>
-                    <p className="text-xs text-gray-300">Frontend Engineer</p>
+                    <p className="font-semibold text-sm">{userData.name}</p>
+                    <p className="text-xs text-gray-300">{userData.role}</p>
                   </div>
 
                   <Link

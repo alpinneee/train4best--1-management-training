@@ -358,7 +358,7 @@ const UserPage = (): ReactElement => {
                   name="usertype"
                   value={newUser.usertype}
                   onChange={handleInputChange}
-                  className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-700"
                   required
                 />
               </div>
@@ -408,7 +408,7 @@ const UserPage = (): ReactElement => {
                   name="usertype"
                   value={newUser.usertype}
                   onChange={handleInputChange}
-                  className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-700"
                   required
                 />
               </div>

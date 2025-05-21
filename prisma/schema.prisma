@@ -43,12 +43,12 @@ model Class {
 }
 
 model Course {
-  id           String     @id
+  id           String        @id
   courseTypeId String
   course_name  String
   class        Class[]
   certificates Certificate[]
-  courseType   CourseType @relation(fields: [courseTypeId], references: [id], map: "Course_courseTypeId_fkey")
+  courseType   CourseType    @relation(fields: [courseTypeId], references: [id], map: "Course_courseTypeId_fkey")
 
   @@index([courseTypeId], map: "Course_courseTypeId_fkey")
   @@map("course")
@@ -68,7 +68,7 @@ model CourseRegistration {
   class          Class           @relation(fields: [classId], references: [id], map: "CourseRegistration_classId_fkey")
   participant    Participant     @relation(fields: [participantId], references: [id], map: "CourseRegistration_participantId_fkey")
   valuereport    ValueReport[]
-  payments       Payment[]       
+  payments       Payment[]
 
   @@index([classId], map: "CourseRegistration_classId_fkey")
   @@index([participantId], map: "CourseRegistration_participantId_fkey")
@@ -172,33 +172,33 @@ model ValueReport {
 }
 
 model Certificate {
-  id               String    @id @default(uuid())
-  certificateNumber String    @unique
-  name             String
-  issueDate        DateTime
-  expiryDate       DateTime
-  status           String    @default("Valid") // Valid, Expired, Revoked
-  participantId    String?
-  courseId         String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  participant      Participant? @relation(fields: [participantId], references: [id], map: "Certificate_participantId_fkey")
-  course           Course?      @relation(fields: [courseId], references: [id], map: "Certificate_courseId_fkey")
+  id                String       @id @default(uuid())
+  certificateNumber String       @unique
+  name              String
+  issueDate         DateTime
+  expiryDate        DateTime
+  status            String       @default("Valid") // Valid, Expired, Revoked
+  participantId     String?
+  courseId          String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  participant       Participant? @relation(fields: [participantId], references: [id], map: "Certificate_participantId_fkey")
+  course            Course?      @relation(fields: [courseId], references: [id], map: "Certificate_courseId_fkey")
 
   @@map("certificate")
 }
 
 model Payment {
-  id               String    @id @default(uuid())
-  paymentDate      DateTime
-  amount           Float
-  paymentMethod    String    // "Transfer Bank", "E-Wallet", "Kartu Kredit" 
-  referenceNumber  String    @unique
-  status           String    // "Paid", "Unpaid"
-  registrationId   String
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  registration     CourseRegistration @relation(fields: [registrationId], references: [id], map: "Payment_registrationId_fkey")
+  id              String             @id @default(uuid())
+  paymentDate     DateTime
+  amount          Float
+  paymentMethod   String // "Transfer Bank", "E-Wallet", "Kartu Kredit" 
+  referenceNumber String             @unique
+  status          String // "Paid", "Unpaid"
+  registrationId  String
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  registration    CourseRegistration @relation(fields: [registrationId], references: [id], map: "Payment_registrationId_fkey")
 
   @@index([registrationId], map: "Payment_registrationId_fkey")
   @@map("payment")
