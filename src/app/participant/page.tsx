@@ -269,7 +269,7 @@ const ParticipantPage = () => {
   };
 
   return (
-    <Layout>
+    <Layout variant="admin">
       <div className="p-2">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-2">
           <h1 className="text-lg md:text-xl text-gray-600">Participants</h1>

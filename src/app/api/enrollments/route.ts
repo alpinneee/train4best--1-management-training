@@ -2,6 +2,31 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { prisma } from "@/lib/prisma"
 
+// Ensure default roles exist
+async function ensureDefaultRolesExist() {
+  try {
+    const roles = [
+      { id: 'utype_unassigned', usertype: 'unassigned', description: 'Default role for new users' },
+      { id: 'utype_participant', usertype: 'participant', description: 'Training participant' }
+    ];
+    
+    for (const role of roles) {
+      const existingRole = await prisma.userType.findFirst({
+        where: { usertype: role.usertype }
+      });
+      
+      if (!existingRole) {
+        await prisma.userType.create({
+          data: role
+        });
+        console.log(`Created default role: ${role.usertype}`);
+      }
+    }
+  } catch (error) {
+    console.error("Failed to ensure default roles exist:", error);
+  }
+}
+
 // GET /api/enrollments - Mendapatkan semua pendaftaran
 export async function GET(request: Request) {
   try {
@@ -63,26 +88,139 @@ export async function GET(request: Request) {
 // POST /api/enrollments - Create a new course enrollment
 export async function POST(request: Request) {
   try {
-    const { participantId, classId, payment_method } = await request.json()
+    // Ensure default roles exist before enrollment
+    await ensureDefaultRolesExist();
+    
+    const { participantId, classId, payment_method, userData } = await request.json()
 
     // Validate required fields
-    if (!participantId || !classId) {
+    if (!classId) {
       return NextResponse.json(
-        { error: "Participant ID and Class ID are required" },
+        { error: "Class ID is required" },
         { status: 400 }
       )
     }
 
-    // Check if participant exists
-    const participant = await prisma.participant.findUnique({
-      where: { id: participantId },
-    })
+    let participant;
+    
+    // If participantId is provided, check if participant exists
+    if (participantId) {
+      participant = await prisma.participant.findUnique({
+        where: { id: participantId },
+        include: {
+          user: true // Include user information to check the role
+        }
+      });
+    }
+    
+    // If no participant found and userData is provided (creating from user session)
+    if (!participant && userData) {
+      try {
+        // Get user by ID or email
+        const user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { id: userData.userId },
+              { email: userData.email }
+            ]
+          }
+        });
+        
+        if (!user) {
+          return NextResponse.json(
+            { error: "User not found" },
+            { status: 404 }
+          );
+        }
+        
+        // Get participant role
+        const participantRole = await prisma.userType.findFirst({
+          where: { usertype: 'participant' }
+        });
+        
+        if (!participantRole) {
+          return NextResponse.json(
+            { error: "Participant role not found in system" },
+            { status: 500 }
+          );
+        }
+        
+        // Check if a participant already exists for this user
+        const existingParticipant = await prisma.participant.findFirst({
+          where: { userId: user.id }
+        });
+        
+        if (existingParticipant) {
+          participant = {
+            ...existingParticipant,
+            user
+          };
+        } else {
+          // Create a new participant with minimal required data
+          const newParticipant = await prisma.participant.create({
+            data: {
+              id: `participant_${Date.now()}`,
+              full_name: userData.name || user.email.split('@')[0],
+              gender: userData.gender || 'Not specified',
+              phone_number: userData.phone || '000000000',
+              address: userData.address || 'Not specified',
+              birth_date: new Date(),
+              userId: user.id
+            }
+          });
+          
+          // Update user role to participant
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { userTypeId: participantRole.id }
+          });
+          
+          participant = {
+            ...newParticipant,
+            user
+          };
+          
+          console.log(`Created new participant profile for user: ${user.id}`);
+        }
+      } catch (error) {
+        console.error('Error creating participant profile:', error);
+        return NextResponse.json(
+          { error: "Failed to create participant profile" },
+          { status: 500 }
+        );
+      }
+    }
 
+    // If still no participant, return error
     if (!participant) {
       return NextResponse.json(
         { error: "Participant not found" },
         { status: 404 }
       )
+    }
+
+    // Check if user has participant role, if not, update it
+    if (participant.user) {
+      // Get participant userType
+      const participantType = await prisma.userType.findFirst({
+        where: { usertype: 'participant' }
+      });
+
+      if (!participantType) {
+        return NextResponse.json(
+          { error: "Participant role not found in system" },
+          { status: 500 }
+        )
+      }
+
+      // Only update if current role is not participant
+      if (participant.user.userTypeId !== participantType.id) {
+        await prisma.user.update({
+          where: { id: participant.user.id },
+          data: { userTypeId: participantType.id }
+        });
+        console.log(`User ${participant.user.id} role updated to participant`);
+      }
     }
 
     // Check if class exists and has available quota
@@ -123,7 +261,7 @@ export async function POST(request: Request) {
     // Check if participant is already registered for this class
     const existingRegistration = await prisma.courseRegistration.findFirst({
       where: {
-        participantId,
+        participantId: participant.id,
         classId,
       },
     })
@@ -151,7 +289,7 @@ export async function POST(request: Request) {
           payment_method: payment_method || "Transfer Bank",
           present_day: 0,
           classId,
-          participantId,
+          participantId: participant.id,
         },
       })
 

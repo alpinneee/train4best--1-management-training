@@ -3,8 +3,36 @@ import { hash } from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { v4 as uuidv4 } from 'uuid';
 
+// Ensure default unassigned role exists
+async function ensureDefaultRolesExist() {
+  try {
+    const roles = [
+      { id: 'utype_unassigned', usertype: 'unassigned', description: 'Default role for new users' },
+      { id: 'utype_participant', usertype: 'participant', description: 'Training participant' }
+    ];
+    
+    for (const role of roles) {
+      const existingRole = await prisma.userType.findFirst({
+        where: { usertype: role.usertype }
+      });
+      
+      if (!existingRole) {
+        await prisma.userType.create({
+          data: role
+        });
+        console.log(`Created default role: ${role.usertype}`);
+      }
+    }
+  } catch (error) {
+    console.error("Failed to ensure default roles exist:", error);
+  }
+}
+
 export async function POST(req: Request) {
   try {
+    // Ensure default roles exist before registration
+    await ensureDefaultRolesExist();
+    
     const { firstName, lastName, email, password } = await req.json();
     
     // Validasi input
@@ -27,14 +55,14 @@ export async function POST(req: Request) {
       );
     }
 
-    // Dapatkan participant userType
-    const participantType = await prisma.userType.findFirst({
-      where: { usertype: 'participant' }
+    // Dapatkan userType default/unassigned
+    const defaultUserType = await prisma.userType.findFirst({
+      where: { usertype: 'unassigned' }
     });
 
-    if (!participantType) {
+    if (!defaultUserType) {
       return NextResponse.json(
-        { error: "Tipe user participant tidak ditemukan" },
+        { error: "Tipe user default tidak ditemukan" },
         { status: 500 }
       );
     }
@@ -45,31 +73,17 @@ export async function POST(req: Request) {
     // Hash password
     const hashedPassword = await hash(password, 12);
 
-    // Generate unique IDs
+    // Generate unique ID
     const userId = uuidv4();
-    const participantId = uuidv4();
 
-    // Buat user baru
+    // Buat user baru dengan role default/unassigned
     const user = await prisma.user.create({
       data: {
         id: userId,
         username,
         email,
         password: hashedPassword,
-        userTypeId: participantType.id
-      }
-    });
-
-    // Create participant
-    const participant = await prisma.participant.create({
-      data: {
-        id: participantId,
-        full_name: `${firstName} ${lastName}`,
-        address: '', // Bisa diupdate nanti
-        phone_number: '', // Bisa diupdate nanti
-        birth_date: new Date(), // Bisa diupdate nanti
-        gender: 'other', // Bisa diupdate nanti
-        userId: user.id
+        userTypeId: defaultUserType.id
       }
     });
 
@@ -78,8 +92,10 @@ export async function POST(req: Request) {
         id: user.id,
         username: user.username,
         email: user.email,
-        fullName: `${firstName} ${lastName}`
+        fullName: `${firstName} ${lastName}`,
+        isNewUser: true
       },
+      redirectUrl: "/profile"
     });
     
   } catch (error) {

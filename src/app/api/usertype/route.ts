@@ -1,9 +1,33 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Ensure default unassigned role exists
+async function ensureDefaultRolesExist() {
+  const roles = [
+    { id: 'utype_unassigned', usertype: 'unassigned', description: 'Default role for new users' },
+    { id: 'utype_participant', usertype: 'participant', description: 'Training participant' }
+  ];
+  
+  for (const role of roles) {
+    const existingRole = await prisma.userType.findFirst({
+      where: { usertype: role.usertype }
+    });
+    
+    if (!existingRole) {
+      await prisma.userType.create({
+        data: role
+      });
+      console.log(`Created default role: ${role.usertype}`);
+    }
+  }
+}
+
 // GET /api/usertype - Get all usertypes
 export async function GET() {
   try {
+    // Ensure default roles exist on each GET request
+    await ensureDefaultRolesExist();
+    
     const usertypes = await prisma.userType.findMany({
       select: {
         id: true,

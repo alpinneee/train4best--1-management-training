@@ -16,36 +16,50 @@ const Modal: React.FC<ModalProps> = ({ onClose, children }) => {
       }
     };
 
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
     document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscapeKey);
+    
+    // Prevent scrolling on background
+    document.body.style.overflow = 'hidden';
+    
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscapeKey);
+      document.body.style.overflow = '';
     };
   }, [onClose]);
 
   return createPortal(
     <div 
-      className="fixed inset-0 z-[9999] overflow-y-auto px-2 py-2 sm:p-0"
+      className="fixed inset-0 z-[9999] overflow-y-auto"
       aria-labelledby="modal-title" 
       role="dialog" 
       aria-modal="true"
     >
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen p-1">
         <div 
-          className="fixed inset-0 bg-gray-300 bg-opacity-75 transition-opacity" 
+          className="fixed inset-0 bg-black bg-opacity-60 transition-opacity" 
           onClick={onClose}
         ></div>
         
         <div 
           ref={modalRef}
-          className="relative rounded-2xl w-full sm:w-[500px] mx-auto z-[10000] p-3 sm:p-4 max-h-[90vh] overflow-y-auto "
+          className="relative rounded w-full sm:w-[420px] mx-auto z-[10000] max-h-[85vh] overflow-y-auto bg-white shadow-xl"
         >
           <button 
             onClick={onClose} 
-            className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 text-gray-600 p-1.5 hover:bg-gray-300 rounded-xl bg-gray-100 transition-colors duration-200"
+            className="absolute top-1 right-1 text-gray-600 p-0.5 hover:bg-gray-200 rounded-full bg-white border border-gray-200 transition-colors z-10"
+            aria-label="Close modal"
           >
             <svg 
               xmlns="http://www.w3.org/2000/svg" 
-              className="h-4 w-4 sm:h-5 sm:w-5" 
+              className="h-4 w-4" 
               viewBox="0 0 20 20" 
               fill="currentColor"
             >
@@ -56,7 +70,7 @@ const Modal: React.FC<ModalProps> = ({ onClose, children }) => {
               />
             </svg>
           </button>
-          <div className="text-sm sm:text-base bg-white p-3 rounded-xl">
+          <div className="text-sm p-2.5">
             {children}
           </div>
         </div>

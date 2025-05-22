@@ -313,38 +313,6 @@ const UserPage = () => {
           </div>
         )}
 
-        <div className="mb-2 flex flex-col sm:flex-row sm:justify-between gap-2">
-          <Button
-            variant="primary"
-            size="small"
-            onClick={() => setIsModalOpen(true)}
-            className="w-full sm:w-auto"
-          >
-            Add New User
-          </Button>
-
-          <div className="flex flex-col sm:flex-row gap-2 text-gray-700 w-full sm:w-auto">
-            <select
-              value={selectedRole}
-              onChange={handleRoleChange}
-              className="px-2 py-1 text-xs rounded-lg w-full sm:w-auto"
-            >
-              {roles.map((role) => (
-                <option key={role} value={role}>
-                  {role === "all" ? "All Roles" : role}
-                </option>
-              ))}
-            </select>
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchTerm}
-              onChange={handleSearchChange}
-              className="px-2 py-1 text-xs rounded-lg w-full sm:w-auto"
-            />
-          </div>
-        </div>
-
         {users.length === 0 && !loading ? (
           <div className="text-center py-4 text-gray-500">No users found</div>
         ) : (

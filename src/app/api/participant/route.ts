@@ -1,6 +1,31 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Ensure default roles exist
+async function ensureDefaultRolesExist() {
+  try {
+    const roles = [
+      { id: 'utype_unassigned', usertype: 'unassigned', description: 'Default role for new users' },
+      { id: 'utype_participant', usertype: 'participant', description: 'Training participant' }
+    ];
+    
+    for (const role of roles) {
+      const existingRole = await prisma.userType.findFirst({
+        where: { usertype: role.usertype }
+      });
+      
+      if (!existingRole) {
+        await prisma.userType.create({
+          data: role
+        });
+        console.log(`Created default role: ${role.usertype}`);
+      }
+    }
+  } catch (error) {
+    console.error("Failed to ensure default roles exist:", error);
+  }
+}
+
 // GET /api/participant - Mendapatkan semua participants
 export async function GET(request: Request) {
   try {
@@ -92,6 +117,9 @@ export async function GET(request: Request) {
 // POST /api/participant - Membuat participant baru
 export async function POST(request: Request) {
   try {
+    // Ensure default roles exist before creating participant
+    await ensureDefaultRolesExist();
+    
     const { 
       name, 
       email, 
@@ -122,6 +150,9 @@ export async function POST(request: Request) {
           { email },
           { username }
         ]
+      },
+      include: {
+        userType: true
       }
     });
 
@@ -145,15 +176,13 @@ export async function POST(request: Request) {
     if (!roleId) {
       const participantRole = await prisma.userType.findFirst({
         where: {
-          usertype: {
-            contains: 'Participant'
-          }
+          usertype: 'participant'
         }
       });
       
       if (!participantRole) {
         return NextResponse.json(
-          { error: 'Default participant role not found' },
+          { error: 'Participant role not found' },
           { status: 500 }
         );
       }
@@ -161,19 +190,40 @@ export async function POST(request: Request) {
       roleId = participantRole.id;
     }
 
+    // Check if user already exists but has unassigned role
+    let existingUnassignedUser = null;
+    if (existingUser && existingUser.userType?.usertype === 'unassigned') {
+      console.log(`Found existing user with unassigned role: ${existingUser.id}`);
+      existingUnassignedUser = existingUser;
+    }
+
     // Buat transaksi untuk membuat user dan participant
     const result = await prisma.$transaction(async (prisma) => {
-      // Buat user baru
-      const newUser = await prisma.user.create({
-        data: {
-          id: `user_${Date.now()}`,
-          email,
-          username,
-          password, // Dalam aplikasi nyata, harus di-hash terlebih dahulu
-          userTypeId: roleId,
-          last_login: new Date(),
-        },
-      });
+      let newUser;
+      
+      // If user exists with unassigned role, update their role to participant
+      if (existingUnassignedUser) {
+        newUser = await prisma.user.update({
+          where: { id: existingUnassignedUser.id },
+          data: {
+            userTypeId: roleId,
+            // Update password if provided
+            ...(password && { password }),
+          }
+        });
+      } else {
+        // Buat user baru
+        newUser = await prisma.user.create({
+          data: {
+            id: `user_${Date.now()}`,
+            email,
+            username,
+            password, // Dalam aplikasi nyata, harus di-hash terlebih dahulu
+            userTypeId: roleId,
+            last_login: new Date(),
+          },
+        });
+      }
 
       // Buat participant baru
       const newParticipant = await prisma.participant.create({

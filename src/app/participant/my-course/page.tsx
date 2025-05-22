@@ -1,565 +1,711 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect } from "react";
-import Image from "next/image";
-import Navbar from "@/components/common/Navbar";
-import Sidebar from "@/components/common/Sidebar";
-import Modal from "@/components/common/Modal";
+import React, { useState, useEffect, useCallback } from 'react';
+import Layout from '@/components/common/Layout';
+import CourseCard from '@/components/course/CourseCard';
+import Modal from '@/components/common/Modal';
+import { useRouter } from 'next/navigation';
 
+// Define interfaces for type safety
 interface CourseType {
-  id: string;
   course_type: string;
+}
+
+interface CourseInfo {
+  course_name: string;
+  courseType: CourseType;
 }
 
 interface Course {
   id: string;
-  course_name: string;
-  courseTypeId: string;
-  courseType: string;
-}
-
-interface CoursesResponse {
-  data: Course[];
-  meta: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
-}
-
-interface ClassInfo {
-  id: string;
   quota: number;
   price: number;
   status: string;
-  start_reg_date: string;
-  end_reg_date: string;
-  duration_day: number;
-  start_date: string;
-  end_date: string;
+  start_date: Date;
+  end_date: Date;
   location: string;
   room: string;
+  availableSlots: number;
+  course: CourseInfo;
+  imageUrl?: string;
 }
 
-interface ClassResponse {
-  data: ClassInfo[];
+interface SelectedCourse {
+  id: string;
+  title: string;
+  className: string;
 }
 
-interface RegistrationFormData {
-  participantId: string;
-  classId: string;
-  payment_method: string;
+interface UserInfo {
+  email: string;
+  username: string;
+  fullName: string;
 }
 
-const DashboardPage = () => {
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [search, setSearch] = useState("");
+interface RegistrationResult {
+  registrationId: string;
+  course: string;
+  className: string;
+  payment: number;
+  paymentStatus: string;
+  referenceNumber: string;
+  courseScheduleId?: string;
+  userInfo?: UserInfo;
+}
+
+export default function MyCoursePage() {
+  const router = useRouter();
   const [courses, setCourses] = useState<Course[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [limit] = useState(8); // Number of courses per page
+  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<SelectedCourse | null>(null);
+  const [registering, setRegistering] = useState(false);
+  const [registrationResult, setRegistrationResult] = useState<RegistrationResult | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState('Transfer Bank');
+  const [userEmail, setUserEmail] = useState('');
+  const [userName, setUserName] = useState('');
+  const [registrationError, setRegistrationError] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [manualEmail, setManualEmail] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [checkingLoginStatus, setCheckingLoginStatus] = useState(true);
+  const [isDbConfigured, setIsDbConfigured] = useState(true);
+  const [configuring, setConfiguring] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   
-  // Registration modal states
-  const [showModal, setShowModal] = useState(false);
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-  const [availableClasses, setAvailableClasses] = useState<ClassInfo[]>([]);
-  const [selectedClass, setSelectedClass] = useState<string>("");
-  const [isClassLoading, setIsClassLoading] = useState(false);
-  const [classError, setClassError] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<string>("Transfer Bank");
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [registrationMessage, setRegistrationMessage] = useState<string | null>(null);
-  const [messageType, setMessageType] = useState<'success' | 'error' | null>(null);
+  // Email validation function
+  const isValidEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
   
-  // Fetch courses from API
-  const fetchCourses = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch(
-        `/api/courses?search=${search}&page=${page}&limit=${limit}`
-      );
-      if (!response.ok) {
-        throw new Error("Failed to fetch courses");
-      }
-      const data: CoursesResponse = await response.json();
-      setCourses(data.data);
-      setTotalPages(data.meta.totalPages);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Call fetchCourses when page, search, or limit changes
-  useEffect(() => {
-    fetchCourses();
-  }, [page, search, limit]);
-
-  const handleMobileOpen = () => {
-    setIsMobileOpen(!isMobileOpen);
-  };
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearch(e.target.value);
-    setPage(1); // Reset to first page when search changes
-  };
-
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setPage(newPage);
-    }
-  };
-
-  // Get course image based on course name (placeholder function)
-  const getCourseImage = (courseName: string) => {
-    if (courseName.toLowerCase().includes("aiot")) {
-      return "/aiot.jpg";
-    } else if (courseName.toLowerCase().includes("program")) {
-      return "/programmer.jpg";
-    }
-    // Default image
-    return "/default-course.jpg";
-  };
-
-  // Get course description based on course name (placeholder function)
-  const getCourseDescription = (courseName: string) => {
-    if (courseName.toLowerCase().includes("aiot")) {
-      return [
-        "Membangun sistem AIoT",
-        "Mengembangkan aplikasi smart home, smart agriculture, smart healthcare",
-      ];
-    } else if (courseName.toLowerCase().includes("program")) {
-      return ["introduction (pengenalan web)", "Frontend, backend"];
-    }
-    return ["Course description not available"];
-  };
-
-  // Open registration modal for a specific course
-  const openRegistrationModal = async (course: Course) => {
-    setSelectedCourse(course);
-    setRegistrationMessage(null);
-    setMessageType(null);
-    setIsClassLoading(true);
-    setClassError(null);
-    setSelectedClass("");
-    setPaymentMethod("Transfer Bank");
+  // Validate email input
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setManualEmail(value);
     
+    if (value && !isValidEmail(value)) {
+      setEmailError('Email tidak valid. Gunakan format: contoh@domain.com');
+    } else {
+      setEmailError('');
+    }
+  };
+  
+  // Definisikan fetchAvailableCourses sebagai useCallback agar bisa dipanggil dari luar useEffect
+  const fetchAvailableCourses = useCallback(async () => {
+    setLoading(true);
     try {
-      // Fetch available classes for this course
-      const response = await fetch(`/api/courses/${course.id}/classes?status=Active`);
+      // Always attempt to fetch courses
+      console.log('Mengambil data kursus yang tersedia...');
+      const response = await fetch(`/api/course/available?limit=10&_=${new Date().getTime()}`);
+      
       if (!response.ok) {
-        throw new Error("Failed to fetch available classes");
+        const errorData = await response.text();
+        // Cek apakah error karena database belum dikonfigurasi
+        if (response.status === 500 && errorData.includes('database')) {
+          setIsDbConfigured(false);
+          throw new Error('Database belum dikonfigurasi');
+        }
+        throw new Error(`Gagal mengambil kursus: ${response.status}`);
       }
       
-      const data: ClassResponse = await response.json();
+      const data = await response.json();
       
-      // Check if classes are available
-      if (data.data.length === 0) {
-        setClassError("No available classes for this course at the moment");
+      // Check if there's login info in the response
+      if (data.meta && data.meta.user) {
+        setUserEmail(data.meta.user.email || '');
+        setUserName(data.meta.user.name || data.meta.user.username || '');
+        setIsLoggedIn(true);
+      }
+      
+      if (data.data && Array.isArray(data.data)) {
+        // Format data untuk memastikan semua data yang dibutuhkan tersedia
+        const formattedCourses = data.data.map((course: any) => {
+          // Pastikan course memiliki semua property yang dibutuhkan
+          return {
+            id: course.id,
+            quota: course.quota || 0,
+            price: course.price || 0,
+            status: course.status || 'Active',
+            start_date: course.start_date || new Date(),
+            end_date: course.end_date || new Date(),
+            location: course.location || 'Unknown',
+            room: course.room || 'TBD',
+            availableSlots: course.availableSlots || 0,
+            course: {
+              course_name: course.course?.course_name || `Course ${course.id.substring(0, 5)}`,
+              courseType: {
+                course_type: course.course?.courseType?.course_type || 'Technical'
+              }
+            }
+          };
+        });
+        
+        setCourses(formattedCourses);
+        setError(null);
+        setIsDbConfigured(true);
       } else {
-        setAvailableClasses(data.data);
-        // Set the first class as default
-        setSelectedClass(data.data[0].id);
+        throw new Error('Received invalid data format from API');
       }
     } catch (err) {
-      setClassError(err instanceof Error ? err.message : "Failed to load classes");
+      console.error('Error fetching courses:', err);
+      
+      if (err instanceof Error && err.message.includes('Database belum dikonfigurasi')) {
+        setIsDbConfigured(false);
+        setError('Database belum dikonfigurasi. Silakan klik tombol "Konfigurasi Database" di bawah.');
+      } else {
+        // Tampilkan data dummy untuk debugging
+        console.log('Fallback to dummy data');
+        const dummyData = [
+          {
+            id: "dummy_1",
+            quota: 20,
+            price: 1500000,
+            status: "Active",
+            start_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+            end_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+            location: "Jakarta",
+            room: "Room A101",
+            availableSlots: 15,
+            course: {
+              course_name: "Programming Fundamentals",
+              courseType: { course_type: "Technical" }
+            }
+          },
+          {
+            id: "dummy_2",
+            quota: 15,
+            price: 2000000,
+            status: "Active",
+            start_date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
+            end_date: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
+            location: "Bandung",
+            room: "Room B202",
+            availableSlots: 8,
+            course: {
+              course_name: "Machine Learning Basics",
+              courseType: { course_type: "Technical" }
+            }
+          }
+        ];
+        
+        setCourses(dummyData);
+        setError('Could not load courses from server. Showing sample courses instead.');
+      }
     } finally {
-      setIsClassLoading(false);
-      setShowModal(true);
+      setLoading(false);
+    }
+  }, []);
+  
+  // Setup database
+  const setupDatabase = async () => {
+    setConfiguring(true);
+    try {
+      const response = await fetch('/api/seed', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ mode: 'minimal' })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setIsDbConfigured(true);
+        
+        // Simpan email demo user untuk demo yang lebih seamless
+        localStorage.setItem('userEmail', 'demo@example.com');
+        
+        // Reload kursus setelah database dikonfigurasi
+        fetchAvailableCourses();
+        // Force refresh komponen dengan mengubah key
+        setRefreshKey(prev => prev + 1);
+        alert('Database berhasil dikonfigurasi!');
+        // Force reload halaman 
+        window.location.reload();
+      } else {
+        const error = await response.text();
+        console.error('Error configuring database:', error);
+        alert('Gagal mengkonfigurasi database. Lihat konsol untuk detail.');
+      }
+    } catch (error) {
+      console.error('Error setting up database:', error);
+      alert('Terjadi kesalahan saat mengkonfigurasi database.');
+    } finally {
+      setConfiguring(false);
     }
   };
-
-  // Handle form submission for course registration
-  const handleRegistration = async (e: React.FormEvent) => {
-    e.preventDefault();
+  
+  // Ambil data kursus dan user yang tersedia saat komponen dimuat
+  useEffect(() => {
+    // Get user profile information from session
+    const getUserProfile = async () => {
+      setCheckingLoginStatus(true);
+      try {
+        console.log('Memeriksa status login user...');
+        
+        // Try multiple methods to detect login status
+        
+        // Method 1: Try to get from session endpoint first (prioritas utama)
+        try {
+          const userResponse = await fetch('/api/user/current');
+          if (userResponse.ok) {
+            const userData = await userResponse.json();
+            
+            if (userData.data && userData.data.email) {
+              setUserEmail(userData.data.email);
+              setUserName(userData.data.username || userData.data.name || '');
+              setIsLoggedIn(true);
+              localStorage.setItem('userEmail', userData.data.email);
+              setCheckingLoginStatus(false);
+              return true;
+            }
+          }
+        } catch (sessionError) {
+          console.error('Error checking session endpoint:', sessionError);
+        }
+        
+        // Method 2: Check authentication status endpoint
+        try {
+          const authResponse = await fetch('/api/auth/session');
+          if (authResponse.ok) {
+            const authData = await authResponse.json();
+            console.log('Auth session response:', authData);
+            
+            if (authData && authData.user) {
+              console.log('User authenticated via next-auth session');
+              setUserEmail(authData.user.email);
+              setUserName(authData.user.name || '');
+              setIsLoggedIn(true);
+              localStorage.setItem('userEmail', authData.user.email);
+              setCheckingLoginStatus(false);
+              return true;
+            }
+          }
+        } catch (authError) {
+          console.error('Error checking auth session:', authError);
+        }
+        
+        // Method 3: Try to get from local storage as fallback
+        const storedEmail = localStorage.getItem('userEmail');
+        if (storedEmail) {
+          console.log('Email ditemukan di localStorage:', storedEmail);
+          setUserEmail(storedEmail);
+          
+          // Verify this email with the server
+          try {
+            const verifyResponse = await fetch(`/api/user/verify?email=${encodeURIComponent(storedEmail)}`);
+            if (verifyResponse.ok) {
+              const verifyData = await verifyResponse.json();
+              if (verifyData.valid) {
+                console.log('Email verified as valid user');
+                setIsLoggedIn(true);
+                setUserName(verifyData.username || '');
+                setCheckingLoginStatus(false);
+                return true;
+              }
+            }
+          } catch (verifyError) {
+            console.error('Error verifying email:', verifyError);
+          }
+        }
+        
+        // Method 4: Try URL parameters as last resort
+        const urlParams = new URLSearchParams(window.location.search);
+        const emailParam = urlParams.get('email');
+        if (emailParam) {
+          console.log('Email dari URL:', emailParam);
+          setUserEmail(emailParam);
+          localStorage.setItem('userEmail', emailParam);
+        }
+        
+        // No login detected
+        console.log('No login detected after trying all methods');
+        setIsLoggedIn(false);
+        setCheckingLoginStatus(false);
+        return false;
+      } catch (error) {
+        console.error('Error getting user profile:', error);
+        setIsLoggedIn(false);
+        setCheckingLoginStatus(false);
+        return false;
+      }
+    };
     
-    if (!selectedCourse || !selectedClass) {
-      setRegistrationMessage("Please select a valid class");
-      setMessageType('error');
+    // Get user first, then fetch courses
+    getUserProfile().then(() => {
+      fetchAvailableCourses();
+    });
+  }, [fetchAvailableCourses, refreshKey]);
+  
+  const handleRegisterClick = (courseId: string, courseTitle: string, courseClass: string) => {
+    if (userEmail && !isLoggedIn) {
+      setIsLoggedIn(true);
+    }
+    
+    setSelectedCourse({
+      id: courseId,
+      title: courseTitle, 
+      className: courseClass
+    });
+    setIsRegisterModalOpen(true);
+    setRegistrationError('');
+  };
+  
+  const handleRegisterSubmit = async () => {
+    if (!selectedCourse) return;
+    
+    // Validate email if not logged in and manual email is being used
+    if (!isLoggedIn && manualEmail) {
+      if (!isValidEmail(manualEmail)) {
+        setRegistrationError('Email tidak valid. Harap masukkan email yang benar.');
+        return;
+      }
+    }
+    
+    // Check terms acceptance
+    if (!termsAccepted) {
+      setRegistrationError('Anda harus menyetujui persyaratan kursus untuk melanjutkan.');
       return;
     }
     
-    setIsRegistering(true);
-    setRegistrationMessage(null);
+    setRegistering(true);
+    setRegistrationError('');
     
     try {
-      // In a real application, you would get the participant ID from auth session
-      // Here we're using a placeholder
-      const participantId = "participant_1"; // Replace with real participant ID
+      // Use either the logged in user's email or manual email if provided
+      const emailToUse = isLoggedIn ? userEmail : (manualEmail || userEmail);
       
-      const registrationData: RegistrationFormData = {
-        participantId,
-        classId: selectedClass,
-        payment_method: paymentMethod
+      // Validate the email to use
+      if (!emailToUse || !isValidEmail(emailToUse)) {
+        setRegistrationError('Email tidak valid. Harap masukkan email yang benar untuk mendaftar.');
+        setRegistering(false);
+        return;
+      }
+      
+      const registrationData = {
+        classId: selectedCourse.id,
+        paymentMethod,
+        email: emailToUse
       };
       
-      const response = await fetch('/api/enrollments', {
+      // Daftarkan peserta
+      const response = await fetch('/api/course/register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(registrationData),
       });
       
-      const result = await response.json();
+      const data = await response.json();
       
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to register for course");
+      if (response.ok) {
+        setRegistrationResult(data.data);
+        
+        // Simpan email yang berhasil untuk penggunaan di masa depan
+        if (data.data?.userInfo?.email) {
+          localStorage.setItem('userEmail', data.data.userInfo.email);
+        } else if (emailToUse) {
+          localStorage.setItem('userEmail', emailToUse);
+        }
+      } else {
+        // Pesan error yang lebih deskriptif dalam Bahasa Indonesia
+        if (data.error?.includes("tidak ditemukan")) {
+          setRegistrationError('Informasi pengguna tidak ditemukan. Silakan masuk kembali dan pastikan email Anda benar.');
+        } else if (data.error?.includes("profile is incomplete") || data.error?.includes("profil")) {
+          setRegistrationError('Profil Anda belum lengkap. Silakan lengkapi profil Anda sebelum mendaftar ke kursus.');
+        } else if (data.error?.includes("already registered") || data.error?.includes("sudah terdaftar")) {
+          setRegistrationError('Anda sudah terdaftar di kelas ini.');
+        } else if (data.error?.includes("Class is full") || data.error?.includes("penuh")) {
+          setRegistrationError('Maaf, kelas ini sudah penuh.');
+        } else {
+          setRegistrationError(data.error || 'Gagal mendaftar ke kursus.');
+        }
       }
-      
-      setRegistrationMessage("Registration successful! Please proceed with payment.");
-      setMessageType('success');
-      
-      // Reset form after successful registration
-      // In a real app, you might want to redirect to a payment page instead
-      setTimeout(() => {
-        setShowModal(false);
-        fetchCourses(); // Refresh courses
-      }, 3000);
-      
-    } catch (err) {
-      setRegistrationMessage(err instanceof Error ? err.message : "Registration failed");
-      setMessageType('error');
+    } catch (error) {
+      console.error('Error mendaftar kursus:', error);
+      setRegistrationError('Gagal mendaftar ke kursus. Silakan coba lagi.');
     } finally {
-      setIsRegistering(false);
+      setRegistering(false);
     }
   };
-
-  // Close the modal
+  
   const closeModal = () => {
-    setShowModal(false);
+    setIsRegisterModalOpen(false);
     setSelectedCourse(null);
+    setRegistrationResult(null);
+    setRegistrationError('');
+    setPaymentMethod('Transfer Bank');
+    setManualEmail('');
+    setEmailError('');
+    setTermsAccepted(false);
   };
-
-  // Format price to IDR
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(price);
+  
+  const goToPayment = () => {
+    closeModal();
+    if (registrationResult) {
+      router.push(`/participant/payment?ref=${registrationResult.referenceNumber}`);
+    }
   };
-
-  return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar onMobileMenuClick={handleMobileOpen} />
-      <div className="flex flex-1">
-        <Sidebar isMobileOpen={isMobileOpen} onMobileClose={handleMobileOpen} variant="participant" />
-        <main className="flex-1 p-6 bg-green-50">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4">
-            <h1 className="text-2xl font-semibold text-gray-600 mb-2 sm:mb-0">
-              Courses
-            </h1>
-            <div className="relative w-full sm:w-64">
-              <input
-                type="text"
-                placeholder="Search..."
-                value={search}
-                onChange={handleSearchChange}
-                className="w-full px-3 py-2 rounded-lg border text-gray-700 border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-300"
-              />
-              <span className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <svg
-                  className="w-5 h-5 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
-              </span>
-            </div>
+  
+  // Grid layout untuk menampilkan kartu kursus
+  const renderCourses = () => {
+    if (loading || checkingLoginStatus) {
+      return (
+        <div className="flex justify-center items-center py-8">
+          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+      );
+    }
+    
+    if (!isDbConfigured) {
+      return (
+        <div className="space-y-4 py-8">
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-md text-sm">
+            Database belum dikonfigurasi. Silakan klik tombol di bawah untuk mengonfigurasi database.
           </div>
           
-          {isLoading ? (
-            <div className="flex justify-center items-center h-64">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+          <div className="flex justify-center">
+            <button
+              onClick={setupDatabase}
+              disabled={configuring}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed"
+            >
+              {configuring ? 'Mengkonfigurasi...' : 'Konfigurasi Database'}
+            </button>
+          </div>
+        </div>
+      );
+    }
+    
+    if (error) {
+      return (
+        <div className="space-y-2">
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-3 py-2 rounded text-sm">
+            {error}
+          </div>
+          
+          {!isDbConfigured && (
+            <div className="flex justify-center mt-4">
+              <button
+                onClick={setupDatabase}
+                disabled={configuring}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed"
+              >
+                {configuring ? 'Mengkonfigurasi...' : 'Konfigurasi Database'}
+              </button>
             </div>
-          ) : error ? (
-            <div className="bg-red-50 text-red-500 p-4 rounded-lg">{error}</div>
-          ) : courses.length === 0 ? (
-            <div className="bg-yellow-50 text-yellow-700 p-4 rounded-lg">No courses found.</div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          )}
+          
+          {courses.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {courses.map((course) => (
-                <div
+                <CourseCard
                   key={course.id}
-                  className="bg-white rounded-lg shadow p-4 flex flex-col"
-                >
-                  <div className="h-32 w-full relative mb-2">
-                    <Image
-                      src={getCourseImage(course.course_name)}
-                      alt={course.course_name}
-                      fill
-                      className="object-cover rounded-t-lg"
-                    />
-                  </div>
-                  <div className="flex-1 flex flex-col">
-                    <div className="mb-2">
-                      <div className="font-semibold text-sm">
-                        Course Name: {course.course_name}
-                      </div>
-                      <div className="text-xs text-gray-600">
-                        Course Type: {course.courseType}
-                      </div>
-                      <div className="text-xs mt-1">
-                        <span className="font-semibold">Description:</span>
-                        <ul className="list-disc ml-4">
-                          {getCourseDescription(course.course_name).map((desc, idx) => (
-                            <li key={idx}>{desc}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                    <div className="mt-auto">
-                      <button
-                        onClick={() => openRegistrationModal(course)}
-                        className="w-full bg-green-600 text-white py-1.5 rounded-md hover:bg-green-700 transition-colors text-sm"
-                      >
-                        Register Now
-                      </button>
-                    </div>
-                    <div className="flex justify-between items-center mt-2">
-                      <span className="text-gray-400">
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-                          />
-                        </svg>
-                      </span>
-                      <span className="text-gray-400">
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M19 21H5a2 2 0 01-2-2V7a2 2 0 012-2h4l2-2 2 2h4a2 2 0 012 2v12a2 2 0 01-2 2z"
-                          />
-                        </svg>
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                  id={course.id}
+                  title={course.course.course_name}
+                  type={course.course.courseType.course_type}
+                  image={course.imageUrl || null}
+                  className={`${course.location} - ${new Date(course.start_date).toLocaleDateString('id-ID', { 
+                    month: 'short', 
+                    day: 'numeric' 
+                  })}`}
+                  startDate={course.start_date}
+                  endDate={course.end_date}
+                  price={course.price}
+                  location={course.location}
+                  room={course.room}
+                  quota={course.quota}
+                  onRegister={handleRegisterClick}
+                />
               ))}
             </div>
           )}
-          
-          {/* Pagination */}
-          {!isLoading && courses.length > 0 && (
-            <div className="flex justify-center items-center mt-8 gap-2">
-              <button 
-                className="p-1 rounded hover:bg-gray-200" 
-                onClick={() => handlePageChange(1)}
-                disabled={page === 1}
-              >
-                {"<<"}
-              </button>
-              <button 
-                className="p-1 rounded hover:bg-gray-200" 
-                onClick={() => handlePageChange(page - 1)}
-                disabled={page === 1}
-              >
-                {"<"}
-              </button>
-              
-              {/* Page numbers */}
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                // Logic to show current page and nearby pages
-                let pageNum = page;
-                if (page <= 3) {
-                  pageNum = i + 1;
-                } else if (page >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = page - 2 + i;
-                }
-                
-                // Only show if page is valid
-                if (pageNum > 0 && pageNum <= totalPages) {
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => handlePageChange(pageNum)}
-                      className={`px-3 py-1 rounded ${
-                        page === pageNum
-                          ? "bg-gray-300 text-gray-700 font-semibold"
-                          : "hover:bg-gray-200"
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                }
-                return null;
-              })}
-              
-              <button 
-                className="p-1 rounded hover:bg-gray-200"
-                onClick={() => handlePageChange(page + 1)}
-                disabled={page === totalPages}
-              >
-                {">"}
-              </button>
-              <button 
-                className="p-1 rounded hover:bg-gray-200"
-                onClick={() => handlePageChange(totalPages)}
-                disabled={page === totalPages}
-              >
-                {" >>"}
-              </button>
-            </div>
-          )}
-          
-          {/* Registration Modal */}
-          {showModal && selectedCourse && (
-            <Modal onClose={closeModal}>
-              <div className="p-2 sm:p-4">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4">
-                  Register for {selectedCourse.course_name}
-                </h2>
-                
-                {/* Registration form */}
-                <form onSubmit={handleRegistration}>
-                  {/* Success or error message */}
-                  {registrationMessage && (
-                    <div className={`p-3 mb-4 rounded-md ${messageType === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
-                      {registrationMessage}
-                    </div>
-                  )}
-                  
-                  {/* Classes loading state */}
-                  {isClassLoading ? (
-                    <div className="flex justify-center py-4">
-                      <div className="animate-spin h-6 w-6 border-2 border-green-500 rounded-full border-t-transparent"></div>
-                    </div>
-                  ) : classError ? (
-                    <div className="bg-red-50 text-red-600 p-3 rounded-md mb-4">
-                      {classError}
-                    </div>
-                  ) : (
-                    <>
-                      {/* Class selection */}
-                      <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Select Class Schedule:
-                        </label>
-                        <select 
-                          value={selectedClass}
-                          onChange={(e) => setSelectedClass(e.target.value)}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500"
-                          required
-                        >
-                          <option value="">Select a class</option>
-                          {availableClasses.map(classInfo => (
-                            <option key={classInfo.id} value={classInfo.id}>
-                              {new Date(classInfo.start_date).toLocaleDateString()} - {classInfo.location} - {formatPrice(classInfo.price)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      
-                      {/* Selected class details */}
-                      {selectedClass && (
-                        <div className="mb-4 p-3 bg-gray-50 rounded-md">
-                          {availableClasses.filter(c => c.id === selectedClass).map(classInfo => (
-                            <div key={classInfo.id} className="text-sm">
-                              <p><span className="font-medium">Location:</span> {classInfo.location} ({classInfo.room})</p>
-                              <p><span className="font-medium">Start Date:</span> {new Date(classInfo.start_date).toLocaleDateString()}</p>
-                              <p><span className="font-medium">End Date:</span> {new Date(classInfo.end_date).toLocaleDateString()}</p>
-                              <p><span className="font-medium">Duration:</span> {classInfo.duration_day} days</p>
-                              <p><span className="font-medium">Price:</span> {formatPrice(classInfo.price)}</p>
-                              <p><span className="font-medium">Available Slots:</span> {classInfo.quota}</p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      
-                      {/* Payment method */}
-                      <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Payment Method:
-                        </label>
-                        <select 
-                          value={paymentMethod}
-                          onChange={(e) => setPaymentMethod(e.target.value)}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500"
-                          required
-                        >
-                          <option value="Transfer Bank">Transfer Bank</option>
-                          <option value="E-Wallet">E-Wallet</option>
-                          <option value="Kartu Kredit">Kartu Kredit</option>
-                        </select>
-                      </div>
-                      
-                      {/* Registration agreement */}
-                      <div className="mb-6">
-                        <div className="flex items-start">
-                          <input
-                            id="terms"
-                            name="terms"
-                            type="checkbox"
-                            className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 mt-1"
-                            required
-                          />
-                          <label htmlFor="terms" className="ml-2 block text-sm text-gray-600">
-                            I agree to the course terms and conditions, and understand the payment is required to confirm registration.
-                          </label>
-                        </div>
-                      </div>
-                      
-                      {/* Submit button */}
-                      <div className="flex justify-end">
-                        <button
-                          type="button"
-                          onClick={closeModal}
-                          className="mr-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={isRegistering || !selectedClass}
-                          className={`px-4 py-2 text-sm font-medium text-white rounded-md ${
-                            isRegistering || !selectedClass
-                              ? "bg-green-400 cursor-not-allowed"
-                              : "bg-green-600 hover:bg-green-700"
-                          }`}
-                        >
-                          {isRegistering ? "Processing..." : "Register"}
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </form>
-              </div>
-            </Modal>
-          )}
-        </main>
+        </div>
+      );
+    }
+    
+    if (courses.length === 0) {
+      return (
+        <div className="text-center py-8">
+          <p className="text-gray-500 text-sm">Tidak ada kursus tersedia saat ini.</p>
+          <button
+            onClick={setupDatabase}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Tambahkan Data Contoh
+          </button>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        {courses.map((course) => (
+          <CourseCard
+            key={course.id}
+            id={course.id}
+            title={course.course.course_name}
+            type={course.course.courseType.course_type}
+            image={course.imageUrl || null}
+            className={`${course.location} - ${new Date(course.start_date).toLocaleDateString('id-ID', { 
+              month: 'short', 
+              day: 'numeric' 
+            })}`}
+            startDate={course.start_date}
+            endDate={course.end_date}
+            price={course.price}
+            location={course.location}
+            room={course.room}
+            quota={course.quota}
+            onRegister={handleRegisterClick}
+          />
+        ))}
       </div>
-    </div>
+    );
+  };
+  
+  return (
+    <Layout variant="participant">
+      <div className="p-2 sm:p-3 max-w-7xl mx-auto">
+        <h1 className="text-xl font-bold text-gray-800 mb-3">Kursus Tersedia</h1>
+        
+        {renderCourses()}
+        
+        {/* Registration Modal */}
+        {isRegisterModalOpen && (
+          <Modal onClose={closeModal}>
+            <h2 className="text-lg font-semibold text-gray-800 mb-3">
+              {registrationResult ? 'Pendaftaran Berhasil' : 'Daftar Kursus'}
+            </h2>
+            
+            {registrationError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-md mb-3 text-sm">
+                {registrationError}
+              </div>
+            )}
+            
+            {registrationResult ? (
+              <div className="space-y-3">
+                <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded-md text-sm">
+                  Pendaftaran berhasil! Silakan lanjutkan ke pembayaran.
+                </div>
+                
+                <div className="space-y-1 p-3 bg-gray-50 rounded-md text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Peserta:</span>
+                    <span className="font-medium">
+                      {registrationResult.userInfo?.fullName || userName || userEmail.split('@')[0]}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Email:</span>
+                    <span>{registrationResult.userInfo?.email || userEmail}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Kursus:</span>
+                    <span className="font-medium">{registrationResult.course}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Kelas:</span>
+                    <span>{registrationResult.className}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Pembayaran:</span>
+                    <span className="font-medium">{new Intl.NumberFormat('id-ID', {
+                      style: 'currency',
+                      currency: 'IDR',
+                      minimumFractionDigits: 0
+                    }).format(registrationResult.payment)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">No. Referensi:</span>
+                    <span className="font-medium">{registrationResult.referenceNumber}</span>
+                  </div>
+                </div>
+                
+                <div className="flex flex-wrap gap-2 justify-end mt-3">
+                  <button
+                    onClick={closeModal}
+                    className="px-3 py-1.5 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 text-sm"
+                  >
+                    Tutup
+                  </button>
+                  {registrationResult.courseScheduleId && (
+                    <button
+                      onClick={() => router.push(`/course-schedule/${registrationResult.courseScheduleId}`)}
+                      className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                    >
+                      Lihat Jadwal
+                    </button>
+                  )}
+                  <button
+                    onClick={goToPayment}
+                    className="px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+                  >
+                    Bayar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                {selectedCourse && (
+                  <div className="mb-3 p-3 bg-gray-50 rounded-md">
+                    <h3 className="font-medium text-gray-800 mb-1 text-sm">{selectedCourse.title}</h3>
+                    <p className="text-gray-600 text-xs">{selectedCourse.className}</p>
+                  </div>
+                )}
+                
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Metode Pembayaran
+                    </label>
+                    <select 
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      className="w-full px-2 py-1.5 border border-gray-300 rounded text-gray-700 text-sm"
+                    >
+                      <option value="Transfer Bank">Transfer Bank</option>
+                      <option value="E-Wallet">E-Wallet</option>
+                      <option value="Kartu Kredit">Kartu Kredit</option>
+                    </select>
+                  </div>
+                  
+                  <div className="flex items-start">
+                    <input
+                      type="checkbox"
+                      id="terms"
+                      checked={termsAccepted}
+                      onChange={(e) => setTermsAccepted(e.target.checked)}
+                      className="h-4 w-4 text-blue-600 border-gray-300 rounded mt-0.5"
+                    />
+                    <label htmlFor="terms" className="ml-2 block text-xs text-gray-700">
+                      Saya menyetujui persyaratan kursus dan memahami bahwa pembayaran diperlukan untuk mengkonfirmasi pendaftaran.
+                    </label>
+                  </div>
+                  
+                  <div className="flex gap-2 justify-end mt-3">
+                    <button
+                      onClick={closeModal}
+                      className="px-3 py-1.5 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 text-sm"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      onClick={handleRegisterSubmit}
+                      disabled={registering || (!isLoggedIn && (!manualEmail || !!emailError))}
+                      className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-sm"
+                    >
+                      {registering ? 'Memproses...' : 'Daftar'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </Modal>
+        )}
+      </div>
+    </Layout>
   );
-};
-
-export default DashboardPage;
+} 

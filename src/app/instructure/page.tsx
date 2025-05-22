@@ -388,7 +388,7 @@ const InstructurePage = () => {
   ];
 
   return (
-    <Layout>
+    <Layout variant="admin">
       <div className="p-2">
         <h1 className="text-lg md:text-xl text-gray-700 mb-2">
           Instructure
