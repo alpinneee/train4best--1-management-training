@@ -48,7 +48,10 @@ model Course {
   course_name  String
   description  String?
   certificates Certificate[]
+<<<<<<< HEAD
   class        Class[]
+=======
+>>>>>>> 7864d058788a5e47b4bbbd2ec822a07c8f3b3f42
   courseType   CourseType    @relation(fields: [courseTypeId], references: [id], map: "Course_courseTypeId_fkey")
 
   @@index([courseTypeId], map: "Course_courseTypeId_fkey")
@@ -70,6 +73,10 @@ model CourseRegistration {
   participant    Participant     @relation(fields: [participantId], references: [id], map: "CourseRegistration_participantId_fkey")
   payments       Payment[]
   valuereport    ValueReport[]
+<<<<<<< HEAD
+=======
+  payments       Payment[]
+>>>>>>> 7864d058788a5e47b4bbbd2ec822a07c8f3b3f42
 
   @@index([classId], map: "CourseRegistration_classId_fkey")
   @@index([participantId], map: "CourseRegistration_participantId_fkey")
@@ -178,13 +185,22 @@ model Certificate {
   name              String
   issueDate         DateTime
   expiryDate        DateTime
+<<<<<<< HEAD
   status            String       @default("Valid")
+=======
+  status            String       @default("Valid") // Valid, Expired, Revoked
+>>>>>>> 7864d058788a5e47b4bbbd2ec822a07c8f3b3f42
   participantId     String?
   courseId          String?
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
+<<<<<<< HEAD
   course            Course?      @relation(fields: [courseId], references: [id], map: "Certificate_courseId_fkey")
   participant       Participant? @relation(fields: [participantId], references: [id], map: "Certificate_participantId_fkey")
+=======
+  participant       Participant? @relation(fields: [participantId], references: [id], map: "Certificate_participantId_fkey")
+  course            Course?      @relation(fields: [courseId], references: [id], map: "Certificate_courseId_fkey")
+>>>>>>> 7864d058788a5e47b4bbbd2ec822a07c8f3b3f42
 
   @@index([courseId], map: "Certificate_courseId_fkey")
   @@index([participantId], map: "Certificate_participantId_fkey")
@@ -195,9 +211,15 @@ model Payment {
   id              String             @id @default(uuid())
   paymentDate     DateTime
   amount          Float
+<<<<<<< HEAD
   paymentMethod   String
   referenceNumber String             @unique
   status          String
+=======
+  paymentMethod   String // "Transfer Bank", "E-Wallet", "Kartu Kredit" 
+  referenceNumber String             @unique
+  status          String // "Paid", "Unpaid"
+>>>>>>> 7864d058788a5e47b4bbbd2ec822a07c8f3b3f42
   registrationId  String
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt

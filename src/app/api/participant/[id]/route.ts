@@ -15,7 +15,15 @@ export async function GET(request: Request, { params }: Params) {
     console.log(`API: Fetching participant with ID: ${id}`);
 
     const participant = await prisma.participant.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        user: {
+          select: {
+            email: true,
+            username: true,
+          },
+        },
+      },
     });
 
     if (!participant) {
@@ -30,19 +38,16 @@ export async function GET(request: Request, { params }: Params) {
     
     return NextResponse.json({
       id: participant.id,
-      name: participant.full_name,
-      role: 'Participant',
-      gender: participant.gender,
+      full_name: participant.full_name,
+      photo: participant.photo,
       address: participant.address,
       phone_number: participant.phone_number,
       birth_date: participant.birth_date,
-      job_title: participant.job_title || '',
-      company: participant.company || '',
-      photo: participant.photo || '/default-avatar.png',
-      userId: participant.userId,
-      email: '',  // We're not fetching user email to avoid Prisma error
-      username: '',  // We're not fetching username to avoid Prisma error
-      userTypeId: '',  // We're not fetching userTypeId to avoid Prisma error
+      job_title: participant.job_title,
+      company: participant.company,
+      gender: participant.gender,
+      email: participant.user.email,
+      username: participant.user.username,
     });
   } catch (error) {
     console.error('Error fetching participant:', error);
@@ -51,7 +56,7 @@ export async function GET(request: Request, { params }: Params) {
       console.error(`Error stack: ${error.stack}`);
     }
     return NextResponse.json(
-      { error: 'Failed to fetch participant', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Failed to fetch participant details' },
       { status: 500 }
     );
   }
@@ -163,7 +168,7 @@ export async function PUT(request: Request, { params }: Params) {
       const user = updatedParticipant.userId ? await prisma.user.findUnique({
         where: { id: updatedParticipant.userId },
         include: {
-          usertype: true
+          userType: true
         }
       }) : null;
 

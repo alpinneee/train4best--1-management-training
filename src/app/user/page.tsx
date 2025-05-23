@@ -203,7 +203,7 @@ const UserPage = () => {
           username: newUser.username,
           email: newUser.email,
           jobTitle: newUser.jobTitle,
-          password: newUser.password || undefined, // Only send password if changed
+          password: newUser.password,
         }),
       });
 
@@ -213,20 +213,21 @@ const UserPage = () => {
         throw new Error(data.error || "Failed to update user");
       }
 
-      // Update user in state
+      // Update the user in the state
       setUsers((prev) =>
-        prev.map((user) => (user.id === selectedUser.id ? data : user))
+        prev.map((user) =>
+          user.id === selectedUser.id
+            ? {
+                ...user,
+                name: newUser.username,
+                email: newUser.email,
+                role: newUser.jobTitle,
+              }
+            : user
+        )
       );
 
       setIsEditModalOpen(false);
-      setSelectedUser(null);
-      setNewUser({
-        username: "",
-        email: "",
-        jobTitle: "",
-        password: "",
-      });
-
       toast.success("User updated successfully");
     } catch (err: unknown) {
       const errorMessage =
@@ -241,40 +242,27 @@ const UserPage = () => {
   const handleDelete = async (force = false) => {
     if (!selectedUser) return;
 
-    setLoading(true);
     setError("");
+    setLoading(true);
 
     try {
-      const url = force
-        ? `/api/user/${selectedUser.id}?force=true`
-        : `/api/user/${selectedUser.id}`;
-
-      const response = await fetch(url, {
+      const response = await fetch(`/api/user/${selectedUser.id}`, {
         method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ force }),
       });
 
       if (!response.ok) {
         const data = await response.json();
-
-        // If error is about associated records and we're not forcing deletion
-        if (
-          data.error === "Cannot delete user that has associated records" &&
-          !force
-        ) {
-          setLoading(false);
-          // Set custom error with action button
-          setError("This user has associated records. Delete anyway?");
-          return; // Stop here and wait for user decision
-        }
-
         throw new Error(data.error || "Failed to delete user");
       }
 
-      // Remove user from state
+      // Remove the user from the state
       setUsers((prev) => prev.filter((user) => user.id !== selectedUser.id));
 
       setIsDeleteModalOpen(false);
-      setSelectedUser(null);
       toast.success("User deleted successfully");
     } catch (err: unknown) {
       const errorMessage =
@@ -287,372 +275,247 @@ const UserPage = () => {
   };
 
   const columns: Column[] = [
+    { header: "No", accessor: (_, index) => indexOfFirstItem + index + 1 },
+    { header: "Name", accessor: "name" },
+    { header: "Email", accessor: "email" },
+    { header: "Role", accessor: "role" },
+    { header: "Created At", accessor: "createdAt" },
     {
-      header: "No",
-      accessor: (user: User) => {
-        const index = filteredUsers.indexOf(user);
-        return index + 1;
-      },
-    },
-    {
-      header: "Name",
-      accessor: "name",
-    },
-    {
-      header: "Email",
-      accessor: "email",
-    },
-    {
-      header: "Role",
-      accessor: "role",
-    },
-    {
-      header: "Action",
-      accessor: (user: User) => (
+      header: "Actions",
+      accessor: (user) => (
         <div className="flex gap-2">
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => handleEditClick(user)}
-            className="text-blue-600 hover:text-blue-800"
           >
             Edit
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
             onClick={() => {
               setSelectedUser(user);
               setIsDeleteModalOpen(true);
             }}
-            className="text-red-500 hover:text-red-700"
           >
             Delete
-          </button>
+          </Button>
         </div>
       ),
     },
   ];
 
-  if (loading && users.length === 0) {
-    return (
-      <Layout>
-        <div className="p-2 text-center">Loading users...</div>
-      </Layout>
-    );
-  }
-
   return (
     <Layout>
-      <div className="flex flex-col gap-2 p-2">
-        <h1 className="text-lg md:text-xl text-gray-800 mb-2">
-          Users Management
-        </h1>
-
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 mb-2 rounded relative">
-            <span className="block sm:inline">{error}</span>
-            <button
-              className="absolute top-0 bottom-0 right-0 px-4 py-2"
-              onClick={() => setError("")}
-            >
-              &times;
-            </button>
-          </div>
-        )}
-
-        <div className="mb-2 flex flex-col sm:flex-row sm:justify-between gap-2">
-          <Button
-            variant="primary"
-            size="small"
-            onClick={() => setIsModalOpen(true)}
-            className="w-full sm:w-auto"
-          >
-            Add New User
-          </Button>
-
-          <div className="flex flex-col sm:flex-row gap-2 text-gray-800 w-full sm:w-auto">
-            <select
-              value={selectedRole}
-              onChange={handleRoleChange}
-              className="px-2 py-1 text-xs rounded-lg w-full sm:w-auto"
-            >
-              {filterRoles.map((role) => (
-                <option key={role} value={role}>
-                  {role === "all" ? "All Roles" : role}
-                </option>
-              ))}
-            </select>
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchTerm}
-              onChange={handleSearchChange}
-              className="px-2 py-1 text-xs rounded-lg w-full sm:w-auto"
-            />
-          </div>
+      <div className="p-4">
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-2xl font-bold">Users</h1>
+          <Button onClick={() => setIsModalOpen(true)}>Add User</Button>
         </div>
 
-        {users.length === 0 && !loading ? (
-          <div className="text-center py-4 text-gray-800">No users found</div>
+        <div className="flex gap-4 mb-4">
+          <select
+            value={selectedRole}
+            onChange={handleRoleChange}
+            className="border rounded p-2"
+          >
+            {filterRoles.map((role) => (
+              <option key={role} value={role}>
+                {role.charAt(0).toUpperCase() + role.slice(1)}
+              </option>
+            ))}
+          </select>
+
+          <input
+            type="text"
+            placeholder="Search users..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+            className="border rounded p-2 flex-grow"
+          />
+        </div>
+
+        {error && <div className="text-red-500 mb-4">{error}</div>}
+
+        {loading ? (
+          <div>Loading...</div>
         ) : (
-          <div className="overflow-x-auto -mx-2 px-2">
-            <Table
-              columns={columns}
-              data={currentUsers}
-              currentPage={currentPage}
-              totalPages={totalPages}
-              itemsPerPage={itemsPerPage}
-              totalItems={filteredUsers.length}
-              onPageChange={setCurrentPage}
-            />
-          </div>
+          <Table
+            columns={columns}
+            data={currentUsers}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         )}
 
         {/* Add User Modal */}
-        {isModalOpen && (
-          <Modal onClose={() => setIsModalOpen(false)}>
-            <h2 className="text-base font-semibold mb-2 text-gray-800">
-              Add New User
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-2">
-              <div>
-                <label className="block mb-1 text-xs text-gray-800">
-                  Username
-                </label>
-                <input
-                  type="text"
-                  name="username"
-                  value={newUser.username}
-                  onChange={(e) =>
-                    setNewUser({ ...newUser, username: e.target.value })
-                  }
-                  className="w-full px-2 py-1 text-xs rounded border border-gray-300"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block mb-1 text-xs text-gray-800">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={newUser.email}
-                  onChange={(e) =>
-                    setNewUser({ ...newUser, email: e.target.value })
-                  }
-                  className="w-full px-2 py-1 text-xs rounded border border-gray-300"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-800 mb-1">Role</label>
-                <select
-                  name="jobTitle"
-                  value={newUser.jobTitle}
-                  onChange={(e) =>
-                    setNewUser({ ...newUser, jobTitle: e.target.value })
-                  }
-                  className="w-full px-2 py-1 text-xs rounded border border-gray-300"
-                  required
-                >
-                  <option value="">Select Role</option>
-                  {availableRoles.map((role) => (
-                    <option key={role} value={role}>
-                      {role}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block mb-1 text-xs text-gray-800">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  name="password"
-                  value={newUser.password}
-                  onChange={(e) =>
-                    setNewUser({ ...newUser, password: e.target.value })
-                  }
-                  className="w-full px-2 py-1 text-xs rounded border border-gray-300"
-                  required
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button
-                  variant="gray"
-                  size="small"
-                  onClick={() => setIsModalOpen(false)}
-                  className="text-xs px-2 py-1"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="primary"
-                  size="small"
-                  type="submit"
-                  disabled={loading}
-                  className="text-xs px-2 py-1"
-                >
-                  {loading ? "Adding..." : "Add User"}
-                </Button>
-              </div>
-            </form>
-          </Modal>
-        )}
-
-        {/* Edit User Modal */}
-        {isEditModalOpen && (
-          <Modal onClose={() => setIsEditModalOpen(false)}>
-            <h2 className="text-base font-semibold mb-2 text-gray-800">
-              Edit User
-            </h2>
-            <form onSubmit={handleEditSubmit} className="space-y-2">
-              <div>
-                <label className="block text-xs text-gray-800 mb-1">
-                  Username
-                </label>
-                <input
-                  type="text"
-                  name="username"
-                  value={newUser.username}
-                  onChange={(e) =>
-                    setNewUser({ ...newUser, username: e.target.value })
-                  }
-                  className="w-full px-2 py-1 text-xs rounded border border-gray-300"
-                  required
-                  disabled={loading}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-800 mb-1">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={newUser.email}
-                  onChange={(e) =>
-                    setNewUser({ ...newUser, email: e.target.value })
-                  }
-                  className="w-full px-2 py-1 text-xs rounded border border-gray-300"
-                  required
-                  disabled={loading}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-800 mb-1">Role</label>
-                <select
-                  name="jobTitle"
-                  value={newUser.jobTitle}
-                  onChange={(e) =>
-                    setNewUser({ ...newUser, jobTitle: e.target.value })
-                  }
-                  className="w-full px-2 py-1 text-xs rounded border border-gray-300"
-                  required
-                  disabled={loading}
-                >
-                  <option value="">Select Role</option>
-                  {availableRoles.map((role) => (
-                    <option key={role} value={role}>
-                      {role}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-gray-800 mb-1">
-                  New Password (Optional)
-                </label>
-                <input
-                  type="password"
-                  name="password"
-                  value={newUser.password}
-                  onChange={(e) =>
-                    setNewUser({ ...newUser, password: e.target.value })
-                  }
-                  className="w-full px-2 py-1 text-xs rounded border border-gray-300"
-                  placeholder="Leave empty to keep current password"
-                  disabled={loading}
-                />
-                <p className="text-xs text-gray-800 mt-1">
-                  Leave empty to keep current password
-                </p>
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button
-                  variant="gray"
-                  size="small"
-                  onClick={() => setIsEditModalOpen(false)}
-                  className="text-xs px-2 py-1"
-                  disabled={loading}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="primary"
-                  size="small"
-                  type="submit"
-                  className="text-xs px-2 py-1"
-                  disabled={loading}
-                >
-                  {loading ? "Saving..." : "Save Changes"}
-                </Button>
-              </div>
-            </form>
-          </Modal>
-        )}
-
-        {/* Delete Modal */}
-        {isDeleteModalOpen && selectedUser && (
-          <Modal onClose={() => setIsDeleteModalOpen(false)}>
-            <h2 className="text-base font-semibold text-gray-800">
-              Delete User
-            </h2>
-            <p className="text-xs text-gray-800 mt-2">
-              Are you sure you want to delete user{" "}
-              <span className="font-semibold">{selectedUser.name}</span>?
-            </p>
-            {error && error.includes("associated records") && (
-              <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-3 py-2 mt-2 rounded text-xs">
-                <p>
-                  Warning: This user has associated records. Force deletion may
-                  cause data inconsistency.
-                </p>
-              </div>
-            )}
-            <div className="flex justify-end mt-3 gap-2">
+        <Modal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          title="Add User"
+        >
+          <form onSubmit={handleSubmit}>
+            <div className="mb-4">
+              <label className="block mb-2">Username</label>
+              <input
+                type="text"
+                value={newUser.username}
+                onChange={(e) =>
+                  setNewUser({ ...newUser, username: e.target.value })
+                }
+                className="border rounded p-2 w-full"
+                required
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block mb-2">Email</label>
+              <input
+                type="email"
+                value={newUser.email}
+                onChange={(e) =>
+                  setNewUser({ ...newUser, email: e.target.value })
+                }
+                className="border rounded p-2 w-full"
+                required
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block mb-2">Role</label>
+              <select
+                value={newUser.jobTitle}
+                onChange={(e) =>
+                  setNewUser({ ...newUser, jobTitle: e.target.value })
+                }
+                className="border rounded p-2 w-full"
+                required
+              >
+                <option value="">Select Role</option>
+                {availableRoles.map((role) => (
+                  <option key={role} value={role}>
+                    {role.charAt(0).toUpperCase() + role.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex justify-end gap-2">
               <Button
-                variant="gray"
-                size="small"
-                onClick={() => setIsDeleteModalOpen(false)}
-                className="text-xs px-2 py-1"
-                disabled={loading}
+                type="button"
+                variant="secondary"
+                onClick={() => setIsModalOpen(false)}
               >
                 Cancel
               </Button>
-              {error && error.includes("associated records") ? (
-                <Button
-                  variant="red"
-                  size="small"
-                  onClick={() => handleDelete(true)}
-                  className="text-xs px-2 py-1"
-                  disabled={loading}
-                >
-                  Force Delete
-                </Button>
-              ) : (
-                <Button
-                  variant="red"
-                  size="small"
-                  onClick={() => handleDelete()}
-                  className="text-xs px-2 py-1"
-                  disabled={loading}
-                >
-                  {loading ? "Deleting..." : "Delete"}
-                </Button>
-              )}
+              <Button type="submit" disabled={loading}>
+                {loading ? "Adding..." : "Add User"}
+              </Button>
             </div>
-          </Modal>
-        )}
+          </form>
+        </Modal>
+
+        {/* Edit User Modal */}
+        <Modal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          title="Edit User"
+        >
+          <form onSubmit={handleEditSubmit}>
+            <div className="mb-4">
+              <label className="block mb-2">Username</label>
+              <input
+                type="text"
+                value={newUser.username}
+                onChange={(e) =>
+                  setNewUser({ ...newUser, username: e.target.value })
+                }
+                className="border rounded p-2 w-full"
+                required
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block mb-2">Email</label>
+              <input
+                type="email"
+                value={newUser.email}
+                onChange={(e) =>
+                  setNewUser({ ...newUser, email: e.target.value })
+                }
+                className="border rounded p-2 w-full"
+                required
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block mb-2">Role</label>
+              <select
+                value={newUser.jobTitle}
+                onChange={(e) =>
+                  setNewUser({ ...newUser, jobTitle: e.target.value })
+                }
+                className="border rounded p-2 w-full"
+                required
+              >
+                <option value="">Select Role</option>
+                {availableRoles.map((role) => (
+                  <option key={role} value={role}>
+                    {role.charAt(0).toUpperCase() + role.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="mb-4">
+              <label className="block mb-2">
+                New Password (leave blank to keep current)
+              </label>
+              <input
+                type="password"
+                value={newUser.password}
+                onChange={(e) =>
+                  setNewUser({ ...newUser, password: e.target.value })
+                }
+                className="border rounded p-2 w-full"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setIsEditModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? "Updating..." : "Update User"}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+
+        {/* Delete User Modal */}
+        <Modal
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)}
+          title="Delete User"
+        >
+          <p>Are you sure you want to delete this user?</p>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setIsDeleteModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              onClick={() => handleDelete(false)}
+              disabled={loading}
+            >
+              {loading ? "Deleting..." : "Delete"}
+            </Button>
+          </div>
+        </Modal>
       </div>
     </Layout>
   );

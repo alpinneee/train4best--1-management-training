@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { signIn } from "next-auth/react";
+import { toast } from "react-hot-toast";
 
 const RegistrationForm = () => {
   const [formData, setFormData] = useState({
@@ -51,6 +53,7 @@ const RegistrationForm = () => {
     }
 
     try {
+      // First, register the user
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: {
@@ -70,8 +73,63 @@ const RegistrationForm = () => {
         throw new Error(data.error || "Terjadi kesalahan");
       }
 
-      // Redirect ke halaman login setelah berhasil
-      window.location.href = "/login";
+      // Add a short delay to ensure the registration is complete
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // First call our direct login API to establish initial session state
+      const loginApiRes = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+      
+      const loginApiData = await loginApiRes.json();
+      
+      if (!loginApiRes.ok) {
+        console.error("API login failed:", loginApiData);
+        // Continue to NextAuth login as fallback
+      } else {
+        console.log("API login successful:", loginApiData.user);
+      }
+
+      // Auto-login with NextAuth signIn
+      const result = await signIn("credentials", {
+        redirect: false,
+        email: formData.email,
+        password: formData.password
+      });
+
+      if (result?.error) {
+        // If sign-in fails
+        setError(result.error);
+        console.error("Auto-login failed:", result.error);
+        window.location.href = "/login";
+        return;
+      }
+
+      // Show success message
+      toast?.success?.("Registration successful! Completing your profile...");
+
+      // Wait to ensure the session is established
+      console.log("Registration success - delaying for session establishment...");
+      
+      // Add spinner or indication that we're waiting
+      setLoading(true);
+      
+      // Use a longer delay to ensure the session is fully established
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Log that we're about to redirect
+      console.log("Redirecting to:", data.redirectUrl || "/profile");
+
+      // Use a full page reload to ensure the session is fresh
+      window.location.href = data.redirectUrl || "/profile";
+
     } catch (err: any) {
       setError(err.message);
     } finally {

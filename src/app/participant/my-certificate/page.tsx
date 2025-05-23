@@ -1,180 +1,250 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
-import Navbar from "@/components/common/Navbar";
-import Sidebar from "@/components/common/Sidebar";
+import Layout from "@/components/common/Layout";
 
-const courses = [
-  {
-    id: 1,
-    name: "AIoT",
-    type: "Online",
-    description: [
-      "Membangun sistem AIoT",
-      "Mengembangkan aplikasi smart home, smart agriculture, smart healthcare",
-    ],
-    image: "/aiot.jpg",
-  },
-  {
-    id: 2,
-    name: "Programmer",
-    type: "Online",
-    description: ["introduction (pengenalan web)", "Frontend, backend"],
-    image: "/programmer.jpg",
-  },
-  {
-    id: 3,
-    name: "AIoT",
-    type: "Online",
-    description: [
-      "Membangun sistem AIoT",
-      "Mengembangkan aplikasi smart home, smart agriculture, smart healthcare",
-    ],
-    image: "/aiot.jpg",
-  },
-  {
-    id: 4,
-    name: "Programmer",
-    type: "Online",
-    description: ["introduction (pengenalan web)", "Frontend, backend"],
-    image: "/programmer.jpg",
-  },
-];
+// Interface untuk tipe data sertifikat
+interface Certificate {
+  id: string;
+  certificateNumber: string;
+  issueDate: Date;
+  courseName: string;
+  courseType: string;
+  location: string;
+  startDate: Date;
+  endDate: Date;
+  participantName: string;
+  description: string[];
+}
 
-const DashboardPage = () => {
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
+const MyCertificatePage = () => {
   const [search, setSearch] = useState("");
-  const filteredCourses = courses.filter((course) =>
-    course.name.toLowerCase().includes(search.toLowerCase())
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  
+  // Fungsi untuk mengambil data sertifikat dari API
+  const fetchCertificates = useCallback(async (pageNum: number = 1, searchTerm: string = "") => {
+    setLoading(true);
+    try {
+      // Ambil email user dari localStorage (jika ada)
+      const userEmail = localStorage.getItem('userEmail') || '';
+      
+      // Buat URL untuk fetch dengan parameter
+      let url = `/api/certificate?page=${pageNum}&limit=8`;
+      if (userEmail) url += `&email=${encodeURIComponent(userEmail)}`;
+      if (searchTerm) url += `&search=${encodeURIComponent(searchTerm)}`;
+      
+      // Tambahkan timestamp untuk menghindari cache
+      url += `&_=${new Date().getTime()}`;
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data && data.data) {
+        setCertificates(data.data);
+        if (data.meta) {
+          setTotalPages(data.meta.totalPages || 1);
+        }
+      } else {
+        setCertificates([]);
+        setTotalPages(1);
+      }
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching certificates:", err);
+      setError("Gagal mengambil data sertifikat. Silakan coba lagi nanti.");
+      setCertificates([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  
+  // Effect untuk mengambil data saat pertama kali atau saat page/search berubah
+  useEffect(() => {
+    fetchCertificates(page, search);
+  }, [fetchCertificates, page, search]);
+  
+  // Handler untuk pencarian
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearch(value);
+    setPage(1); // Reset ke halaman pertama saat pencarian berubah
+  };
+  
+  // Handler untuk pagination
+  const handlePageChange = (newPage: number) => {
+    if (newPage > 0 && newPage <= totalPages) {
+      setPage(newPage);
+    }
+  };
+  
+  // Filter sertifikat berdasarkan pencarian (dilakukan di client jika sudah ada data)
+  const filteredCertificates = certificates.filter((cert) =>
+    cert.courseName.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleMobileOpen = () => {
-    setIsMobileOpen(!isMobileOpen);
-  };
-
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar onMobileMenuClick={handleMobileOpen} />
-      <div className="flex flex-1">
-      <Sidebar isMobileOpen={isMobileOpen} onMobileClose={handleMobileOpen} variant="participant" />
-        <main className="flex-1 p-6 bg-green-50">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4">
-            <h1 className="text-2xl font-semibold text-gray-600 mb-2 sm:mb-0">
-              Courses
-            </h1>
-            <div className="relative w-full sm:w-64">
-              <input
-                type="text"
-                placeholder="Search..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border text-gray-700 border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-300"
-              />
-              <span className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <svg
-                  className="w-5 h-5 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
-              </span>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            {filteredCourses.map((course) => (
-              <div
-                key={course.id}
-                className="bg-white rounded-lg shadow p-4 flex flex-col"
+    <Layout variant="participant">
+      <div className="p-3 sm:p-4 max-w-7xl mx-auto">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-3">
+          <h1 className="text-xl font-semibold text-gray-700 mb-2 sm:mb-0">
+            Sertifikat Saya
+          </h1>
+          <div className="relative w-full sm:w-64">
+            <input
+              type="text"
+              placeholder="Cari..."
+              value={search}
+              onChange={handleSearch}
+              className="w-full px-3 py-1.5 rounded border text-sm text-gray-700 border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-300"
+            />
+            <span className="absolute right-2 top-1/2 transform -translate-y-1/2">
+              <svg
+                className="w-4 h-4 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                <div className="h-32 w-full relative mb-2">
-                  <Image
-                    src={course.image}
-                    alt={course.name}
-                    fill
-                    className="object-cover rounded-t-lg"
-                  />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+            </span>
+          </div>
+        </div>
+        
+        {loading ? (
+          <div className="flex justify-center items-center py-20">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md my-4">
+            {error}
+          </div>
+        ) : filteredCertificates.length === 0 ? (
+          <div className="text-center py-10">
+            <p className="text-gray-500">Tidak ada sertifikat yang ditemukan.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {filteredCertificates.map((cert) => (
+              <div
+                key={cert.id}
+                className="bg-white rounded shadow overflow-hidden hover:shadow-md transition-duration-300 border border-gray-200"
+              >
+                <div className="h-28 w-full relative">
+                  <div className="absolute inset-0 flex items-center justify-center bg-blue-50">
+                    <span className="text-2xl font-bold text-blue-500">{cert.courseName.charAt(0)}</span>
+                  </div>
                 </div>
-                <div className="flex-1 flex flex-col">
-                  <div className="mb-2">
-                    <div className="font-semibold text-sm">
-                      Course Name : {course.name}
+                <div className="p-2.5 bg-gray-50">
+                  <div className="mb-1.5">
+                    <div className="font-medium text-sm">
+                      Kursus: {cert.courseName}
                     </div>
                     <div className="text-xs text-gray-600">
-                      Course Type : {course.type}
+                      Tipe: {cert.courseType}
+                    </div>
+                    <div className="text-xs text-gray-600">
+                      No. Sertifikat: {cert.certificateNumber}
                     </div>
                     <div className="text-xs mt-1">
-                      <span className="font-semibold">Description :</span>
-                      <ul className="list-disc ml-4">
-                        {course.description.map((desc, idx) => (
-                          <li key={idx}>{desc}</li>
+                      <span className="font-medium">Deskripsi:</span>
+                      <ul className="list-disc ml-4 text-gray-600">
+                        {cert.description.map((desc, idx) => (
+                          <li key={idx} className="text-xs leading-4 mt-0.5">{desc}</li>
                         ))}
                       </ul>
                     </div>
                   </div>
-                  <div className="flex justify-between items-center mt-auto pt-2">
-                    <span className="text-gray-400">
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-                        />
-                      </svg>
-                    </span>
-                    <span className="text-gray-400">
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M19 21H5a2 2 0 01-2-2V7a2 2 0 012-2h4l2-2 2 2h4a2 2 0 012 2v12a2 2 0 01-2 2z"
-                        />
-                      </svg>
-                    </span>
+                  <div className="flex justify-between items-center mt-auto pt-1 border-t border-gray-200">
+                    <button className="text-blue-600 text-xs px-2 py-1 hover:bg-blue-50 rounded transition-colors">
+                      Lihat Detail
+                    </button>
+                    <button className="text-green-600 text-xs px-2 py-1 hover:bg-green-50 rounded transition-colors">
+                      Unduh PDF
+                    </button>
                   </div>
                 </div>
               </div>
             ))}
           </div>
-          {/* Pagination */}
-          <div className="flex justify-center items-center mt-8 gap-2">
-            <button className="p-1 rounded hover:bg-gray-200" disabled>
+        )}
+        
+        {/* Pagination */}
+        {!loading && filteredCertificates.length > 0 && (
+          <div className="flex justify-center items-center mt-4 gap-1 text-sm">
+            <button 
+              className="p-1 rounded hover:bg-gray-200 text-xs disabled:opacity-50 disabled:pointer-events-none" 
+              disabled={page === 1}
+              onClick={() => handlePageChange(1)}
+            >
               {"<<"}
             </button>
-            <button className="p-1 rounded hover:bg-gray-200" disabled>
+            <button 
+              className="p-1 rounded hover:bg-gray-200 text-xs disabled:opacity-50 disabled:pointer-events-none" 
+              disabled={page === 1}
+              onClick={() => handlePageChange(page - 1)}
+            >
               {"<"}
             </button>
-            <button className="px-3 py-1 rounded bg-gray-300 text-gray-700 font-semibold">
-              1
+            
+            {/* Show page numbers */}
+            {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
+              // Calculate which pages to show
+              let pageToShow = page;
+              if (page === 1) pageToShow = 1 + i;
+              else if (page === totalPages) pageToShow = totalPages - 2 + i;
+              else pageToShow = page - 1 + i;
+              
+              // Only show if the page is within range
+              if (pageToShow > 0 && pageToShow <= totalPages) {
+                return (
+                  <button
+                    key={pageToShow}
+                    onClick={() => handlePageChange(pageToShow)}
+                    className={`px-2 py-1 rounded text-xs font-medium ${
+                      pageToShow === page ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-200'
+                    }`}
+                  >
+                    {pageToShow}
+                  </button>
+                );
+              }
+              return null;
+            })}
+            
+            <button 
+              className="p-1 rounded hover:bg-gray-200 text-xs disabled:opacity-50 disabled:pointer-events-none" 
+              disabled={page === totalPages}
+              onClick={() => handlePageChange(page + 1)}
+            >
+              {">"}
             </button>
-            <button className="p-1 rounded hover:bg-gray-200">2</button>
-            <button className="p-1 rounded hover:bg-gray-200">3</button>
-            <button className="p-1 rounded hover:bg-gray-200">{">"}</button>
-            <button className="p-1 rounded hover:bg-gray-200">{" >>"}</button>
+            <button 
+              className="p-1 rounded hover:bg-gray-200 text-xs disabled:opacity-50 disabled:pointer-events-none" 
+              disabled={page === totalPages}
+              onClick={() => handlePageChange(totalPages)}
+            >
+              {">>"}
+            </button>
           </div>
-        </main>
+        )}
       </div>
-    </div>
+    </Layout>
   );
 };
 
-export default DashboardPage;
+export default MyCertificatePage;

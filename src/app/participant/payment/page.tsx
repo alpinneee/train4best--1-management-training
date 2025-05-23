@@ -1,17 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Table from "@/components/common/table";
 import Layout from "@/components/common/Layout";
 
 interface Payment {
-  id: number;
+  id: string;
   nama: string;
   tanggal: string;
   paymentMethod: string;
   nomorReferensi: string;
-  jumlah: string;
-  status: "Paid" | "Unpaid";
+  jumlah: number;
+  status: string;
+  courseName?: string;
+  courseId?: string;
+  registrationId?: string;
 }
 
 interface Column<T> {
@@ -22,59 +25,125 @@ interface Column<T> {
 
 export default function PaymentReport() {
   const [currentPage, setCurrentPage] = useState(1);
-  const [payments] = useState<Payment[]>([
-    {
-      id: 1,
-      nama: "Ilham Ramadhan",
-      tanggal: "01-02-2024", 
-      paymentMethod: "Transfer Bank",
-      nomorReferensi: "TRF-20240108-001",
-      jumlah: "Rp. 1.000.000,-",
-      status: "Paid"
-    },
-    {
-      id: 2,
-      nama: "Risky Febriana",
-      tanggal: "01-10-2024",
-      paymentMethod: "E-Wallet",
-      nomorReferensi: "EWL-20240110-001",
-      jumlah: "Rp. 1.000.000,-",
-      status: "Unpaid"
-    },
-    // Tambahkan data lainnya untuk testing pagination
-    {
-      id: 3,
-      nama: "Affine Makarizo",
-      tanggal: "01-05-2024",
-      paymentMethod: "Kartu Kredit",
-      nomorReferensi: "CC-20240105-002",
-      jumlah: "Rp. 1.000.000,-",
-      status: "Unpaid"
-    },
-    {
-      id: 4,
-      nama: "Cyntia Febiola",
-      tanggal: "02-12-2024",
-      paymentMethod: "Transfer Bank",
-      nomorReferensi: "TRF-20240212-002",
-      jumlah: "Rp. 2.000.000,-",
-      status: "Unpaid"
-    },
-    {
-      id: 5,
-      nama: "Saska Khairani",
-      tanggal: "02-02-2024",
-      paymentMethod: "E-Wallet",
-      nomorReferensi: "EWL-20240112-002",
-      jumlah: "Rp. 2.000.000,-",
-      status: "Paid"
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [totalPages, setTotalPages] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [isDbConfigured, setIsDbConfigured] = useState(true);
+  
+  // Fungsi untuk mengambil data pembayaran dari API
+  const fetchPayments = useCallback(async (pageNum: number = 1, search: string = '', method: string = '') => {
+    setLoading(true);
+    try {
+      // Ambil email user dari localStorage (jika ada)
+      const userEmail = localStorage.getItem('userEmail') || '';
+      
+      // Buat URL untuk fetch dengan parameter
+      let url = `/api/payment?page=${pageNum}&limit=5`;
+      if (userEmail) url += `&email=${encodeURIComponent(userEmail)}`;
+      if (search) url += `&search=${encodeURIComponent(search)}`;
+      if (method) url += `&method=${encodeURIComponent(method)}`;
+      
+      // Tambahkan timestamp untuk menghindari cache
+      url += `&_=${new Date().getTime()}`;
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        // Cek apakah error karena database belum dikonfigurasi
+        if (response.status === 500 && errorData.includes('database')) {
+          setIsDbConfigured(false);
+          throw new Error('Database belum dikonfigurasi');
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data && data.data) {
+        setPayments(data.data);
+        if (data.meta) {
+          setTotalPages(data.meta.totalPages || 1);
+        }
+      } else {
+        setPayments([]);
+        setTotalPages(1);
+      }
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching payments:", err);
+      if (err instanceof Error && err.message.includes('Database belum dikonfigurasi')) {
+        setIsDbConfigured(false);
+        setError('Database belum dikonfigurasi. Silakan klik tombol "Konfigurasi Database" di bawah.');
+      } else {
+        setError("Gagal mengambil data pembayaran. Silakan coba lagi nanti.");
+      }
+      setPayments([]);
+    } finally {
+      setLoading(false);
     }
-  ]);
+  }, []);
+  
+  // Effect untuk mengambil data saat pertama kali atau saat parameter berubah
+  useEffect(() => {
+    fetchPayments(currentPage, searchTerm, paymentMethod);
+  }, [fetchPayments, currentPage, searchTerm, paymentMethod]);
+  
+  // Setup database
+  const setupDatabase = async () => {
+    try {
+      const response = await fetch('/api/seed', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ mode: 'minimal' })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setIsDbConfigured(true);
+        
+        // Simpan email demo user untuk demo yang lebih seamless
+        localStorage.setItem('userEmail', 'demo@example.com');
+        
+        // Reload data setelah database dikonfigurasi
+        fetchPayments();
+        alert('Database berhasil dikonfigurasi!');
+      } else {
+        const error = await response.text();
+        console.error('Error configuring database:', error);
+        alert('Gagal mengkonfigurasi database. Lihat konsol untuk detail.');
+      }
+    } catch (error) {
+      console.error('Error setting up database:', error);
+      alert('Terjadi kesalahan saat mengkonfigurasi database.');
+    }
+  };
+  
+  // Handler untuk pencarian
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1); // Reset ke halaman pertama saat pencarian berubah
+  };
+  
+  // Handler untuk filter metode pembayaran
+  const handleMethodChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setPaymentMethod(e.target.value);
+    setCurrentPage(1); // Reset ke halaman pertama saat filter berubah
+  };
 
   const columns: Column<Payment>[] = [
     { 
       header: "No", 
-      accessor: "id",
+      accessor: (payment) => {
+        // Buat properti nomor urut untuk setiap payment
+        const index = payments.findIndex(p => p.id === payment.id);
+        return (currentPage - 1) * 5 + index + 1;
+      },
       className: "w-12 text-center"
     },
     { 
@@ -98,8 +167,12 @@ export default function PaymentReport() {
       className: "min-w-[140px]"
     },
     { 
-      header: "Jumlah (idr)", 
-      accessor: "jumlah",
+      header: "Jumlah (IDR)", 
+      accessor: (payment) => new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0
+      }).format(payment.jumlah),
       className: "min-w-[100px]"
     },
     {
@@ -119,25 +192,53 @@ export default function PaymentReport() {
     },
     {
       header: "Action",
-      accessor: () => (
-        <button className="text-blue-600 hover:text-blue-900 p-1">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24">
-            <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-          </svg>
-        </button>
+      accessor: (payment: Payment) => (
+        <div className="flex space-x-1 justify-center">
+          {payment.status === "Unpaid" ? (
+            <a 
+              href={`/participant/payment/${payment.id}`}
+              className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 inline-flex items-center"
+            >
+              Bayar
+            </a>
+          ) : (
+            <button className="text-blue-600 hover:text-blue-900 p-1">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24">
+                <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+              </svg>
+            </button>
+          )}
+        </div>
       ),
-      className: "w-12 text-center"
+      className: "w-20 text-center"
     },
   ];
 
   const ITEMS_PER_PAGE = 5;
-  const totalPages = Math.ceil(payments.length / ITEMS_PER_PAGE);
 
-  const getCurrentPageItems = () => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    return payments.slice(startIndex, endIndex);
-  };
+  // Render konfigurasi database jika belum terkonfigurasi
+  if (!isDbConfigured) {
+    return (
+      <Layout variant="participant">
+        <div className="p-2">
+          <div className="space-y-4 py-8">
+            <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-md text-sm">
+              Database belum dikonfigurasi. Silakan klik tombol di bawah untuk mengonfigurasi database.
+            </div>
+            
+            <div className="flex justify-center">
+              <button
+                onClick={setupDatabase}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Konfigurasi Database
+              </button>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout variant="participant">
@@ -146,11 +247,15 @@ export default function PaymentReport() {
           <h1 className="text-lg md:text-xl text-gray-700">Payment Report</h1>
           
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <select className="w-full sm:w-auto px-2 py-1 text-xs border rounded">
-              <option value="">Payment</option>
-              <option value="transfer">Transfer Bank</option>
-              <option value="ewallet">E-Wallet</option>
-              <option value="credit">Kartu Kredit</option>
+            <select 
+              className="w-full sm:w-auto px-2 py-1 text-xs border rounded"
+              value={paymentMethod}
+              onChange={handleMethodChange}
+            >
+              <option value="">Semua Metode</option>
+              <option value="Transfer Bank">Transfer Bank</option>
+              <option value="E-Wallet">E-Wallet</option>
+              <option value="Kartu Kredit">Kartu Kredit</option>
             </select>
 
             <button className="w-full sm:w-auto border px-2 py-1 rounded flex items-center justify-center gap-1 text-xs text-gray-700">
@@ -164,6 +269,8 @@ export default function PaymentReport() {
               <input 
                 type="text"
                 placeholder="Search..."
+                value={searchTerm}
+                onChange={handleSearch}
                 className="w-full px-2 py-1 pl-7 text-xs border rounded"
               />
               <svg 
@@ -180,15 +287,29 @@ export default function PaymentReport() {
         </div>
 
         <div className="overflow-x-auto -mx-2 px-2">
-          <Table
-            columns={columns}
-            data={getCurrentPageItems()}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            itemsPerPage={ITEMS_PER_PAGE}
-            totalItems={payments.length}
-            onPageChange={setCurrentPage}
-          />
+          {loading ? (
+            <div className="flex justify-center items-center py-20">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
+          ) : error ? (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md my-4">
+              {error}
+            </div>
+          ) : payments.length === 0 ? (
+            <div className="text-center py-10">
+              <p className="text-gray-500">Tidak ada data pembayaran yang ditemukan.</p>
+            </div>
+          ) : (
+            <Table
+              columns={columns}
+              data={payments}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              itemsPerPage={ITEMS_PER_PAGE}
+              totalItems={ITEMS_PER_PAGE * totalPages}
+              onPageChange={setCurrentPage}
+            />
+          )}
         </div>
       </div>
     </Layout>

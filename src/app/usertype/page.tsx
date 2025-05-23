@@ -218,35 +218,34 @@ const UserPage = (): ReactElement => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     setError(null);
+
     try {
-      const addedUser = await addUsertypeAPI({ usertype: newUser.usertype });
-      // Update the state with the new usertype
-      setUsertypeData((prev) => {
-        const newNo =
-          prev.length > 0 ? Math.max(...prev.map((u) => u.no)) + 1 : 1;
-        return [...prev, { ...addedUser, no: newNo }];
-      });
+      const addedUser = await addUsertypeAPI(newUser);
+      setUsertypeData((prev) => [
+        ...prev,
+        { ...addedUser, no: prev.length + 1 },
+      ]);
       setIsModalOpen(false);
-      setNewUser({ usertype: "" });
+      setNewUser({ idUsertype: "", usertype: "" });
     } catch (error) {
-      if (error instanceof Error) {
-        setError(error.message);
-      } else {
-        setError("Failed to add usertype");
-      }
+      console.error("Failed to add usertype:", error);
+      setError("Failed to add usertype. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userToEdit) return;
+
+    setIsLoading(true);
     setError(null);
 
     try {
-      const updatedUser = await editUsertypeAPI(userToEdit.idUsertype, {
-        usertype: newUser.usertype,
-      });
+      const updatedUser = await editUsertypeAPI(userToEdit.idUsertype, newUser);
       setUsertypeData((prev) =>
         prev.map((user) =>
           user.idUsertype === userToEdit.idUsertype
@@ -255,19 +254,20 @@ const UserPage = (): ReactElement => {
         )
       );
       setIsEditModalOpen(false);
-      setNewUser({ usertype: "" });
       setUserToEdit(null);
+      setNewUser({ idUsertype: "", usertype: "" });
     } catch (error) {
-      if (error instanceof Error) {
-        setError(error.message);
-      } else {
-        setError("Failed to update usertype");
-      }
+      console.error("Failed to update usertype:", error);
+      setError("Failed to update usertype. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleDeleteConfirm = async () => {
     if (!userToDelete) return;
+
+    setIsLoading(true);
     setError(null);
 
     try {
@@ -278,234 +278,175 @@ const UserPage = (): ReactElement => {
       setIsDeleteModalOpen(false);
       setUserToDelete(null);
     } catch (error) {
-      if (error instanceof Error) {
-        setError(error.message);
-      } else {
-        setError("Failed to delete usertype");
-      }
+      console.error("Failed to delete usertype:", error);
+      setError("Failed to delete usertype. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const columns: Column[] = [
     { header: "No", accessor: "no" },
-    { header: "ID Usertype", accessor: "idUsertype" },
-    { header: "Usertype", accessor: "usertype" },
+    { header: "ID", accessor: "idUsertype" },
+    { header: "User Type", accessor: "usertype" },
     {
-      header: "Action",
-      accessor: (user: User) => (
+      header: "Actions",
+      accessor: (user) => (
         <div className="flex gap-2">
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => handleEditClick(user)}
-            className="text-blue-600 hover:text-blue-800"
           >
             Edit
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
             onClick={() => handleDeleteClick(user)}
-            className="text-red-500 hover:text-red-700"
           >
             Delete
-          </button>
+          </Button>
         </div>
       ),
     },
   ];
 
-  if (isLoading) {
-    return (
-      <Layout>
-        <div className="p-2 text-center">Loading usertypes...</div>
-      </Layout>
-    );
-  }
-
   return (
     <Layout>
-      <div className="p-2">
-        <h1 className="text-lg md:text-xl text-gray-800 mb-2">
-          User Type Management
-        </h1>
-
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 mb-2 rounded relative">
-            <span className="block sm:inline">{error}</span>
-            <button
-              className="absolute top-0 bottom-0 right-0 px-4 py-2"
-              onClick={() => setError(null)}
-            >
-              &times;
-            </button>
-          </div>
-        )}
-
-        <div className="flex flex-col sm:flex-row sm:justify-between gap-2 mb-2">
-          <Button
-            variant="primary"
-            size="small"
-            onClick={() => setIsModalOpen(true)}
-            className="w-full sm:w-auto text-xs"
-          >
-            Add New User Type
-          </Button>
-
-          <div className="flex flex-col sm:flex-row gap-2 text-gray-800 w-full sm:w-auto">
-            <select
-              value={selectedUsertype}
-              onChange={handleUsertypeChange}
-              className="px-2 py-1 text-xs border rounded-lg w-full sm:w-auto"
-            >
-              {usertypes.map((type) => (
-                <option key={type} value={type}>
-                  {type === "all" ? "All User Types" : type}
-                </option>
-              ))}
-            </select>
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchTerm}
-              onChange={handleSearchChange}
-              className="px-2 py-1 text-xs border rounded-lg w-full sm:w-auto"
-            />
-          </div>
+      <div className="p-4">
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-2xl font-bold">User Types</h1>
+          <Button onClick={() => setIsModalOpen(true)}>Add User Type</Button>
         </div>
 
-        <div className="overflow-x-auto -mx-2 px-2">
+        <div className="flex gap-4 mb-4">
+          <select
+            value={selectedUsertype}
+            onChange={handleUsertypeChange}
+            className="border rounded p-2"
+          >
+            {usertypes.map((type) => (
+              <option key={type} value={type}>
+                {type === "all" ? "All Types" : type}
+              </option>
+            ))}
+          </select>
+
+          <input
+            type="text"
+            placeholder="Search user types..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+            className="border rounded p-2 flex-grow"
+          />
+        </div>
+
+        {error && <div className="text-red-500 mb-4">{error}</div>}
+
+        {isLoading ? (
+          <div>Loading...</div>
+        ) : (
           <Table
             columns={columns}
             data={currentUsers}
             currentPage={currentPage}
             totalPages={totalPages}
-            itemsPerPage={itemsPerPage}
-            totalItems={filteredUsers.length}
             onPageChange={setCurrentPage}
           />
-        </div>
-
-        {/* Add Usertype Modal */}
-        {isModalOpen && (
-          <Modal onClose={() => setIsModalOpen(false)}>
-            <h2 className="text-base font-semibold mb-2 text-gray-800">
-              Add New User Type
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-2">
-              <div>
-                <label className="block text-xs text-gray-800 mb-1">
-                  User Type Name
-                </label>
-                <input
-                  type="text"
-                  name="usertype"
-                  value={newUser.usertype}
-                  onChange={handleInputChange}
-                  className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
-                  required
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button
-                  variant="gray"
-                  size="small"
-                  onClick={() => setIsModalOpen(false)}
-                  className="text-xs px-2 py-1"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="primary"
-                  size="small"
-                  type="submit"
-                  className="text-xs px-2 py-1"
-                >
-                  Add User Type
-                </Button>
-              </div>
-            </form>
-          </Modal>
         )}
 
-        {/* Edit Usertype Modal */}
-        {isEditModalOpen && (
-          <Modal onClose={() => setIsEditModalOpen(false)}>
-            <h2 className="text-base font-semibold mb-2 text-gray-800">
-              Edit User Type
-            </h2>
-            <form onSubmit={handleEditSubmit} className="space-y-2">
-              <div>
-                <label className="block text-xs text-gray-800 mb-1">ID</label>
-                <input
-                  type="text"
-                  name="idUsertype"
-                  value={newUser.idUsertype}
-                  className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-800 bg-gray-100"
-                  disabled
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-800 mb-1">
-                  User Type Name
-                </label>
-                <input
-                  type="text"
-                  name="usertype"
-                  value={newUser.usertype}
-                  onChange={handleInputChange}
-                  className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
-                  required
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button
-                  variant="gray"
-                  size="small"
-                  onClick={() => setIsEditModalOpen(false)}
-                  className="text-xs px-2 py-1"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="primary"
-                  size="small"
-                  type="submit"
-                  className="text-xs px-2 py-1"
-                >
-                  Save Changes
-                </Button>
-              </div>
-            </form>
-          </Modal>
-        )}
-
-        {/* Delete Modal */}
-        {isDeleteModalOpen && (
-          <Modal onClose={() => setIsDeleteModalOpen(false)}>
-            <h2 className="text-base font-semibold text-gray-800">
-              Delete User Type
-            </h2>
-            <p className="text-xs text-gray-800 mt-2">
-              Are you sure you want to delete user type{" "}
-              <span className="font-semibold">{userToDelete?.usertype}</span>?
-            </p>
-            <div className="flex justify-end mt-3 gap-2">
+        {/* Add User Type Modal */}
+        <Modal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          title="Add User Type"
+        >
+          <form onSubmit={handleSubmit}>
+            <div className="mb-4">
+              <label className="block mb-2">User Type</label>
+              <input
+                type="text"
+                name="usertype"
+                value={newUser.usertype}
+                onChange={handleInputChange}
+                className="border rounded p-2 w-full"
+                required
+              />
+            </div>
+            <div className="flex justify-end gap-2">
               <Button
-                variant="gray"
-                size="small"
-                onClick={() => setIsDeleteModalOpen(false)}
-                className="text-xs px-2 py-1"
+                type="button"
+                variant="secondary"
+                onClick={() => setIsModalOpen(false)}
               >
                 Cancel
               </Button>
-              <Button
-                variant="red"
-                size="small"
-                onClick={handleDeleteConfirm}
-                className="text-xs px-2 py-1"
-              >
-                Delete
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? "Adding..." : "Add User Type"}
               </Button>
             </div>
-          </Modal>
-        )}
+          </form>
+        </Modal>
+
+        {/* Edit User Type Modal */}
+        <Modal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          title="Edit User Type"
+        >
+          <form onSubmit={handleEditSubmit}>
+            <div className="mb-4">
+              <label className="block mb-2">User Type</label>
+              <input
+                type="text"
+                name="usertype"
+                value={newUser.usertype}
+                onChange={handleInputChange}
+                className="border rounded p-2 w-full"
+                required
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setIsEditModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? "Updating..." : "Update User Type"}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+
+        {/* Delete User Type Modal */}
+        <Modal
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)}
+          title="Delete User Type"
+        >
+          <p>Are you sure you want to delete this user type?</p>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setIsDeleteModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              onClick={handleDeleteConfirm}
+              disabled={isLoading}
+            >
+              {isLoading ? "Deleting..." : "Delete"}
+            </Button>
+          </div>
+        </Modal>
       </div>
     </Layout>
   );

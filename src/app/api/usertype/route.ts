@@ -1,64 +1,50 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// GET /api/usertype - Mendapatkan semua tipe pengguna
+// Ensure default unassigned role exists
+async function ensureDefaultRolesExist() {
+  const roles = [
+    { id: 'utype_unassigned', usertype: 'unassigned', description: 'Default role for new users' },
+    { id: 'utype_participant', usertype: 'participant', description: 'Training participant' }
+  ];
+  
+  for (const role of roles) {
+    const existingRole = await prisma.userType.findFirst({
+      where: { usertype: role.usertype }
+    });
+    
+    if (!existingRole) {
+      await prisma.userType.create({
+        data: role
+      });
+      console.log(`Created default role: ${role.usertype}`);
+    }
+  }
+}
+
+// GET /api/usertype - Get all usertypes
 export async function GET() {
   try {
-    // Pastikan tipe pengguna dasar tersedia
-    await ensureBasicUserTypes();
+    // Ensure default roles exist on each GET request
+    await ensureDefaultRolesExist();
     
-    // Ambil semua tipe pengguna
-    const userTypes = await prisma.userType.findMany({
+    const usertypes = await prisma.userType.findMany({
+      select: {
+        id: true,
+        usertype: true,
+      },
       orderBy: {
         usertype: 'asc',
       },
     });
 
-    // Format respons untuk kebutuhan frontend
-    const formattedUserTypes = userTypes.map((userType, index) => ({
-      no: index + 1,
-      idUsertype: userType.id,
-      usertype: userType.usertype,
-    }));
-
-    // Mengembalikan kedua format untuk kompatibilitas
-    return NextResponse.json({
-      userTypes: userTypes,
-      formattedUserTypes: formattedUserTypes
-    });
+    return NextResponse.json(usertypes);
   } catch (error) {
     console.error('Error fetching user types:', error);
     return NextResponse.json(
       { error: 'Failed to fetch user types' },
       { status: 500 }
     );
-  }
-}
-
-// Fungsi ini memastikan tipe pengguna dasar tersedia dalam database
-async function ensureBasicUserTypes() {
-  const basicTypes = ['admin', 'instructor', 'participant'];
-  
-  for (const type of basicTypes) {
-    // Periksa apakah tipe pengguna sudah ada
-    const existingType = await prisma.userType.findFirst({
-      where: {
-        usertype: type,
-      },
-    });
-    
-    // Jika belum ada, buat baru
-    if (!existingType) {
-      await prisma.userType.create({
-        data: {
-          id: `usertype_${type}_${Date.now()}`,
-          usertype: type,
-          description: `${type.charAt(0).toUpperCase() + type.slice(1)} user role`,
-          status: 'Active',
-        },
-      });
-      console.log(`Created missing user type: ${type}`);
-    }
   }
 }
 
