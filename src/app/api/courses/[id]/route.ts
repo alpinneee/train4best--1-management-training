@@ -34,6 +34,7 @@ export async function GET(request: Request, { params }: Params) {
     return NextResponse.json({
       id: course.id,
       course_name: course.course_name,
+      description: course.description,
       courseTypeId: course.courseTypeId,
       courseType: course.courseType.course_type
     });
@@ -50,7 +51,7 @@ export async function GET(request: Request, { params }: Params) {
 export async function PUT(request: Request, { params }: Params) {
   try {
     const { id } = params;
-    const { course_name, courseTypeId } = await request.json();
+    const { course_name, courseTypeId, description } = await request.json();
     
     // Check if course exists
     const existingCourse = await prisma.course.findUnique({
@@ -69,6 +70,7 @@ export async function PUT(request: Request, { params }: Params) {
       where: { id },
       data: {
         course_name,
+        description,
         courseTypeId
       },
       include: {
@@ -83,6 +85,7 @@ export async function PUT(request: Request, { params }: Params) {
     return NextResponse.json({
       id: updatedCourse.id,
       course_name: updatedCourse.course_name,
+      description: updatedCourse.description,
       courseTypeId: updatedCourse.courseTypeId,
       courseType: updatedCourse.courseType.course_type
     });

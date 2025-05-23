@@ -26,11 +26,21 @@ interface Column {
 // API functions
 const fetchUsertypesAPI = async (): Promise<User[]> => {
   try {
-    const response = await fetch('/api/usertype');
+    const response = await fetch("/api/usertype");
     if (!response.ok) {
       throw new Error(`Error: ${response.status}`);
     }
-    return await response.json();
+    const data = await response.json();
+
+    // Tangani format respons baru yang mengembalikan objek dengan properti formattedUserTypes
+    if (data.formattedUserTypes) {
+      return data.formattedUserTypes;
+    } else if (Array.isArray(data)) {
+      // Tangani format lama untuk kompatibilitas
+      return data;
+    } else {
+      throw new Error("Unexpected API response format");
+    }
   } catch (error) {
     console.error("Failed to fetch usertypes:", error);
     throw error;
@@ -39,42 +49,59 @@ const fetchUsertypesAPI = async (): Promise<User[]> => {
 
 const addUsertypeAPI = async (newUser: NewUser): Promise<User> => {
   try {
-    const response = await fetch('/api/usertype', {
-      method: 'POST',
+    const response = await fetch("/api/usertype", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ usertype: newUser.usertype }),
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.error || `Error: ${response.status}`);
     }
-    
-    return await response.json();
+
+    const data = await response.json();
+
+    // Format respons untuk struktur User
+    return {
+      no: 0, // Akan diatur dengan benar saat menambahkan ke state
+      idUsertype: data.id || data.idUsertype,
+      usertype: data.usertype,
+    };
   } catch (error) {
     console.error("Failed to add usertype:", error);
     throw error;
   }
 };
 
-const editUsertypeAPI = async (idUsertype: string, updatedUser: NewUser): Promise<User> => {
+const editUsertypeAPI = async (
+  idUsertype: string,
+  updatedUser: NewUser
+): Promise<User> => {
   try {
     const response = await fetch(`/api/usertype/${idUsertype}`, {
-      method: 'PUT',
+      method: "PUT",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ usertype: updatedUser.usertype }),
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.error || `Error: ${response.status}`);
     }
-    
-    return await response.json();
+
+    const data = await response.json();
+
+    // Format respons untuk struktur User
+    return {
+      no: 0, // Akan dipertahankan dari state existing
+      idUsertype: data.id || data.idUsertype || idUsertype,
+      usertype: data.usertype,
+    };
   } catch (error) {
     console.error("Failed to update usertype:", error);
     throw error;
@@ -84,9 +111,9 @@ const editUsertypeAPI = async (idUsertype: string, updatedUser: NewUser): Promis
 const deleteUsertypeAPI = async (idUsertype: string): Promise<void> => {
   try {
     const response = await fetch(`/api/usertype/${idUsertype}`, {
-      method: 'DELETE',
+      method: "DELETE",
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.error || `Error: ${response.status}`);
@@ -133,15 +160,21 @@ const UserPage = (): ReactElement => {
     loadUsertypes();
   }, []);
 
-  const usertypes = ["all", ...new Set(usertypeData.map((user) => user.usertype))];
+  const usertypes = [
+    "all",
+    ...new Set(usertypeData.map((user) => user.usertype)),
+  ];
 
   // Filter by selected usertype and search term
   const filteredUsers = usertypeData
-    .filter(user => selectedUsertype === "all" || user.usertype === selectedUsertype)
-    .filter(user => 
-      searchTerm === "" || 
-      user.usertype.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.idUsertype.toLowerCase().includes(searchTerm.toLowerCase())
+    .filter(
+      (user) => selectedUsertype === "all" || user.usertype === selectedUsertype
+    )
+    .filter(
+      (user) =>
+        searchTerm === "" ||
+        user.usertype.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.idUsertype.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
@@ -189,8 +222,9 @@ const UserPage = (): ReactElement => {
     try {
       const addedUser = await addUsertypeAPI({ usertype: newUser.usertype });
       // Update the state with the new usertype
-      setUsertypeData(prev => {
-        const newNo = prev.length > 0 ? Math.max(...prev.map(u => u.no)) + 1 : 1;
+      setUsertypeData((prev) => {
+        const newNo =
+          prev.length > 0 ? Math.max(...prev.map((u) => u.no)) + 1 : 1;
         return [...prev, { ...addedUser, no: newNo }];
       });
       setIsModalOpen(false);
@@ -210,10 +244,14 @@ const UserPage = (): ReactElement => {
     setError(null);
 
     try {
-      const updatedUser = await editUsertypeAPI(userToEdit.idUsertype, { usertype: newUser.usertype });
-      setUsertypeData(prev =>
-        prev.map(user =>
-          user.idUsertype === userToEdit.idUsertype ? { ...updatedUser, no: user.no } : user
+      const updatedUser = await editUsertypeAPI(userToEdit.idUsertype, {
+        usertype: newUser.usertype,
+      });
+      setUsertypeData((prev) =>
+        prev.map((user) =>
+          user.idUsertype === userToEdit.idUsertype
+            ? { ...updatedUser, no: user.no }
+            : user
         )
       );
       setIsEditModalOpen(false);
@@ -234,8 +272,8 @@ const UserPage = (): ReactElement => {
 
     try {
       await deleteUsertypeAPI(userToDelete.idUsertype);
-      setUsertypeData(prev =>
-        prev.filter(user => user.idUsertype !== userToDelete.idUsertype)
+      setUsertypeData((prev) =>
+        prev.filter((user) => user.idUsertype !== userToDelete.idUsertype)
       );
       setIsDeleteModalOpen(false);
       setUserToDelete(null);
@@ -284,14 +322,14 @@ const UserPage = (): ReactElement => {
   return (
     <Layout>
       <div className="p-2">
-        <h1 className="text-lg md:text-xl text-gray-700 mb-2">
-          UserType
+        <h1 className="text-lg md:text-xl text-gray-800 mb-2">
+          User Type Management
         </h1>
 
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 mb-2 rounded relative">
             <span className="block sm:inline">{error}</span>
-            <button 
+            <button
               className="absolute top-0 bottom-0 right-0 px-4 py-2"
               onClick={() => setError(null)}
             >
@@ -307,10 +345,10 @@ const UserPage = (): ReactElement => {
             onClick={() => setIsModalOpen(true)}
             className="w-full sm:w-auto text-xs"
           >
-            Add New Usertype
+            Add New User Type
           </Button>
 
-          <div className="flex flex-col sm:flex-row gap-2 text-gray-700 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row gap-2 text-gray-800 w-full sm:w-auto">
             <select
               value={selectedUsertype}
               onChange={handleUsertypeChange}
@@ -318,7 +356,7 @@ const UserPage = (): ReactElement => {
             >
               {usertypes.map((type) => (
                 <option key={type} value={type}>
-                  {type === "all" ? "All Usertypes" : type}
+                  {type === "all" ? "All User Types" : type}
                 </option>
               ))}
             </select>
@@ -347,18 +385,20 @@ const UserPage = (): ReactElement => {
         {/* Add Usertype Modal */}
         {isModalOpen && (
           <Modal onClose={() => setIsModalOpen(false)}>
-            <h2 className="text-base font-semibold mb-2 text-gray-700">
-              Add New Usertype
+            <h2 className="text-base font-semibold mb-2 text-gray-800">
+              Add New User Type
             </h2>
             <form onSubmit={handleSubmit} className="space-y-2">
               <div>
-                <label className="block text-xs text-gray-700 mb-1">Usertype</label>
+                <label className="block text-xs text-gray-800 mb-1">
+                  User Type Name
+                </label>
                 <input
                   type="text"
                   name="usertype"
                   value={newUser.usertype}
                   onChange={handleInputChange}
-                  className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
                   required
                 />
               </div>
@@ -377,7 +417,7 @@ const UserPage = (): ReactElement => {
                   type="submit"
                   className="text-xs px-2 py-1"
                 >
-                  Add Usertype
+                  Add User Type
                 </Button>
               </div>
             </form>
@@ -387,28 +427,30 @@ const UserPage = (): ReactElement => {
         {/* Edit Usertype Modal */}
         {isEditModalOpen && (
           <Modal onClose={() => setIsEditModalOpen(false)}>
-            <h2 className="text-base font-semibold mb-2 text-gray-700">
-              Edit Usertype
+            <h2 className="text-base font-semibold mb-2 text-gray-800">
+              Edit User Type
             </h2>
             <form onSubmit={handleEditSubmit} className="space-y-2">
               <div>
-                <label className="block text-xs text-gray-700 mb-1">ID Usertype</label>
+                <label className="block text-xs text-gray-800 mb-1">ID</label>
                 <input
                   type="text"
                   name="idUsertype"
                   value={newUser.idUsertype}
-                  className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-gray-100"
+                  className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-800 bg-gray-100"
                   disabled
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-700 mb-1">Usertype</label>
+                <label className="block text-xs text-gray-800 mb-1">
+                  User Type Name
+                </label>
                 <input
                   type="text"
                   name="usertype"
                   value={newUser.usertype}
                   onChange={handleInputChange}
-                  className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
                   required
                 />
               </div>
@@ -437,9 +479,12 @@ const UserPage = (): ReactElement => {
         {/* Delete Modal */}
         {isDeleteModalOpen && (
           <Modal onClose={() => setIsDeleteModalOpen(false)}>
-            <h2 className="text-base font-semibold text-gray-700">Delete Usertype</h2>
-            <p className="text-xs text-gray-600 mt-2">
-              Apakah Anda yakin ingin menghapus usertype <span className="font-semibold">{userToDelete?.usertype}</span>?
+            <h2 className="text-base font-semibold text-gray-800">
+              Delete User Type
+            </h2>
+            <p className="text-xs text-gray-800 mt-2">
+              Are you sure you want to delete user type{" "}
+              <span className="font-semibold">{userToDelete?.usertype}</span>?
             </p>
             <div className="flex justify-end mt-3 gap-2">
               <Button
@@ -456,7 +501,7 @@ const UserPage = (): ReactElement => {
                 onClick={handleDeleteConfirm}
                 className="text-xs px-2 py-1"
               >
-                Hapus
+                Delete
               </Button>
             </div>
           </Modal>

@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     // Check if course type with same name already exists
     const existingType = await prisma.courseType.findFirst({
       where: { 
-        course_type: { equals: course_type, mode: 'insensitive' }
+        course_type: { equals: course_type }
       }
     });
 

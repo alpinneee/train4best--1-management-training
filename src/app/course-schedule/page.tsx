@@ -1,10 +1,10 @@
-'use client'
+"use client";
 
-import React, { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Layout from "@/components/common/Layout";
-import Button from '@/components/common/button'
-import Modal from '@/components/common/Modal'
+import Button from "@/components/common/button";
+import Modal from "@/components/common/Modal";
 import Table from "@/components/common/table";
 
 interface Column<T> {
@@ -32,242 +32,261 @@ interface Course {
 }
 
 const CourseSchedulePage = () => {
-  const router = useRouter()
+  const router = useRouter();
 
-  const [schedules, setSchedules] = useState<Schedule[]>([])
-  const [courses, setCourses] = useState<Course[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
-  const [totalItems, setTotalItems] = useState(0)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null)
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(
+    null
+  );
 
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [newSchedule, setNewSchedule] = useState({
-    courseId: '',
-    startDate: '',
-    endDate: '',
-    startRegDate: '',
-    endRegDate: '',
-    location: '',
-    room: '',
-    price: '',
-    quota: '',
-    durationDay: '',
-    status: 'Active'
-  })
+    courseId: "",
+    startDate: "",
+    endDate: "",
+    startRegDate: "",
+    endRegDate: "",
+    location: "",
+    room: "",
+    price: "",
+    quota: "",
+    durationDay: "",
+    status: "Active",
+  });
 
   // Fetch course schedules
   const fetchSchedules = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
       const queryParams = new URLSearchParams({
         page: currentPage.toString(),
         limit: itemsPerPage.toString(),
-      })
-      
+      });
+
       if (searchTerm) {
-        queryParams.append('search', searchTerm)
+        queryParams.append("search", searchTerm);
       }
-      
-      const response = await fetch(`/api/course-schedule?${queryParams}`)
-      
+
+      const response = await fetch(`/api/course-schedule?${queryParams}`);
+
       if (!response.ok) {
-        throw new Error(`Server responded with ${response.status}`)
+        throw new Error(`Server responded with ${response.status}`);
       }
-      
-      const data = await response.json()
-      
-      setSchedules(data.data)
-      setTotalItems(data.meta.total)
-      setTotalPages(data.meta.totalPages)
+
+      const data = await response.json();
+
+      setSchedules(data.data);
+      setTotalItems(data.meta.total);
+      setTotalPages(data.meta.totalPages);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load schedules')
-      setSchedules([])
+      setError(err instanceof Error ? err.message : "Failed to load schedules");
+      setSchedules([]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   // Fetch available courses for dropdown
   const fetchCourses = async () => {
     try {
-      const response = await fetch('/api/courses')
-      
+      const response = await fetch("/api/courses");
+
       if (!response.ok) {
-        throw new Error(`Server responded with ${response.status}`)
+        throw new Error(`Server responded with ${response.status}`);
       }
-      
-      const data = await response.json()
-      setCourses(data.data || []) // Ensure we always set an array
+
+      const data = await response.json();
+      setCourses(data.data || []); // Ensure we always set an array
     } catch (err) {
-      console.error('Error fetching courses:', err)
-      setCourses([]) // Set to empty array on error
+      console.error("Error fetching courses:", err);
+      setCourses([]); // Set to empty array on error
     }
-  }
+  };
 
   // Load schedules and courses on initial render
   useEffect(() => {
-    fetchSchedules()
-    fetchCourses()
-  }, [currentPage, searchTerm])
+    fetchSchedules();
+    fetchCourses();
+  }, [currentPage, searchTerm]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target
-    setNewSchedule(prev => ({
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setNewSchedule((prev) => ({
       ...prev,
-      [name]: value
-    }))
-  }
+      [name]: value,
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
+    e.preventDefault();
+
     try {
       // Konversi nilai string menjadi number untuk fields numerik
       const formattedData = {
         ...newSchedule,
         price: Number(newSchedule.price),
         quota: Number(newSchedule.quota),
-        durationDay: Number(newSchedule.durationDay)
-      }
-      
-      console.log('Submitting course schedule data:', formattedData)
-      
-      const response = await fetch('/api/course-schedule', {
-        method: 'POST',
+        durationDay: Number(newSchedule.durationDay),
+      };
+
+      console.log("Submitting course schedule data:", formattedData);
+
+      const response = await fetch("/api/course-schedule", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(formattedData),
-      })
-      
+      });
+
       if (!response.ok) {
-        const errorData = await response.json()
-        console.error('Error response:', errorData)
-        throw new Error(errorData.error || 'Failed to create schedule')
+        const errorData = await response.json();
+        console.error("Error response:", errorData);
+        throw new Error(errorData.error || "Failed to create schedule");
       }
-      
-      const responseData = await response.json()
-      console.log('Success response:', responseData)
-      
+
+      const responseData = await response.json();
+      console.log("Success response:", responseData);
+
       // Reset form and close modal
-      setIsModalOpen(false)
+      setIsModalOpen(false);
       setNewSchedule({
-        courseId: '',
-        startDate: '',
-        endDate: '',
-        startRegDate: '',
-        endRegDate: '',
-        location: '',
-        room: '',
-        price: '',
-        quota: '',
-        durationDay: '',
-        status: 'Active'
-      })
-      
+        courseId: "",
+        startDate: "",
+        endDate: "",
+        startRegDate: "",
+        endRegDate: "",
+        location: "",
+        room: "",
+        price: "",
+        quota: "",
+        durationDay: "",
+        status: "Active",
+      });
+
       // Refresh schedules
-      fetchSchedules()
+      fetchSchedules();
     } catch (err) {
-      console.error('Error creating schedule:', err)
-      alert(err instanceof Error ? err.message : 'An error occurred')
+      console.error("Error creating schedule:", err);
+      alert(err instanceof Error ? err.message : "An error occurred");
     }
-  }
+  };
 
   const handleDetailClick = (id: string) => {
-    router.push(`/course-schedule/${id}`)
-  }
+    router.push(`/course-schedule/${id}`);
+  };
 
   const handleDeleteClick = (schedule: Schedule) => {
-    setSelectedSchedule(schedule)
-    setIsDeleteModalOpen(true)
-  }
+    setSelectedSchedule(schedule);
+    setIsDeleteModalOpen(true);
+  };
 
   const handleDeleteConfirm = async () => {
-    if (!selectedSchedule) return
-    
+    if (!selectedSchedule) return;
+
     try {
-      const response = await fetch(`/api/course-schedule/${selectedSchedule.id}`, {
-        method: 'DELETE',
-      })
-      
-      const data = await response.json()
-      
+      const response = await fetch(
+        `/api/course-schedule/${selectedSchedule.id}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      const data = await response.json();
+
       if (!response.ok) {
-        if (data.hint && data.hint.includes('force=true') && 
-            window.confirm(`${data.error}\n\nAre you sure you want to delete this schedule and all related data?`)) {
+        if (
+          data.hint &&
+          data.hint.includes("force=true") &&
+          window.confirm(
+            `${data.error}\n\nAre you sure you want to delete this schedule and all related data?`
+          )
+        ) {
           // Force delete if there are registrations or instructors
-          const forceResponse = await fetch(`/api/course-schedule/${selectedSchedule.id}?force=true`, {
-            method: 'DELETE',
-          })
-          
+          const forceResponse = await fetch(
+            `/api/course-schedule/${selectedSchedule.id}?force=true`,
+            {
+              method: "DELETE",
+            }
+          );
+
           if (!forceResponse.ok) {
-            const forceData = await forceResponse.json()
-            throw new Error(forceData.error || 'Failed to delete schedule')
+            const forceData = await forceResponse.json();
+            throw new Error(forceData.error || "Failed to delete schedule");
           }
         } else {
-          throw new Error(data.error || 'Failed to delete schedule')
+          throw new Error(data.error || "Failed to delete schedule");
         }
       }
-      
+
       // Close modal and refresh data
-      setIsDeleteModalOpen(false)
-      setSelectedSchedule(null)
-      fetchSchedules()
+      setIsDeleteModalOpen(false);
+      setSelectedSchedule(null);
+      fetchSchedules();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'An error occurred')
+      alert(err instanceof Error ? err.message : "An error occurred");
     }
-  }
+  };
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value)
-    setCurrentPage(1)
-  }
+    setSearchTerm(e.target.value);
+    setCurrentPage(1);
+  };
 
   const columns: Column<Schedule>[] = [
-    { 
-      header: "No", 
+    {
+      header: "No",
       accessor: "no",
-      className: "w-12 text-center"
+      className: "w-12 text-center",
     },
-    { 
-      header: "Class Name", 
+    {
+      header: "Class Name",
       accessor: (data: Schedule) => (
         <span className="text-xs">{data.className}</span>
       ),
-      className: "min-w-[120px]"
+      className: "min-w-[120px]",
     },
-    { 
-      header: "Date", 
+    {
+      header: "Date",
       accessor: (data: Schedule) => (
         <span className="text-xs">{data.date}</span>
       ),
-      className: "min-w-[150px]"
+      className: "min-w-[150px]",
     },
-    { 
-      header: "Location", 
+    {
+      header: "Location",
       accessor: (data: Schedule) => (
         <span className="text-xs">{data.location}</span>
       ),
-      className: "min-w-[100px]"
+      className: "min-w-[100px]",
     },
     {
       header: "Status",
       accessor: (data: Schedule) => (
-        <span className={`text-xs px-2 py-1 rounded-full ${
-          data.status === 'Active' ? 'bg-green-100 text-green-800' : 
-          data.status === 'Completed' ? 'bg-blue-100 text-blue-800' : 
-          'bg-gray-100 text-gray-800'
-        }`}>
+        <span
+          className={`text-xs px-2 py-1 rounded-full ${
+            data.status === "Active"
+              ? "bg-green-100 text-green-800"
+              : data.status === "Completed"
+              ? "bg-blue-100 text-blue-800"
+              : "bg-gray-100 text-gray-800"
+          }`}
+        >
           {data.status}
         </span>
       ),
-      className: "w-24 text-center"
+      className: "w-24 text-center",
     },
     {
       header: "Action",
@@ -279,27 +298,29 @@ const CourseSchedulePage = () => {
           >
             Detail
           </button>
-          <button 
-            className="text-red-500 hover:text-red-700 text-xs px-2 py-1" 
+          <button
+            className="text-red-500 hover:text-red-700 text-xs px-2 py-1"
             onClick={() => handleDeleteClick(schedule)}
           >
             Delete
           </button>
         </div>
       ),
-      className: "w-24 text-center"
+      className: "w-24 text-center",
     },
   ];
 
   return (
     <Layout>
       <div className="p-2">
-        <h1 className="text-lg md:text-xl text-gray-700 mb-2">Course Schedule</h1>
-        
+        <h1 className="text-lg md:text-xl text-gray-700 mb-2">
+          Course Schedule
+        </h1>
+
         <div className="flex flex-col sm:flex-row sm:justify-between gap-2 mb-2">
           <div>
-            <Button 
-              variant="primary" 
+            <Button
+              variant="primary"
               size="small"
               onClick={() => setIsModalOpen(true)}
               className="w-full sm:w-auto text-xs"
@@ -307,9 +328,9 @@ const CourseSchedulePage = () => {
               Add New Course Schedule
             </Button>
           </div>
-          <input 
-            type="text" 
-            placeholder="Search..." 
+          <input
+            type="text"
+            placeholder="Search..."
             value={searchTerm}
             onChange={handleSearch}
             className="w-full sm:w-auto px-2 py-1 text-xs border rounded-lg"
@@ -343,11 +364,15 @@ const CourseSchedulePage = () => {
         {/* Add Schedule Modal */}
         {isModalOpen && (
           <Modal onClose={() => setIsModalOpen(false)}>
-            <h2 className="text-base font-semibold mb-2 text-gray-700">Add New Schedule</h2>
+            <h2 className="text-base font-semibold mb-2 text-gray-700">
+              Add New Schedule
+            </h2>
             <form onSubmit={handleSubmit}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div className="mb-2">
-                  <label className="block text-xs text-gray-700 mb-1">Course</label>
+                  <label className="block text-xs text-gray-700 mb-1">
+                    Course
+                  </label>
                   <select
                     name="courseId"
                     value={newSchedule.courseId}
@@ -356,7 +381,7 @@ const CourseSchedulePage = () => {
                     required
                   >
                     <option value="">Select Course</option>
-                    {courses.map(course => (
+                    {courses.map((course) => (
                       <option key={course.id} value={course.id}>
                         {course.course_name}
                       </option>
@@ -364,7 +389,9 @@ const CourseSchedulePage = () => {
                   </select>
                 </div>
                 <div className="mb-2">
-                  <label className="block text-xs text-gray-700 mb-1">Status</label>
+                  <label className="block text-xs text-gray-700 mb-1">
+                    Status
+                  </label>
                   <select
                     name="status"
                     value={newSchedule.status}
@@ -379,9 +406,11 @@ const CourseSchedulePage = () => {
                   </select>
                 </div>
                 <div className="mb-2">
-                  <label className="block text-xs text-gray-700 mb-1">Start Date</label>
+                  <label className="block text-xs text-gray-700 mb-1">
+                    Start Date
+                  </label>
                   <input
-                    type="date" 
+                    type="date"
                     name="startDate"
                     value={newSchedule.startDate}
                     onChange={handleInputChange}
@@ -390,9 +419,11 @@ const CourseSchedulePage = () => {
                   />
                 </div>
                 <div className="mb-2">
-                  <label className="block text-xs text-gray-700 mb-1">End Date</label>
+                  <label className="block text-xs text-gray-700 mb-1">
+                    End Date
+                  </label>
                   <input
-                    type="date" 
+                    type="date"
                     name="endDate"
                     value={newSchedule.endDate}
                     onChange={handleInputChange}
@@ -401,7 +432,9 @@ const CourseSchedulePage = () => {
                   />
                 </div>
                 <div className="mb-2">
-                  <label className="block text-xs text-gray-700 mb-1">Registration Start Date</label>
+                  <label className="block text-xs text-gray-700 mb-1">
+                    Registration Start Date
+                  </label>
                   <input
                     type="date"
                     name="startRegDate"
@@ -412,7 +445,9 @@ const CourseSchedulePage = () => {
                   />
                 </div>
                 <div className="mb-2">
-                  <label className="block text-xs text-gray-700 mb-1">Registration End Date</label>
+                  <label className="block text-xs text-gray-700 mb-1">
+                    Registration End Date
+                  </label>
                   <input
                     type="date"
                     name="endRegDate"
@@ -423,7 +458,9 @@ const CourseSchedulePage = () => {
                   />
                 </div>
                 <div className="mb-2">
-                  <label className="block text-xs text-gray-700 mb-1">Location</label>
+                  <label className="block text-xs text-gray-700 mb-1">
+                    Location
+                  </label>
                   <input
                     type="text"
                     name="location"
@@ -434,7 +471,9 @@ const CourseSchedulePage = () => {
                   />
                 </div>
                 <div className="mb-2">
-                  <label className="block text-xs text-gray-700 mb-1">Room</label>
+                  <label className="block text-xs text-gray-700 mb-1">
+                    Room
+                  </label>
                   <input
                     type="text"
                     name="room"
@@ -445,7 +484,9 @@ const CourseSchedulePage = () => {
                   />
                 </div>
                 <div className="mb-2">
-                  <label className="block text-xs text-gray-700 mb-1">Price</label>
+                  <label className="block text-xs text-gray-700 mb-1">
+                    Price
+                  </label>
                   <input
                     type="number"
                     name="price"
@@ -457,7 +498,9 @@ const CourseSchedulePage = () => {
                   />
                 </div>
                 <div className="mb-2">
-                  <label className="block text-xs text-gray-700 mb-1">Quota</label>
+                  <label className="block text-xs text-gray-700 mb-1">
+                    Quota
+                  </label>
                   <input
                     type="number"
                     name="quota"
@@ -469,7 +512,9 @@ const CourseSchedulePage = () => {
                   />
                 </div>
                 <div className="mb-2">
-                  <label className="block text-xs text-gray-700 mb-1">Duration (Days)</label>
+                  <label className="block text-xs text-gray-700 mb-1">
+                    Duration (Days)
+                  </label>
                   <input
                     type="number"
                     name="durationDay"
@@ -481,6 +526,39 @@ const CourseSchedulePage = () => {
                   />
                 </div>
               </div>
+
+              {/* Participant and Instructor notes */}
+              <div className="mt-3 p-2 bg-gray-50 rounded-md">
+                <h4 className="text-xs font-medium text-gray-700 mb-1">
+                  Participants and Instructors
+                </h4>
+                <p className="text-xs text-gray-600">
+                  You can add participants and instructors after creating the
+                  schedule. They will be searchable from your participant and
+                  instructor database.
+                </p>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <div className="border rounded p-2 bg-white">
+                    <div className="flex items-center text-xs text-gray-700">
+                      <div className="w-3 h-3 rounded-full bg-blue-500 mr-1"></div>
+                      Participants
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Add from participant database
+                    </p>
+                  </div>
+                  <div className="border rounded p-2 bg-white">
+                    <div className="flex items-center text-xs text-gray-700">
+                      <div className="w-3 h-3 rounded-full bg-green-500 mr-1"></div>
+                      Instructors
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Add from instructor database
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex justify-end gap-2 mt-2">
                 <Button
                   variant="gray"
@@ -506,21 +584,24 @@ const CourseSchedulePage = () => {
         {/* Delete Modal */}
         {isDeleteModalOpen && selectedSchedule && (
           <Modal onClose={() => setIsDeleteModalOpen(false)}>
-            <h2 className="text-base font-semibold text-gray-700">Delete Schedule</h2>
+            <h2 className="text-base font-semibold text-gray-700">
+              Delete Schedule
+            </h2>
             <p className="text-xs text-gray-600 mt-2">
-              Are you sure you want to delete the schedule for <strong>{selectedSchedule.className}</strong>?
+              Are you sure you want to delete the schedule for{" "}
+              <strong>{selectedSchedule.className}</strong>?
             </p>
             <div className="flex justify-end mt-2">
-              <Button 
-                variant="gray" 
+              <Button
+                variant="gray"
                 size="small"
                 onClick={() => setIsDeleteModalOpen(false)}
                 className="text-xs px-2 py-1 mr-2"
               >
                 Cancel
               </Button>
-              <Button 
-                variant="red" 
+              <Button
+                variant="red"
                 size="small"
                 onClick={handleDeleteConfirm}
                 className="text-xs px-2 py-1"
@@ -532,7 +613,7 @@ const CourseSchedulePage = () => {
         )}
       </div>
     </Layout>
-  )
-}
+  );
+};
 
-export default CourseSchedulePage 
+export default CourseSchedulePage;

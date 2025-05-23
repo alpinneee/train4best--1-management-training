@@ -33,6 +33,12 @@ const handler = NextAuth({
             throw new Error('Kata sandi salah')
           }
 
+          // Update last login time
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { last_login: new Date() }
+          });
+
           // Log the user data to debug
           console.log("User login success:", {
             id: user.id,

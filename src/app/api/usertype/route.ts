@@ -1,79 +1,108 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// GET /api/usertype - Get all usertypes
+// GET /api/usertype - Mendapatkan semua tipe pengguna
 export async function GET() {
   try {
-    const usertypes = await prisma.userType.findMany({
-      select: {
-        id: true,
-        usertype: true,
-      },
+    // Pastikan tipe pengguna dasar tersedia
+    await ensureBasicUserTypes();
+    
+    // Ambil semua tipe pengguna
+    const userTypes = await prisma.userType.findMany({
       orderBy: {
         usertype: 'asc',
       },
     });
 
-    // Format the response to match the expected structure in the frontend
-    const formattedUsertypes = usertypes.map((usertype, index) => ({
+    // Format respons untuk kebutuhan frontend
+    const formattedUserTypes = userTypes.map((userType, index) => ({
       no: index + 1,
-      idUsertype: usertype.id,
-      usertype: usertype.usertype,
+      idUsertype: userType.id,
+      usertype: userType.usertype,
     }));
 
-    return NextResponse.json(formattedUsertypes);
+    // Mengembalikan kedua format untuk kompatibilitas
+    return NextResponse.json({
+      userTypes: userTypes,
+      formattedUserTypes: formattedUserTypes
+    });
   } catch (error) {
-    console.error('Error fetching usertypes:', error);
+    console.error('Error fetching user types:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch usertypes' },
+      { error: 'Failed to fetch user types' },
       { status: 500 }
     );
   }
 }
 
-// POST /api/usertype - Create a new usertype
+// Fungsi ini memastikan tipe pengguna dasar tersedia dalam database
+async function ensureBasicUserTypes() {
+  const basicTypes = ['admin', 'instructor', 'participant'];
+  
+  for (const type of basicTypes) {
+    // Periksa apakah tipe pengguna sudah ada
+    const existingType = await prisma.userType.findFirst({
+      where: {
+        usertype: type,
+      },
+    });
+    
+    // Jika belum ada, buat baru
+    if (!existingType) {
+      await prisma.userType.create({
+        data: {
+          id: `usertype_${type}_${Date.now()}`,
+          usertype: type,
+          description: `${type.charAt(0).toUpperCase() + type.slice(1)} user role`,
+          status: 'Active',
+        },
+      });
+      console.log(`Created missing user type: ${type}`);
+    }
+  }
+}
+
+// POST /api/usertype - Membuat tipe pengguna baru
 export async function POST(request: Request) {
   try {
-    const { usertype } = await request.json();
+    const data = await request.json();
 
-    if (!usertype) {
+    if (!data.usertype) {
       return NextResponse.json(
-        { error: 'Usertype name is required' },
+        { error: 'User type name is required' },
         { status: 400 }
       );
     }
 
-    // Check if usertype already exists
-    const existingUsertypes = await prisma.userType.findMany();
-    const usertypeLower = usertype.toLowerCase();
-    
-    const existingUsertype = existingUsertypes.find(
-      (ut) => ut.usertype.toLowerCase() === usertypeLower
-    );
+    // Cek apakah sudah ada tipe pengguna dengan nama yang sama
+    const existingUserType = await prisma.userType.findFirst({
+      where: {
+        usertype: data.usertype,
+      },
+    });
 
-    if (existingUsertype) {
+    if (existingUserType) {
       return NextResponse.json(
-        { error: 'Usertype already exists' },
+        { error: 'User type with that name already exists' },
         { status: 409 }
       );
     }
 
-    // Create new usertype
-    const newUsertype = await prisma.userType.create({
+    // Buat tipe pengguna baru
+    const newUserType = await prisma.userType.create({
       data: {
-        id: `utype_${Date.now()}`,
-        usertype,
+        id: `usertype_${Date.now()}`,
+        usertype: data.usertype,
+        description: data.description || null,
+        status: 'Active',
       },
     });
 
-    return NextResponse.json({
-      idUsertype: newUsertype.id,
-      usertype: newUsertype.usertype,
-    }, { status: 201 });
+    return NextResponse.json(newUserType, { status: 201 });
   } catch (error) {
-    console.error('Error creating usertype:', error);
+    console.error('Error creating user type:', error);
     return NextResponse.json(
-      { error: 'Failed to create usertype' },
+      { error: 'Failed to create user type' },
       { status: 500 }
     );
   }

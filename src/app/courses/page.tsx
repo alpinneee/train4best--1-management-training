@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Eye, PenSquare, Trash2, Plus } from "lucide-react";
+import { Eye, PenSquare, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Pagination from "@/components/common/Pagination";
@@ -35,16 +35,16 @@ export default function Courses() {
   const [itemsPerPage] = useState(8);
   const [totalItems, setTotalItems] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
-  
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [newCourse, setNewCourse] = useState({
-    course_name: '',
-    description: '',
-    courseTypeId: '',
-    image: '/default-course.jpg'
+    course_name: "",
+    description: "",
+    courseTypeId: "",
+    image: "/default-course.jpg",
   });
 
   // Fetch course and course types on initial render
@@ -61,24 +61,24 @@ export default function Courses() {
         page: currentPage.toString(),
         limit: itemsPerPage.toString(),
       });
-      
+
       if (searchTerm) {
-        queryParams.append('search', searchTerm);
+        queryParams.append("search", searchTerm);
       }
-      
+
       const response = await fetch(`/api/courses?${queryParams}`);
-      
+
       if (!response.ok) {
         throw new Error(`Server responded with ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
+
       setCourses(data.data);
       setTotalItems(data.meta.total);
       setTotalPages(data.meta.totalPages);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load courses');
+      setError(err instanceof Error ? err.message : "Failed to load courses");
       setCourses([]);
     } finally {
       setLoading(false);
@@ -88,57 +88,61 @@ export default function Courses() {
   // Fetch course types for dropdown
   const fetchCourseTypes = async () => {
     try {
-      const response = await fetch('/api/course-types');
-      
+      const response = await fetch("/api/course-types");
+
       if (!response.ok) {
         throw new Error(`Server responded with ${response.status}`);
       }
-      
+
       const data = await response.json();
       setCourseTypes(data);
     } catch (err) {
-      console.error('Error fetching course types:', err);
+      console.error("Error fetching course types:", err);
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
+  ) => {
     const { name, value } = e.target;
-    setNewCourse(prev => ({
+    setNewCourse((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
-      const response = await fetch('/api/courses', {
-        method: 'POST',
+      const response = await fetch("/api/courses", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(newCourse),
       });
-      
+
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to create course');
+        throw new Error(data.error || "Failed to create course");
       }
-      
+
       // Reset form and close modal
       setIsModalOpen(false);
       setNewCourse({
-        course_name: '',
-        description: '',
-        courseTypeId: '',
-        image: '/default-course.jpg'
+        course_name: "",
+        description: "",
+        courseTypeId: "",
+        image: "/default-course.jpg",
       });
-      
+
       // Refresh courses
       fetchCourses();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'An error occurred');
+      alert(err instanceof Error ? err.message : "An error occurred");
     }
   };
 
@@ -146,46 +150,46 @@ export default function Courses() {
     setSelectedCourse(course);
     setNewCourse({
       course_name: course.course_name,
-      description: course.description || '',
+      description: course.description || "",
       courseTypeId: course.courseTypeId,
-      image: course.image || '/default-course.jpg'
+      image: course.image || "/default-course.jpg",
     });
     setIsEditModalOpen(true);
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!selectedCourse) return;
-    
+
     try {
       const response = await fetch(`/api/courses/${selectedCourse.id}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(newCourse),
       });
-      
+
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to update course');
+        throw new Error(data.error || "Failed to update course");
       }
-      
+
       // Reset form and close modal
       setIsEditModalOpen(false);
       setSelectedCourse(null);
       setNewCourse({
-        course_name: '',
-        description: '',
-        courseTypeId: '',
-        image: '/default-course.jpg'
+        course_name: "",
+        description: "",
+        courseTypeId: "",
+        image: "/default-course.jpg",
       });
-      
+
       // Refresh courses
       fetchCourses();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'An error occurred');
+      alert(err instanceof Error ? err.message : "An error occurred");
     }
   };
 
@@ -196,37 +200,45 @@ export default function Courses() {
 
   const handleDeleteConfirm = async () => {
     if (!selectedCourse) return;
-    
+
     try {
       const response = await fetch(`/api/courses/${selectedCourse.id}`, {
-        method: 'DELETE',
+        method: "DELETE",
       });
-      
+
       const data = await response.json();
-      
+
       if (!response.ok) {
-        if (data.hint && data.hint.includes('force=true') && 
-            window.confirm(`${data.error}\n\nAre you sure you want to delete this course and all related classes?`)) {
+        if (
+          data.hint &&
+          data.hint.includes("force=true") &&
+          window.confirm(
+            `${data.error}\n\nAre you sure you want to delete this course and all related classes?`
+          )
+        ) {
           // Force delete if there are classes
-          const forceResponse = await fetch(`/api/courses/${selectedCourse.id}?force=true`, {
-            method: 'DELETE',
-          });
-          
+          const forceResponse = await fetch(
+            `/api/courses/${selectedCourse.id}?force=true`,
+            {
+              method: "DELETE",
+            }
+          );
+
           if (!forceResponse.ok) {
             const forceData = await forceResponse.json();
-            throw new Error(forceData.error || 'Failed to delete course');
+            throw new Error(forceData.error || "Failed to delete course");
           }
         } else {
-          throw new Error(data.error || 'Failed to delete course');
+          throw new Error(data.error || "Failed to delete course");
         }
       }
-      
+
       // Close modal and refresh data
       setIsDeleteModalOpen(false);
       setSelectedCourse(null);
       fetchCourses();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'An error occurred');
+      alert(err instanceof Error ? err.message : "An error occurred");
     }
   };
 
@@ -247,11 +259,11 @@ export default function Courses() {
             onClick={() => setIsModalOpen(true)}
             className="w-full sm:w-auto text-xs"
           >
-            <Plus size={14} className="mr-1" /> Add Course
+            Add Course
           </Button>
-          <input 
-            type="text" 
-            placeholder="Search..." 
+          <input
+            type="text"
+            placeholder="Search..."
             value={searchTerm}
             onChange={handleSearch}
             className="w-full sm:w-auto px-2 py-1 text-xs border rounded-lg"
@@ -286,23 +298,27 @@ export default function Courses() {
                       />
                     </div>
                     <div className="p-2">
-                      <p className="text-xs font-medium text-gray-700 mb-1">{course.course_name}</p>
-                      <p className="text-xs text-gray-600 mb-2">Type: {course.courseType}</p>
+                      <p className="text-xs font-medium text-gray-700 mb-1">
+                        {course.course_name}
+                      </p>
+                      <p className="text-xs text-gray-600 mb-2">
+                        Type: {course.courseType}
+                      </p>
                       <div className="flex justify-between">
-                        <button 
+                        <button
                           className="text-blue-600 p-1"
                           onClick={() => router.push(`/courses/${course.id}`)}
                         >
                           <Eye size={14} />
                         </button>
                         <div className="flex gap-1">
-                          <button 
+                          <button
                             className="text-gray-600 p-1"
                             onClick={() => handleEditCourse(course)}
                           >
                             <PenSquare size={14} />
                           </button>
-                          <button 
+                          <button
                             className="text-red-500 p-1"
                             onClick={() => handleDeleteClick(course)}
                           >
@@ -335,10 +351,14 @@ export default function Courses() {
         {/* Add Course Modal */}
         {isModalOpen && (
           <Modal onClose={() => setIsModalOpen(false)}>
-            <h2 className="text-base font-semibold mb-2 text-gray-700">Add New Course</h2>
+            <h2 className="text-base font-semibold mb-2 text-gray-700">
+              Add New Course
+            </h2>
             <form onSubmit={handleSubmit} className="space-y-2">
               <div>
-                <label className="block text-xs text-gray-700 mb-1">Course Name</label>
+                <label className="block text-xs text-gray-700 mb-1">
+                  Course Name
+                </label>
                 <input
                   type="text"
                   name="course_name"
@@ -350,7 +370,9 @@ export default function Courses() {
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-700 mb-1">Course Type</label>
+                <label className="block text-xs text-gray-700 mb-1">
+                  Course Type
+                </label>
                 <select
                   name="courseTypeId"
                   value={newCourse.courseTypeId}
@@ -359,7 +381,7 @@ export default function Courses() {
                   required
                 >
                   <option value="">Select Course Type</option>
-                  {courseTypes.map(type => (
+                  {courseTypes.map((type) => (
                     <option key={type.id} value={type.id}>
                       {type.course_type}
                     </option>
@@ -367,7 +389,9 @@ export default function Courses() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-gray-700 mb-1">Description</label>
+                <label className="block text-xs text-gray-700 mb-1">
+                  Description
+                </label>
                 <textarea
                   name="description"
                   value={newCourse.description}
@@ -401,10 +425,14 @@ export default function Courses() {
         {/* Edit Course Modal */}
         {isEditModalOpen && selectedCourse && (
           <Modal onClose={() => setIsEditModalOpen(false)}>
-            <h2 className="text-base font-semibold mb-2 text-gray-700">Edit Course</h2>
+            <h2 className="text-base font-semibold mb-2 text-gray-700">
+              Edit Course
+            </h2>
             <form onSubmit={handleEditSubmit} className="space-y-2">
               <div>
-                <label className="block text-xs text-gray-700 mb-1">Course Name</label>
+                <label className="block text-xs text-gray-700 mb-1">
+                  Course Name
+                </label>
                 <input
                   type="text"
                   name="course_name"
@@ -416,7 +444,9 @@ export default function Courses() {
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-700 mb-1">Course Type</label>
+                <label className="block text-xs text-gray-700 mb-1">
+                  Course Type
+                </label>
                 <select
                   name="courseTypeId"
                   value={newCourse.courseTypeId}
@@ -425,7 +455,7 @@ export default function Courses() {
                   required
                 >
                   <option value="">Select Course Type</option>
-                  {courseTypes.map(type => (
+                  {courseTypes.map((type) => (
                     <option key={type.id} value={type.id}>
                       {type.course_type}
                     </option>
@@ -433,7 +463,9 @@ export default function Courses() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-gray-700 mb-1">Description</label>
+                <label className="block text-xs text-gray-700 mb-1">
+                  Description
+                </label>
                 <textarea
                   name="description"
                   value={newCourse.description}
@@ -467,21 +499,24 @@ export default function Courses() {
         {/* Delete Modal */}
         {isDeleteModalOpen && selectedCourse && (
           <Modal onClose={() => setIsDeleteModalOpen(false)}>
-            <h2 className="text-base font-semibold text-gray-700">Delete Course</h2>
+            <h2 className="text-base font-semibold text-gray-700">
+              Delete Course
+            </h2>
             <p className="text-xs text-gray-600 mt-2">
-              Are you sure you want to delete <strong>{selectedCourse.course_name}</strong>?
+              Are you sure you want to delete{" "}
+              <strong>{selectedCourse.course_name}</strong>?
             </p>
             <div className="flex justify-end mt-2">
-              <Button 
-                variant="gray" 
+              <Button
+                variant="gray"
                 size="small"
                 onClick={() => setIsDeleteModalOpen(false)}
                 className="text-xs px-2 py-1 mr-2"
               >
                 Cancel
               </Button>
-              <Button 
-                variant="red" 
+              <Button
+                variant="red"
                 size="small"
                 onClick={handleDeleteConfirm}
                 className="text-xs px-2 py-1"

@@ -64,45 +64,57 @@ const CourseScheduleDetail = () => {
   const router = useRouter();
   const scheduleId = params.id;
 
-  const [courseDetails, setCourseDetails] = useState<CourseSchedule | null>(null);
+  const [courseDetails, setCourseDetails] = useState<CourseSchedule | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("participant");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isParticipantModalOpen, setIsParticipantModalOpen] = useState(false);
   const [isInstructureModalOpen, setIsInstructureModalOpen] = useState(false);
-  const [availableParticipants, setAvailableParticipants] = useState<AvailableParticipant[]>([]);
-  const [availableInstructures, setAvailableInstructures] = useState<AvailableInstructure[]>([]);
+  const [availableParticipants, setAvailableParticipants] = useState<
+    AvailableParticipant[]
+  >([]);
+  const [availableInstructures, setAvailableInstructures] = useState<
+    AvailableInstructure[]
+  >([]);
   const [selectedParticipantId, setSelectedParticipantId] = useState("");
   const [selectedInstructureId, setSelectedInstructureId] = useState("");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [deleteType, setDeleteType] = useState<"participant" | "instructure" | null>(null);
-  
+  const [deleteType, setDeleteType] = useState<
+    "participant" | "instructure" | null
+  >(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [instructurSearchTerm, setInstructurSearchTerm] = useState("");
+
   const [editedCourse, setEditedCourse] = useState({
-    courseId: '',
-    startDate: '',
-    endDate: '',
-    startRegDate: '',
-    endRegDate: '',
-    location: '',
-    room: '',
-    price: '',
-    quota: '',
-    durationDay: '',
-    status: 'Active'
+    courseId: "",
+    startDate: "",
+    endDate: "",
+    startRegDate: "",
+    endRegDate: "",
+    location: "",
+    room: "",
+    price: "",
+    quota: "",
+    durationDay: "",
+    status: "Active",
   });
 
   const searchParticipants = async (query: string) => {
     try {
-      const response = await fetch(`/api/participant?search=${encodeURIComponent(query)}`);
+      const response = await fetch(
+        `/api/participant?search=${encodeURIComponent(query)}`
+      );
       if (!response.ok) {
         throw new Error(`Server responded with ${response.status}`);
       }
       const data = await response.json();
       return data.data.map((participant: any) => ({
         id: participant.id,
-        name: participant.name
+        name: participant.name,
       }));
     } catch (error) {
       console.error("Error searching participants:", error);
@@ -112,16 +124,18 @@ const CourseScheduleDetail = () => {
 
   const searchInstructures = async (query: string) => {
     try {
-      const response = await fetch(`/api/instructure?search=${encodeURIComponent(query)}`);
+      const response = await fetch(
+        `/api/instructure?search=${encodeURIComponent(query)}`
+      );
       if (!response.ok) {
         throw new Error(`Server responded with ${response.status}`);
       }
       const data = await response.json();
       return data.data.map((instructure: any) => ({
         id: instructure.id,
-        name: instructure.name,
-        phoneNumber: instructure.phone_number,
-        profiency: instructure.profiency
+        name: instructure.fullName,
+        phoneNumber: instructure.phoneNumber,
+        profiency: instructure.proficiency,
       }));
     } catch (error) {
       console.error("Error searching instructures:", error);
@@ -136,32 +150,40 @@ const CourseScheduleDetail = () => {
       const response = await fetch(`/api/course-schedule/${scheduleId}`);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        const errorData = await response
+          .json()
+          .catch(() => ({ error: "Unknown error" }));
         console.error(`API error: ${response.status}`, errorData);
-        throw new Error(`Server responded with ${response.status}: ${errorData.error || 'Unknown error'}`);
+        throw new Error(
+          `Server responded with ${response.status}: ${
+            errorData.error || "Unknown error"
+          }`
+        );
       }
 
       const data = await response.json();
-      console.log('Schedule data received successfully');
+      console.log("Schedule data received successfully");
       setCourseDetails(data);
-      
+
       // Initialize edit form with current values
       setEditedCourse({
         courseId: data.courseId,
-        startDate: new Date(data.startDate).toISOString().split('T')[0],
-        endDate: new Date(data.endDate).toISOString().split('T')[0],
-        startRegDate: new Date(data.startRegDate).toISOString().split('T')[0],
-        endRegDate: new Date(data.endRegDate).toISOString().split('T')[0],
+        startDate: new Date(data.startDate).toISOString().split("T")[0],
+        endDate: new Date(data.endDate).toISOString().split("T")[0],
+        startRegDate: new Date(data.startRegDate).toISOString().split("T")[0],
+        endRegDate: new Date(data.endRegDate).toISOString().split("T")[0],
         location: data.location,
         room: data.room,
         price: data.price.toString(),
         quota: data.quota.toString(),
         durationDay: data.durationDay.toString(),
-        status: data.status
+        status: data.status,
       });
     } catch (err) {
-      console.error('Error in fetchCourseSchedule:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load course schedule');
+      console.error("Error in fetchCourseSchedule:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to load course schedule"
+      );
     } finally {
       setLoading(false);
     }
@@ -171,7 +193,9 @@ const CourseScheduleDetail = () => {
     fetchCourseSchedule();
   }, [scheduleId]);
 
-  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleEditInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
     setEditedCourse((prev) => ({
       ...prev,
@@ -183,28 +207,31 @@ const CourseScheduleDetail = () => {
     e.preventDefault();
     try {
       const response = await fetch(`/api/course-schedule/${scheduleId}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(editedCourse),
       });
-      
+
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to update schedule');
+        throw new Error(data.error || "Failed to update schedule");
       }
-      
+
       // Refresh data and close modal
       fetchCourseSchedule();
       setIsEditModalOpen(false);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'An error occurred');
+      alert(err instanceof Error ? err.message : "An error occurred");
     }
   };
 
-  const handleParticipantSearch = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleParticipantSearch = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const query = e.target.value;
+    setSearchTerm(query);
     if (query.length > 1) {
       const results = await searchParticipants(query);
       setAvailableParticipants(results);
@@ -213,8 +240,11 @@ const CourseScheduleDetail = () => {
     }
   };
 
-  const handleInstructureSearch = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInstructureSearch = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const query = e.target.value;
+    setInstructurSearchTerm(query);
     if (query.length > 1) {
       const results = await searchInstructures(query);
       setAvailableInstructures(results);
@@ -226,62 +256,68 @@ const CourseScheduleDetail = () => {
   const handleAddParticipant = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedParticipantId) {
-      alert('Please select a participant');
+      alert("Please select a participant");
       return;
     }
 
     try {
-      const response = await fetch(`/api/course-schedule/${scheduleId}/participant`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ participantId: selectedParticipantId }),
-      });
-      
+      const response = await fetch(
+        `/api/course-schedule/${scheduleId}/participant`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ participantId: selectedParticipantId }),
+        }
+      );
+
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to add participant');
+        throw new Error(data.error || "Failed to add participant");
       }
-      
+
       // Refresh data and close modal
       fetchCourseSchedule();
       setIsParticipantModalOpen(false);
-      setSelectedParticipantId('');
+      setSelectedParticipantId("");
       setAvailableParticipants([]);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'An error occurred');
+      alert(err instanceof Error ? err.message : "An error occurred");
     }
   };
 
   const handleAddInstructure = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedInstructureId) {
-      alert('Please select an instructor');
+      alert("Please select an instructor");
       return;
     }
 
     try {
-      const response = await fetch(`/api/course-schedule/${scheduleId}/instructure`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ instructureId: selectedInstructureId }),
-      });
-      
+      const response = await fetch(
+        `/api/course-schedule/${scheduleId}/instructure`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ instructureId: selectedInstructureId }),
+        }
+      );
+
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to add instructor');
+        throw new Error(data.error || "Failed to add instructor");
       }
-      
+
       // Refresh data and close modal
       fetchCourseSchedule();
       setIsInstructureModalOpen(false);
-      setSelectedInstructureId('');
+      setSelectedInstructureId("");
       setAvailableInstructures([]);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'An error occurred');
+      alert(err instanceof Error ? err.message : "An error occurred");
     }
   };
 
@@ -297,27 +333,33 @@ const CourseScheduleDetail = () => {
     try {
       let response;
       if (deleteType === "participant") {
-        response = await fetch(`/api/course-schedule/${scheduleId}/participant?registrationId=${selectedItemId}`, {
-          method: 'DELETE',
-        });
+        response = await fetch(
+          `/api/course-schedule/${scheduleId}/participant?registrationId=${selectedItemId}`,
+          {
+            method: "DELETE",
+          }
+        );
       } else {
-        response = await fetch(`/api/course-schedule/${scheduleId}/instructure?assignmentId=${selectedItemId}`, {
-          method: 'DELETE',
-        });
+        response = await fetch(
+          `/api/course-schedule/${scheduleId}/instructure?assignmentId=${selectedItemId}`,
+          {
+            method: "DELETE",
+          }
+        );
       }
-      
+
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.error || `Failed to remove ${deleteType}`);
       }
-      
+
       // Refresh data and close modal
       fetchCourseSchedule();
       setIsDeleteModalOpen(false);
       setSelectedItemId(null);
       setDeleteType(null);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'An error occurred');
+      alert(err instanceof Error ? err.message : "An error occurred");
     }
   };
 
@@ -341,7 +383,7 @@ const CourseScheduleDetail = () => {
           <Button
             variant="primary"
             size="small"
-            onClick={() => router.push('/course-schedule')}
+            onClick={() => router.push("/course-schedule")}
             className="text-xs px-2 py-1"
           >
             Back to Schedules
@@ -361,7 +403,7 @@ const CourseScheduleDetail = () => {
           <Button
             variant="primary"
             size="small"
-            onClick={() => router.push('/course-schedule')}
+            onClick={() => router.push("/course-schedule")}
             className="text-xs px-2 py-1"
           >
             Back to Schedules
@@ -375,11 +417,13 @@ const CourseScheduleDetail = () => {
     <Layout>
       <div className="p-2">
         <div className="flex justify-between items-center mb-2">
-          <h1 className="text-lg md:text-xl text-gray-700">Course Schedule Detail</h1>
+          <h1 className="text-lg md:text-xl text-gray-700">
+            Course Schedule Detail
+          </h1>
           <Button
             variant="gray"
             size="small"
-            onClick={() => router.push('/course-schedule')}
+            onClick={() => router.push("/course-schedule")}
             className="text-xs px-2 py-1"
           >
             Back
@@ -403,18 +447,29 @@ const CourseScheduleDetail = () => {
             </div>
             <div className="text-xs sm:text-sm">
               <p className="text-gray-800 mb-1">{courseDetails.date}</p>
-              <p className="text-gray-800 mb-1">{courseDetails.registrationDate}</p>
+              <p className="text-gray-800 mb-1">
+                {courseDetails.registrationDate}
+              </p>
               <p className="text-gray-800 mb-1">{courseDetails.location}</p>
               <p className="text-gray-800 mb-1">{courseDetails.room}</p>
-              <p className="text-gray-800 mb-1">Rp {courseDetails.price.toLocaleString('id-ID')}</p>
-              <p className="text-gray-800 mb-1">{courseDetails.quota} participants</p>
+              <p className="text-gray-800 mb-1">
+                Rp {courseDetails.price.toLocaleString("id-ID")}
+              </p>
+              <p className="text-gray-800 mb-1">
+                {courseDetails.quota} participants
+              </p>
               <p className="text-gray-800 mb-2">
-                <span className={`px-2 py-1 rounded-full ${
-                  courseDetails.status === 'Active' ? 'bg-green-100 text-green-800' : 
-                  courseDetails.status === 'Completed' ? 'bg-blue-100 text-blue-800' : 
-                  courseDetails.status === 'Canceled' ? 'bg-red-100 text-red-800' :
-                  'bg-gray-100 text-gray-800'
-                }`}>
+                <span
+                  className={`px-2 py-1 rounded-full ${
+                    courseDetails.status === "Active"
+                      ? "bg-green-100 text-green-800"
+                      : courseDetails.status === "Completed"
+                      ? "bg-blue-100 text-blue-800"
+                      : courseDetails.status === "Canceled"
+                      ? "bg-red-100 text-red-800"
+                      : "bg-gray-100 text-gray-800"
+                  }`}
+                >
                   {courseDetails.status}
                 </span>
               </p>
@@ -476,10 +531,18 @@ const CourseScheduleDetail = () => {
                 <thead>
                   <tr className="border-b">
                     <th className="text-left p-2 text-xs text-gray-700">No</th>
-                    <th className="text-left p-2 text-xs text-gray-700">Participant</th>
-                    <th className="text-left p-2 text-xs text-gray-700">Present</th>
-                    <th className="text-left p-2 text-xs text-gray-700">Payment Status</th>
-                    <th className="text-left p-2 text-xs text-gray-700">Action</th>
+                    <th className="text-left p-2 text-xs text-gray-700">
+                      Participant
+                    </th>
+                    <th className="text-left p-2 text-xs text-gray-700">
+                      Present
+                    </th>
+                    <th className="text-left p-2 text-xs text-gray-700">
+                      Payment Status
+                    </th>
+                    <th className="text-left p-2 text-xs text-gray-700">
+                      Action
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -489,20 +552,28 @@ const CourseScheduleDetail = () => {
                         key={participant.id}
                         className="border-b hover:bg-gray-50"
                       >
-                        <td className="p-2 text-xs text-gray-700">{index + 1}</td>
+                        <td className="p-2 text-xs text-gray-700">
+                          {index + 1}
+                        </td>
                         <td className="p-2 text-xs text-gray-700">
                           <div className="flex items-center gap-1">
                             <div className="w-6 h-6 bg-gray-300 rounded-full"></div>
                             {participant.name}
                           </div>
                         </td>
-                        <td className="p-2 text-xs text-gray-700">{participant.presentDay}</td>
                         <td className="p-2 text-xs text-gray-700">
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            participant.paymentStatus === 'Paid' ? 'bg-green-100 text-green-800' : 
-                            participant.paymentStatus === 'Partial' ? 'bg-yellow-100 text-yellow-800' : 
-                            'bg-red-100 text-red-800'
-                          }`}>
+                          {participant.presentDay}
+                        </td>
+                        <td className="p-2 text-xs text-gray-700">
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs ${
+                              participant.paymentStatus === "Paid"
+                                ? "bg-green-100 text-green-800"
+                                : participant.paymentStatus === "Partial"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
+                          >
                             {participant.paymentStatus}
                           </span>
                         </td>
@@ -511,7 +582,9 @@ const CourseScheduleDetail = () => {
                             <button
                               className="p-1 border rounded hover:bg-gray-100"
                               title="Delete"
-                              onClick={() => openDeleteModal(participant.id, "participant")}
+                              onClick={() =>
+                                openDeleteModal(participant.id, "participant")
+                              }
                             >
                               <Trash2 size={14} className="text-red-500" />
                             </button>
@@ -521,7 +594,10 @@ const CourseScheduleDetail = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={5} className="p-4 text-center text-gray-500 text-xs">
+                      <td
+                        colSpan={5}
+                        className="p-4 text-center text-gray-500 text-xs"
+                      >
                         No participants found
                       </td>
                     </tr>
@@ -554,17 +630,30 @@ const CourseScheduleDetail = () => {
                 <thead>
                   <tr className="border-b">
                     <th className="text-left p-2 text-xs text-gray-700">NO</th>
-                    <th className="text-left p-2 text-xs text-gray-700">Full Name</th>
-                    <th className="text-left p-2 text-xs text-gray-700">Phone Number</th>
-                    <th className="text-left p-2 text-xs text-gray-700">Profiency</th>
-                    <th className="text-left p-2 text-xs text-gray-700">Action</th>
+                    <th className="text-left p-2 text-xs text-gray-700">
+                      Full Name
+                    </th>
+                    <th className="text-left p-2 text-xs text-gray-700">
+                      Phone Number
+                    </th>
+                    <th className="text-left p-2 text-xs text-gray-700">
+                      Profiency
+                    </th>
+                    <th className="text-left p-2 text-xs text-gray-700">
+                      Action
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {courseDetails.instructures.length > 0 ? (
                     courseDetails.instructures.map((instructure, index) => (
-                      <tr key={instructure.id} className="border-b hover:bg-gray-50">
-                        <td className="p-2 text-xs text-gray-700">{index + 1}</td>
+                      <tr
+                        key={instructure.id}
+                        className="border-b hover:bg-gray-50"
+                      >
+                        <td className="p-2 text-xs text-gray-700">
+                          {index + 1}
+                        </td>
                         <td className="p-2 text-xs text-gray-700">
                           <div className="flex items-center gap-2">
                             <div className="w-6 h-6 rounded-full overflow-hidden">
@@ -579,12 +668,18 @@ const CourseScheduleDetail = () => {
                             {instructure.name}
                           </div>
                         </td>
-                        <td className="p-2 text-xs text-gray-700">{instructure.phoneNumber}</td>
-                        <td className="p-2 text-xs text-gray-700">{instructure.profiency}</td>
+                        <td className="p-2 text-xs text-gray-700">
+                          {instructure.phoneNumber}
+                        </td>
+                        <td className="p-2 text-xs text-gray-700">
+                          {instructure.profiency}
+                        </td>
                         <td className="p-2">
                           <button
                             className="flex items-center gap-1 text-xs text-red-500"
-                            onClick={() => openDeleteModal(instructure.id, "instructure")}
+                            onClick={() =>
+                              openDeleteModal(instructure.id, "instructure")
+                            }
                           >
                             <Trash2 size={14} /> Delete
                           </button>
@@ -593,7 +688,10 @@ const CourseScheduleDetail = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={5} className="p-4 text-center text-gray-500 text-xs">
+                      <td
+                        colSpan={5}
+                        className="p-4 text-center text-gray-500 text-xs"
+                      >
                         No instructors found
                       </td>
                     </tr>
@@ -607,11 +705,15 @@ const CourseScheduleDetail = () => {
         {/* Edit Schedule Modal */}
         {isEditModalOpen && (
           <Modal onClose={() => setIsEditModalOpen(false)}>
-            <h2 className="text-base font-semibold mb-2 text-gray-700">Edit Course Schedule</h2>
+            <h2 className="text-base font-semibold mb-2 text-gray-700">
+              Edit Course Schedule
+            </h2>
             <form onSubmit={handleEditSubmit}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div className="mb-2">
-                  <label className="block text-xs text-gray-700 mb-1">Status</label>
+                  <label className="block text-xs text-gray-700 mb-1">
+                    Status
+                  </label>
                   <select
                     name="status"
                     value={editedCourse.status}
@@ -626,7 +728,9 @@ const CourseScheduleDetail = () => {
                   </select>
                 </div>
                 <div className="mb-2">
-                  <label className="block text-xs text-gray-700 mb-1">Start Date</label>
+                  <label className="block text-xs text-gray-700 mb-1">
+                    Start Date
+                  </label>
                   <input
                     type="date"
                     name="startDate"
@@ -637,7 +741,9 @@ const CourseScheduleDetail = () => {
                   />
                 </div>
                 <div className="mb-2">
-                  <label className="block text-xs text-gray-700 mb-1">End Date</label>
+                  <label className="block text-xs text-gray-700 mb-1">
+                    End Date
+                  </label>
                   <input
                     type="date"
                     name="endDate"
@@ -648,7 +754,9 @@ const CourseScheduleDetail = () => {
                   />
                 </div>
                 <div className="mb-2">
-                  <label className="block text-xs text-gray-700 mb-1">Registration Start Date</label>
+                  <label className="block text-xs text-gray-700 mb-1">
+                    Registration Start Date
+                  </label>
                   <input
                     type="date"
                     name="startRegDate"
@@ -659,7 +767,9 @@ const CourseScheduleDetail = () => {
                   />
                 </div>
                 <div className="mb-2">
-                  <label className="block text-xs text-gray-700 mb-1">Registration End Date</label>
+                  <label className="block text-xs text-gray-700 mb-1">
+                    Registration End Date
+                  </label>
                   <input
                     type="date"
                     name="endRegDate"
@@ -670,7 +780,9 @@ const CourseScheduleDetail = () => {
                   />
                 </div>
                 <div className="mb-2">
-                  <label className="block text-xs text-gray-700 mb-1">Location</label>
+                  <label className="block text-xs text-gray-700 mb-1">
+                    Location
+                  </label>
                   <input
                     type="text"
                     name="location"
@@ -681,7 +793,9 @@ const CourseScheduleDetail = () => {
                   />
                 </div>
                 <div className="mb-2">
-                  <label className="block text-xs text-gray-700 mb-1">Room</label>
+                  <label className="block text-xs text-gray-700 mb-1">
+                    Room
+                  </label>
                   <input
                     type="text"
                     name="room"
@@ -692,7 +806,9 @@ const CourseScheduleDetail = () => {
                   />
                 </div>
                 <div className="mb-2">
-                  <label className="block text-xs text-gray-700 mb-1">Price</label>
+                  <label className="block text-xs text-gray-700 mb-1">
+                    Price
+                  </label>
                   <input
                     type="number"
                     name="price"
@@ -704,7 +820,9 @@ const CourseScheduleDetail = () => {
                   />
                 </div>
                 <div className="mb-2">
-                  <label className="block text-xs text-gray-700 mb-1">Quota</label>
+                  <label className="block text-xs text-gray-700 mb-1">
+                    Quota
+                  </label>
                   <input
                     type="number"
                     name="quota"
@@ -716,7 +834,9 @@ const CourseScheduleDetail = () => {
                   />
                 </div>
                 <div className="mb-2">
-                  <label className="block text-xs text-gray-700 mb-1">Duration (Days)</label>
+                  <label className="block text-xs text-gray-700 mb-1">
+                    Duration (Days)
+                  </label>
                   <input
                     type="number"
                     name="durationDay"
@@ -752,44 +872,95 @@ const CourseScheduleDetail = () => {
 
         {/* Add Participant Modal */}
         {isParticipantModalOpen && (
-          <Modal onClose={() => {
-            setIsParticipantModalOpen(false);
-            setAvailableParticipants([]);
-            setSelectedParticipantId("");
-          }}>
-            <h2 className="text-base font-semibold mb-2 text-gray-700">Add Participant</h2>
+          <Modal
+            onClose={() => {
+              setIsParticipantModalOpen(false);
+              setAvailableParticipants([]);
+              setSelectedParticipantId("");
+            }}
+          >
+            <h2 className="text-base font-semibold mb-2 text-gray-700">
+              Add Participant
+            </h2>
             <form onSubmit={handleAddParticipant}>
               <div className="space-y-2">
                 <div>
-                  <label className="block text-xs text-gray-700 mb-1">Search Participant</label>
+                  <label className="block text-xs text-gray-700 mb-1">
+                    Search Participant
+                  </label>
                   <input
                     type="text"
-                    placeholder="Type to search..."
+                    placeholder="Type to search participant name..."
                     onChange={handleParticipantSearch}
                     className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
-                
+
                 {availableParticipants.length > 0 && (
-                  <div className="max-h-40 overflow-y-auto border rounded">
-                    {availableParticipants.map((participant) => (
-                      <div
-                        key={participant.id}
-                        className={`p-2 text-xs hover:bg-gray-100 cursor-pointer ${
-                          selectedParticipantId === participant.id ? 'bg-blue-50' : ''
-                        }`}
-                        onClick={() => setSelectedParticipantId(participant.id)}
-                      >
-                        {participant.name}
-                      </div>
-                    ))}
+                  <div className="max-h-60 overflow-y-auto border rounded">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-2 py-1 text-xs font-medium text-gray-500 text-left">
+                            Name
+                          </th>
+                          <th className="px-2 py-1 text-xs font-medium text-gray-500 text-left">
+                            Action
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {availableParticipants.map((participant) => (
+                          <tr
+                            key={participant.id}
+                            className={`hover:bg-gray-100 ${
+                              selectedParticipantId === participant.id
+                                ? "bg-blue-50"
+                                : ""
+                            }`}
+                          >
+                            <td className="px-2 py-1 text-xs text-gray-700">
+                              {participant.name}
+                            </td>
+                            <td className="px-2 py-1">
+                              <button
+                                type="button"
+                                className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                                onClick={() =>
+                                  setSelectedParticipantId(participant.id)
+                                }
+                              >
+                                Select
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
-                
+
+                {availableParticipants.length === 0 &&
+                  searchTerm &&
+                  searchTerm.length > 1 &&
+                  !loading && (
+                    <div className="p-2 text-xs text-gray-500 text-center border rounded">
+                      No participants found. Try another search term.
+                    </div>
+                  )}
+
                 {selectedParticipantId && (
-                  <div className="p-2 border rounded bg-gray-50">
-                    <p className="text-xs font-medium">Selected Participant:</p>
-                    <p className="text-xs">{availableParticipants.find(p => p.id === selectedParticipantId)?.name}</p>
+                  <div className="p-2 border rounded bg-blue-50">
+                    <p className="text-xs font-medium text-gray-700">
+                      Selected Participant:
+                    </p>
+                    <p className="text-sm font-semibold text-gray-800">
+                      {
+                        availableParticipants.find(
+                          (p) => p.id === selectedParticipantId
+                        )?.name
+                      }
+                    </p>
                   </div>
                 )}
               </div>
@@ -811,7 +982,11 @@ const CourseScheduleDetail = () => {
                   size="small"
                   type="submit"
                   disabled={!selectedParticipantId}
-                  className={`text-xs px-2 py-1 ${!selectedParticipantId ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`text-xs px-2 py-1 ${
+                    !selectedParticipantId
+                      ? "opacity-50 cursor-not-allowed"
+                      : ""
+                  }`}
                 >
                   Add
                 </Button>
@@ -822,46 +997,129 @@ const CourseScheduleDetail = () => {
 
         {/* Add Instructure Modal */}
         {isInstructureModalOpen && (
-          <Modal onClose={() => {
-            setIsInstructureModalOpen(false);
-            setAvailableInstructures([]);
-            setSelectedInstructureId("");
-          }}>
-            <h2 className="text-base font-semibold mb-2 text-gray-700">Add Instructure</h2>
+          <Modal
+            onClose={() => {
+              setIsInstructureModalOpen(false);
+              setAvailableInstructures([]);
+              setSelectedInstructureId("");
+            }}
+          >
+            <h2 className="text-base font-semibold mb-2 text-gray-700">
+              Add Instructure
+            </h2>
             <form onSubmit={handleAddInstructure}>
               <div className="space-y-2">
                 <div>
-                  <label className="block text-xs text-gray-700 mb-1">Search Instructure</label>
+                  <label className="block text-xs text-gray-700 mb-1">
+                    Search Instructure
+                  </label>
                   <input
                     type="text"
-                    placeholder="Type to search..."
+                    placeholder="Type to search instructor name..."
                     onChange={handleInstructureSearch}
                     className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
-                
+
                 {availableInstructures.length > 0 && (
-                  <div className="max-h-40 overflow-y-auto border rounded">
-                    {availableInstructures.map((instructure) => (
-                      <div
-                        key={instructure.id}
-                        className={`p-2 text-xs hover:bg-gray-100 cursor-pointer ${
-                          selectedInstructureId === instructure.id ? 'bg-blue-50' : ''
-                        }`}
-                        onClick={() => setSelectedInstructureId(instructure.id)}
-                      >
-                        <div className="font-medium">{instructure.name}</div>
-                        <div className="text-gray-500">{instructure.profiency}</div>
-                      </div>
-                    ))}
+                  <div className="max-h-60 overflow-y-auto border rounded">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-2 py-1 text-xs font-medium text-gray-500 text-left">
+                            Name
+                          </th>
+                          <th className="px-2 py-1 text-xs font-medium text-gray-500 text-left">
+                            Proficiency
+                          </th>
+                          <th className="px-2 py-1 text-xs font-medium text-gray-500 text-left">
+                            Phone
+                          </th>
+                          <th className="px-2 py-1 text-xs font-medium text-gray-500 text-left">
+                            Action
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {availableInstructures.map((instructure) => (
+                          <tr
+                            key={instructure.id}
+                            className={`hover:bg-gray-100 ${
+                              selectedInstructureId === instructure.id
+                                ? "bg-blue-50"
+                                : ""
+                            }`}
+                          >
+                            <td className="px-2 py-1 text-xs text-gray-700">
+                              {instructure.name}
+                            </td>
+                            <td className="px-2 py-1">
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-700">
+                                {instructure.profiency}
+                              </span>
+                            </td>
+                            <td className="px-2 py-1 text-xs text-gray-600">
+                              {instructure.phoneNumber}
+                            </td>
+                            <td className="px-2 py-1">
+                              <button
+                                type="button"
+                                className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                                onClick={() =>
+                                  setSelectedInstructureId(instructure.id)
+                                }
+                              >
+                                Select
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
-                
+
+                {availableInstructures.length === 0 &&
+                  instructurSearchTerm &&
+                  instructurSearchTerm.length > 1 &&
+                  !loading && (
+                    <div className="p-2 text-xs text-gray-500 text-center border rounded">
+                      No instructors found. Try another search term.
+                    </div>
+                  )}
+
                 {selectedInstructureId && (
-                  <div className="p-2 border rounded bg-gray-50">
-                    <p className="text-xs font-medium">Selected Instructor:</p>
-                    <p className="text-xs">{availableInstructures.find(i => i.id === selectedInstructureId)?.name}</p>
-                    <p className="text-xs text-gray-500">{availableInstructures.find(i => i.id === selectedInstructureId)?.profiency}</p>
+                  <div className="p-2 border rounded bg-blue-50">
+                    <p className="text-xs font-medium text-gray-700">
+                      Selected Instructor:
+                    </p>
+                    <p className="text-sm font-semibold text-gray-800">
+                      {
+                        availableInstructures.find(
+                          (i) => i.id === selectedInstructureId
+                        )?.name
+                      }
+                    </p>
+                    {availableInstructures.find(
+                      (i) => i.id === selectedInstructureId
+                    ) && (
+                      <div className="mt-1">
+                        <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-700">
+                          {
+                            availableInstructures.find(
+                              (i) => i.id === selectedInstructureId
+                            )?.profiency
+                          }
+                        </span>
+                        <span className="text-xs text-gray-600 ml-2">
+                          {
+                            availableInstructures.find(
+                              (i) => i.id === selectedInstructureId
+                            )?.phoneNumber
+                          }
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -883,7 +1141,11 @@ const CourseScheduleDetail = () => {
                   size="small"
                   type="submit"
                   disabled={!selectedInstructureId}
-                  className={`text-xs px-2 py-1 ${!selectedInstructureId ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`text-xs px-2 py-1 ${
+                    !selectedInstructureId
+                      ? "opacity-50 cursor-not-allowed"
+                      : ""
+                  }`}
                 >
                   Add
                 </Button>
@@ -894,12 +1156,16 @@ const CourseScheduleDetail = () => {
 
         {/* Delete Confirmation Modal */}
         {isDeleteModalOpen && deleteType && (
-          <Modal onClose={() => {
-            setIsDeleteModalOpen(false);
-            setSelectedItemId(null);
-            setDeleteType(null);
-          }}>
-            <h2 className="text-base font-semibold text-gray-700">Confirm Delete</h2>
+          <Modal
+            onClose={() => {
+              setIsDeleteModalOpen(false);
+              setSelectedItemId(null);
+              setDeleteType(null);
+            }}
+          >
+            <h2 className="text-base font-semibold text-gray-700">
+              Confirm Delete
+            </h2>
             <p className="text-xs text-gray-600 mt-2">
               Are you sure you want to remove this {deleteType}?
             </p>

@@ -28,7 +28,15 @@ export default async function middleware(request: NextRequestWithAuth) {
     '/payment-report',
     '/list-certificate',
     '/certificate-expired',
-    '/participant'
+    '/participant' // Halaman admin untuk mengelola participants
+  ]
+
+  // Daftar rute untuk participant (user yang terdaftar sebagai peserta)
+  const participantRoutes = [
+    '/participant/dashboard',
+    '/participant/my-course',
+    '/participant/my-certificate',
+    '/participant/payment'
   ]
 
   // Daftar rute untuk instructor
@@ -37,14 +45,6 @@ export default async function middleware(request: NextRequestWithAuth) {
     '/instructure/courses', 
     '/instructure/students', 
     '/instructure/assignment'
-  ]
-
-  // Daftar rute untuk participant
-  const participantRoutes = [
-    '/participant/dashboard',
-    '/participant/my-course',
-    '/participant/my-certificate',
-    '/participant/payment'
   ]
 
   // Daftar rute publik
@@ -89,26 +89,48 @@ export default async function middleware(request: NextRequestWithAuth) {
     }
 
     const userType = token.userType
+    // Logging untuk debug
+    console.log('Middleware check:', path, 'Role:', userType);
     if (!userType) {
       console.error('User type tidak ditemukan dalam token:', token)
       return NextResponse.redirect(new URL("/login", request.url))
     }
 
-    // Cek akses berdasarkan userType
+    // Implementasi logika akses sesuai role
     if (userType === 'admin') {
-      // Admin dapat mengakses semua rute admin
-      if (!adminRoutes.some(route => path.startsWith(route))) {
+      // Admin hanya boleh akses adminRoutes dan /participant (tanpa subpath)
+      if (
+        !adminRoutes.some(route => path === route || path.startsWith(route + '/'))
+      ) {
         return NextResponse.redirect(new URL("/dashboard", request.url))
       }
-    } else if (userType === 'instructor') {
-      // Instructor hanya boleh akses rute instructor
-      if (!instructorRoutes.some(route => path.startsWith(route))) {
-        return NextResponse.redirect(new URL("/instructure/dashboard", request.url))
+      // Admin tidak boleh akses dashboard participant
+      if (
+        path === '/participant/dashboard' ||
+        path.startsWith('/participant/my-course') ||
+        path.startsWith('/participant/my-certificate') ||
+        path.startsWith('/participant/payment')
+      ) {
+        return NextResponse.redirect(new URL("/dashboard", request.url))
       }
     } else if (userType === 'participant') {
-      // Participant hanya boleh akses rute participant
-      if (!participantRoutes.some(route => path.startsWith(route))) {
+      // Participant tidak boleh akses adminRoutes - cek ini duluan
+      if (adminRoutes.some(route => path === route || path.startsWith(route + '/'))) {
         return NextResponse.redirect(new URL("/participant/dashboard", request.url))
+      }
+
+      // Participant hanya boleh akses rute yang sudah ditentukan
+      if (!participantRoutes.some(route => path === route || path.startsWith(route + '/'))) {
+        return NextResponse.redirect(new URL("/participant/dashboard", request.url))
+      }
+    } else if (userType === 'instructor') {
+      // Instructor tidak boleh akses adminRoutes
+      if (adminRoutes.some(route => path === route || path.startsWith(route + '/'))) {
+        return NextResponse.redirect(new URL("/instructure/dashboard", request.url))
+      }
+      // Instructor hanya boleh akses instructorRoutes
+      if (!instructorRoutes.some(route => path === route || path.startsWith(route + '/'))) {
+        return NextResponse.redirect(new URL("/instructure/dashboard", request.url))
       }
     } else {
       // UserType tidak valid
@@ -135,21 +157,23 @@ export default async function middleware(request: NextRequestWithAuth) {
 // Konfigurasi rute yang akan diproteksi oleh middleware
 export const config = {
   matcher: [
-    "/dashboard/:path*",    // Rute dashboard dan sub-routenya
-    "/user/:path*",         // Manajemen pengguna
-    "/usertype/:path*",     // Tipe pengguna
-    "/user-rule/:path*",    // Aturan pengguna
-    "/instructure/:path*",  // Halaman manajemen instructor
-    "/instructor/:path*",   // Dashboard instructor
-    "/courses/:path*",      // Manajemen kursus
-    "/course-type/:path*",  // Tipe kursus
-    "/course-schedule/:path*", // Jadwal kursus
-    "/payment-report/:path*",  // Laporan pembayaran
-    "/list-certificate/:path*", // Daftar sertifikat
-    "/certificate-expired/:path*", // Sertifikat kadaluarsa
-    "/participant/:path*",    // Manajemen peserta
-    "/my-course/:path*",     // Halaman kursus participant
-    "/my-certificate/:path*", // Halaman sertifikat participant
-    "/payment/:path*"        // Halaman pembayaran participant
+    "/dashboard",
+    "/dashboard/:path*",
+    "/user/:path*",
+    "/usertype/:path*",
+    "/user-rule/:path*",
+    "/instructure/:path*",
+    "/instructor/:path*",
+    "/courses/:path*",
+    "/course-type/:path*",
+    "/course-schedule/:path*",
+    "/payment-report/:path*",
+    "/list-certificate/:path*",
+    "/certificate-expired/:path*",
+    "/participant",
+    "/participant/:path*",
+    "/my-course/:path*",
+    "/my-certificate/:path*",
+    "/payment/:path*"
   ]
 } 

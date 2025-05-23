@@ -15,6 +15,9 @@ interface Instructure {
   proficiency: string;
   address: string;
   photo?: string | null;
+  userId?: string | null;
+  username?: string | null;
+  email?: string | null;
 }
 
 interface Column {
@@ -36,7 +39,7 @@ interface ApiResponse {
 const InstructurePage = () => {
   const proficiencyCategories = [
     "Programming",
-    "Web Development", 
+    "Web Development",
     "Data Science",
     "Mobile Development",
     "UI/UX Design",
@@ -48,16 +51,20 @@ const InstructurePage = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [currentInstructure, setCurrentInstructure] = useState<Instructure | null>(null);
-  
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [currentInstructure, setCurrentInstructure] =
+    useState<Instructure | null>(null);
+
   const [formData, setFormData] = useState({
     fullName: "",
     phoneNumber: "",
     proficiency: "",
     address: "",
     photo: "",
+    email: "",
+    password: "",
   });
-  
+
   const [selectedProficiency, setSelectedProficiency] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -73,29 +80,31 @@ const InstructurePage = () => {
         page: currentPage.toString(),
         limit: itemsPerPage.toString(),
       });
-      
+
       if (searchTerm) {
-        queryParams.append('search', searchTerm);
+        queryParams.append("search", searchTerm);
       }
-      
-      if (selectedProficiency !== 'all') {
-        queryParams.append('proficiency', selectedProficiency);
+
+      if (selectedProficiency !== "all") {
+        queryParams.append("proficiency", selectedProficiency);
       }
-      
+
       const response = await fetch(`/api/instructure?${queryParams}`);
-      
+
       if (!response.ok) {
-        throw new Error('Failed to fetch instructures');
+        throw new Error("Failed to fetch instructures");
       }
-      
+
       const data: ApiResponse = await response.json();
-      
+
       setInstructures(data.data);
       setTotalItems(data.meta.total);
       setTotalPages(data.meta.totalPages);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
-      console.error('Error fetching instructures:', err);
+      setError(
+        err instanceof Error ? err.message : "An unknown error occurred"
+      );
+      console.error("Error fetching instructures:", err);
     } finally {
       setIsLoading(false);
     }
@@ -120,7 +129,9 @@ const InstructurePage = () => {
 
   // Form handling
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -137,6 +148,8 @@ const InstructurePage = () => {
       proficiency: "",
       address: "",
       photo: "",
+      email: "",
+      password: "",
     });
     setIsEditMode(false);
     setCurrentInstructure(null);
@@ -153,173 +166,188 @@ const InstructurePage = () => {
     try {
       const response = await fetch(`/api/instructure/${instructure.id}`);
       if (!response.ok) {
-        throw new Error('Failed to fetch instructure details');
+        throw new Error("Failed to fetch instructure details");
       }
-      
+
       const data = await response.json();
-      
+
       setFormData({
         fullName: data.fullName,
         phoneNumber: data.phoneNumber,
         proficiency: data.proficiency,
         address: data.address,
         photo: data.photo || "",
+        email: data.email || "",
+        password: "",
       });
-      
+
       setCurrentInstructure(instructure);
       setIsEditMode(true);
       setIsModalOpen(true);
     } catch (err) {
-      console.error('Error fetching instructure details:', err);
-      alert('Failed to load instructure details for editing');
+      console.error("Error fetching instructure details:", err);
+      alert("Failed to load instructure details for editing");
     }
   };
 
-  // Handle form submission (create or update)
+  // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.fullName || !formData.phoneNumber || !formData.proficiency || !formData.address) {
-      alert('Please fill all required fields');
+
+    if (
+      !formData.fullName ||
+      !formData.phoneNumber ||
+      !formData.proficiency ||
+      !formData.address ||
+      !formData.email
+    ) {
+      alert("Please fill all required fields");
       return;
     }
-    
+
+    // Validasi password (hanya diperlukan untuk create, tidak untuk update)
+    if (!isEditMode && !formData.password) {
+      alert("Password is required when creating a new instructor");
+      return;
+    }
+
     try {
       if (isEditMode && currentInstructure) {
         // Update existing instructure
-        const response = await fetch(`/api/instructure/${currentInstructure.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(formData),
-        });
-        
+        const response = await fetch(
+          `/api/instructure/${currentInstructure.id}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(formData),
+          }
+        );
+
         if (!response.ok) {
-          throw new Error('Failed to update instructure');
+          throw new Error("Failed to update instructure");
         }
-        
       } else {
         // Create new instructure
-        const response = await fetch('/api/instructure', {
-          method: 'POST',
+        const response = await fetch("/api/instructure", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify(formData),
         });
-        
+
         if (!response.ok) {
-          throw new Error('Failed to create instructure');
+          throw new Error("Failed to create instructure");
         }
       }
-      
+
       // Close modal and refresh data
       setIsModalOpen(false);
       resetForm();
       fetchInstructures();
-      
     } catch (err) {
-      console.error('Error saving instructure:', err);
-      alert(err instanceof Error ? err.message : 'Failed to save instructure');
+      console.error("Error saving instructure:", err);
+      alert(err instanceof Error ? err.message : "Failed to save instructure");
     }
   };
 
   // Handle delete
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this instructure?')) {
-      return;
-    }
-    
+  const handleDelete = async (force = false) => {
+    if (!currentInstructure) return;
+
     try {
-      console.log(`Attempting to delete instructure ID: ${id}`);
-      
-      const response = await fetch(`/api/instructure/${id}`, {
-        method: 'DELETE',
+      console.log(
+        `Attempting to delete instructure ID: ${currentInstructure.id}`
+      );
+
+      const url = force
+        ? `/api/instructure/${currentInstructure.id}?force=true`
+        : `/api/instructure/${currentInstructure.id}`;
+
+      const response = await fetch(url, {
+        method: "DELETE",
       });
-      
+
       const data = await response.json();
-      
+
       if (!response.ok) {
-        console.error('Delete error:', data);
-        
+        console.error("Delete error:", data);
+
         // Jika ada hint tentang force delete, tanyakan kepada pengguna
-        if (data.hint && data.hint.includes('force=true')) {
-          if (window.confirm(`${data.error}\n\nDo you want to force delete anyway?`)) {
-            // Lakukan force delete
-            const forceResponse = await fetch(`/api/instructure/${id}?force=true`, {
-              method: 'DELETE',
-            });
-            
-            const forceData = await forceResponse.json();
-            
-            if (!forceResponse.ok) {
-              throw new Error(forceData.error || 'Failed to force delete instructure');
-            }
-            
-            console.log('Force delete success:', forceData);
-            alert('Instructure force deleted successfully');
-            fetchInstructures();
-            return;
-          }
+        if (data.hint && data.hint.includes("force=true")) {
+          setError(`${data.error}. Do you want to force delete anyway?`);
+          return; // Menunggu pengguna memilih force delete
         }
-        
-        throw new Error(data.error || 'Failed to delete instructure');
+
+        throw new Error(data.error || "Failed to delete instructure");
       }
-      
-      console.log('Delete success:', data);
-      alert('Instructure deleted successfully');
-      
+
+      console.log("Delete success:", data);
+      setIsDeleteModalOpen(false);
+      setCurrentInstructure(null);
+
       // Refresh data after deletion
       fetchInstructures();
-      
     } catch (err) {
-      console.error('Error deleting instructure:', err);
-      
+      console.error("Error deleting instructure:", err);
+
       // Show a more user-friendly error message
       if (err instanceof Error) {
-        if (err.message.includes('associated with users')) {
-          alert('Cannot delete this instructure because they are associated with users. Please remove the user associations first.');
-        } else if (err.message.includes('associated with classes')) {
-          alert('Cannot delete this instructure because they are associated with classes. Please remove the class associations first.');
+        if (err.message.includes("associated with users")) {
+          setError(
+            "Cannot delete this instructure because they are associated with users. Please remove the user associations first."
+          );
+        } else if (err.message.includes("associated with classes")) {
+          setError(
+            "Cannot delete this instructure because they are associated with classes. Please remove the class associations first."
+          );
         } else {
-          alert(`Failed to delete instructure: ${err.message}`);
+          setError(`Failed to delete instructure: ${err.message}`);
         }
       } else {
-        alert('Failed to delete instructure due to an unknown error');
+        setError("Failed to delete instructure due to an unknown error");
       }
     }
   };
 
   const columns: Column[] = [
-    { 
-      header: "NO", 
+    {
+      header: "NO",
       accessor: "no",
-      className: "w-12 text-center"
+      className: "w-12 text-center",
     },
-    { 
-      header: "Full Name", 
+    {
+      header: "Full Name",
       accessor: (data: Instructure) => (
         <div className="flex items-center gap-1">
           <div className="w-6 h-6 bg-gray-300 rounded-full"></div>
-          <span className="text-xs">{data.fullName}</span>
+          <span className="text-xs text-gray-800">{data.fullName}</span>
         </div>
       ),
-      className: "min-w-[200px]"
+      className: "min-w-[200px]",
     },
-    { 
-      header: "Phone Number", 
+    {
+      header: "Phone Number",
       accessor: (data: Instructure) => (
-        <span className="text-xs">{data.phoneNumber}</span>
+        <span className="text-xs text-gray-800">{data.phoneNumber}</span>
       ),
-      className: "min-w-[120px]"
+      className: "min-w-[120px]",
     },
-    { 
-      header: "Proficiency", 
+    {
+      header: "Email",
       accessor: (data: Instructure) => (
-        <span className="text-xs">{data.proficiency}</span>
+        <span className="text-xs text-gray-800">{data.email || "-"}</span>
       ),
-      className: "min-w-[120px]"
+      className: "min-w-[180px]",
+    },
+    {
+      header: "Proficiency",
+      accessor: (data: Instructure) => (
+        <span className="text-xs text-gray-800">{data.proficiency}</span>
+      ),
+      className: "min-w-[120px]",
     },
     {
       header: "Action",
@@ -365,7 +393,10 @@ const InstructurePage = () => {
           <button
             className="p-1 border rounded hover:bg-gray-100"
             title="Delete"
-            onClick={() => handleDelete(data.id)}
+            onClick={() => {
+              setCurrentInstructure(data);
+              setIsDeleteModalOpen(true);
+            }}
           >
             <svg
               className="w-3 h-3 text-red-500"
@@ -383,16 +414,14 @@ const InstructurePage = () => {
           </button>
         </div>
       ),
-      className: "w-24 text-center"
+      className: "w-24 text-center",
     },
   ];
 
   return (
     <Layout>
       <div className="p-2">
-        <h1 className="text-lg md:text-xl text-gray-700 mb-2">
-          Instructure
-        </h1>
+        <h1 className="text-lg md:text-xl text-gray-800 mb-2">Instructure</h1>
 
         <div className="flex flex-col sm:flex-row sm:justify-between gap-2 mb-2">
           <div>
@@ -427,77 +456,119 @@ const InstructurePage = () => {
             />
           </div>
         </div>
-
-        {error && (
+        {error && !error.includes("force delete") && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded mb-4">
-            {error}
+            <span>{error}</span>
+            <button
+              className="float-right font-bold"
+              onClick={() => setError(null)}
+            >
+              &times;
+            </button>
           </div>
         )}
-
         <div className="overflow-x-auto -mx-2 px-2">
           {isLoading ? (
             <div className="flex justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
             </div>
+          ) : instructures.length === 0 ? (
+            <div className="text-center py-8 text-gray-800">
+              No instructors found.
+            </div>
           ) : (
-          <Table
-            columns={columns}
+            <Table
+              columns={columns}
               data={instructures}
-            currentPage={currentPage}
+              currentPage={currentPage}
               totalPages={totalPages}
-            itemsPerPage={itemsPerPage}
+              itemsPerPage={itemsPerPage}
               totalItems={totalItems}
-            onPageChange={setCurrentPage}
-          />
+              onPageChange={setCurrentPage}
+            />
           )}
         </div>
-
         {/* Add/Edit Instructure Modal */}
         {isModalOpen && (
-          <Modal onClose={() => {
-            setIsModalOpen(false);
-            resetForm();
-          }}>
+          <Modal
+            onClose={() => {
+              setIsModalOpen(false);
+              resetForm();
+            }}
+          >
             <div className="w-full">
-              <h2 className="text-base font-semibold mb-2 text-gray-700">
-                {isEditMode ? 'Edit Instructure' : 'Add New Instructure'}
+              <h2 className="text-base font-semibold mb-2 text-gray-800">
+                {isEditMode ? "Edit Instructure" : "Add New Instructure"}
               </h2>
               <form onSubmit={handleSubmit} className="space-y-2">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Full Name
+                  <label className="block text-xs font-medium text-gray-800 mb-1">
+                    Full Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     name="fullName"
                     value={formData.fullName}
                     onChange={handleInputChange}
-                    className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Phone Number
+                  <label className="block text-xs font-medium text-gray-800 mb-1">
+                    Email <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
+                    required
+                  />
+                </div>
+                {!isEditMode && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-800 mb-1">
+                      Password <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="password"
+                      name="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
+                      required={!isEditMode}
+                    />
+                    <p className="text-xs text-gray-800 mt-1">
+                      {isEditMode
+                        ? "Leave empty to keep current password"
+                        : "Password for login to the system"}
+                    </p>
+                  </div>
+                )}
+                <div>
+                  <label className="block text-xs font-medium text-gray-800 mb-1">
+                    Phone Number <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="tel"
                     name="phoneNumber"
                     value={formData.phoneNumber}
                     onChange={handleInputChange}
-                    className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Proficiency
+                  <label className="block text-xs font-medium text-gray-800 mb-1">
+                    Proficiency <span className="text-red-500">*</span>
                   </label>
                   <select
                     name="proficiency"
                     value={formData.proficiency}
                     onChange={handleInputChange}
-                    className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
                     required
                   >
                     <option value="">Select Proficiency</option>
@@ -509,20 +580,20 @@ const InstructurePage = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Address
+                  <label className="block text-xs font-medium text-gray-800 mb-1">
+                    Address <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     name="address"
                     value={formData.address}
                     onChange={handleInputChange}
-                    className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
                     rows={3}
                     required
                   ></textarea>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-800 mb-1">
                     Photo URL (Optional)
                   </label>
                   <input
@@ -530,7 +601,7 @@ const InstructurePage = () => {
                     name="photo"
                     value={formData.photo}
                     onChange={handleInputChange}
-                    className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
                   />
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
@@ -551,10 +622,73 @@ const InstructurePage = () => {
                     type="submit"
                     className="text-xs px-2 py-1"
                   >
-                    {isEditMode ? 'Update' : 'Add'} Instructure
+                    {isEditMode ? "Update" : "Add"} Instructure
                   </Button>
                 </div>
               </form>
+            </div>
+          </Modal>
+        )}
+        {/* Delete Modal */}
+        {isDeleteModalOpen && currentInstructure && (
+          <Modal
+            onClose={() => {
+              setIsDeleteModalOpen(false);
+              setCurrentInstructure(null);
+              setError(null);
+            }}
+          >
+            <h2 className="text-base font-semibold text-gray-800">
+              Delete Instructure
+            </h2>
+            <p className="text-xs text-gray-800 mt-2">
+              Are you sure you want to delete instructure{" "}
+              <span className="font-semibold">
+                {currentInstructure.fullName}
+              </span>
+              ?
+            </p>
+            <p className="text-xs text-gray-800 mt-2">
+              This will also delete the linked user account. This action cannot
+              be undone.
+            </p>
+            {error && error.includes("force delete") && (
+              <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-3 py-2 mt-2 rounded text-xs">
+                <p>Warning: {error}</p>
+              </div>
+            )}
+            <div className="flex justify-end mt-3 gap-2">
+              <Button
+                variant="gray"
+                size="small"
+                onClick={() => {
+                  setIsDeleteModalOpen(false);
+                  setCurrentInstructure(null);
+                  setError("");
+                }}
+                className="text-xs px-2 py-1"
+              >
+                Cancel
+              </Button>
+              {error && error.includes("force delete") ? (
+                <Button
+                  variant="red"
+                  size="small"
+                  onClick={() => handleDelete(true)}
+                  className="text-xs px-2 py-1"
+                >
+                  Force Delete
+                </Button>
+              ) : (
+                <Button
+                  variant="red"
+                  size="small"
+                  onClick={() => handleDelete(false)}
+                  className="text-xs px-2 py-1"
+                >
+                  Delete
+                </Button>
+              )}
             </div>
           </Modal>
         )}

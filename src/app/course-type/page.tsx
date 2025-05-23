@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Eye, PenSquare, Trash2, Plus } from "lucide-react";
+import { Eye, PenSquare, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import Pagination from "@/components/common/Pagination";
 import Button from "@/components/common/button";
@@ -22,14 +22,15 @@ export default function CourseTypePage() {
   const [totalPages, setTotalPages] = useState(1);
   const [itemsPerPage] = useState(8);
   const [searchTerm, setSearchTerm] = useState("");
-  
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [selectedCourseType, setSelectedCourseType] = useState<CourseType | null>(null);
+  const [selectedCourseType, setSelectedCourseType] =
+    useState<CourseType | null>(null);
   const [newCourseType, setNewCourseType] = useState({
-    course_type: ''
+    course_type: "",
   });
 
   // Load course types on initial render
@@ -42,26 +43,28 @@ export default function CourseTypePage() {
     setLoading(true);
     try {
       const queryParams = new URLSearchParams({
-        search: searchTerm
+        search: searchTerm,
       });
-      
+
       const response = await fetch(`/api/course-types?${queryParams}`);
-      
+
       if (!response.ok) {
         throw new Error(`Server responded with ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
+
       // Handle pagination on client side for now
       const indexOfLastItem = currentPage * itemsPerPage;
       const indexOfFirstItem = indexOfLastItem - itemsPerPage;
       const currentItems = data.slice(indexOfFirstItem, indexOfLastItem);
-      
+
       setCourseTypes(data);
       setTotalPages(Math.ceil(data.length / itemsPerPage));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load course types');
+      setError(
+        err instanceof Error ? err.message : "Failed to load course types"
+      );
       setCourseTypes([]);
     } finally {
       setLoading(false);
@@ -70,80 +73,83 @@ export default function CourseTypePage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setNewCourseType(prev => ({
+    setNewCourseType((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
-      const response = await fetch('/api/course-types', {
-        method: 'POST',
+      const response = await fetch("/api/course-types", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(newCourseType),
       });
-      
+
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to create course type');
+        throw new Error(data.error || "Failed to create course type");
       }
-      
+
       // Reset form and close modal
       setIsModalOpen(false);
       setNewCourseType({
-        course_type: ''
+        course_type: "",
       });
-      
+
       // Refresh course types
       fetchCourseTypes();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'An error occurred');
+      alert(err instanceof Error ? err.message : "An error occurred");
     }
   };
 
   const handleEditCourseType = (courseType: CourseType) => {
     setSelectedCourseType(courseType);
     setNewCourseType({
-      course_type: courseType.course_type
+      course_type: courseType.course_type,
     });
     setIsEditModalOpen(true);
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!selectedCourseType) return;
-    
+
     try {
-      const response = await fetch(`/api/course-types/${selectedCourseType.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newCourseType),
-      });
-      
+      const response = await fetch(
+        `/api/course-types/${selectedCourseType.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(newCourseType),
+        }
+      );
+
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to update course type');
+        throw new Error(data.error || "Failed to update course type");
       }
-      
+
       // Reset form and close modal
       setIsEditModalOpen(false);
       setSelectedCourseType(null);
       setNewCourseType({
-        course_type: ''
+        course_type: "",
       });
-      
+
       // Refresh course types
       fetchCourseTypes();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'An error occurred');
+      alert(err instanceof Error ? err.message : "An error occurred");
     }
   };
 
@@ -159,37 +165,48 @@ export default function CourseTypePage() {
 
   const handleDeleteConfirm = async () => {
     if (!selectedCourseType) return;
-    
+
     try {
-      const response = await fetch(`/api/course-types/${selectedCourseType.id}`, {
-        method: 'DELETE',
-      });
-      
+      const response = await fetch(
+        `/api/course-types/${selectedCourseType.id}`,
+        {
+          method: "DELETE",
+        }
+      );
+
       const data = await response.json();
-      
+
       if (!response.ok) {
-        if (data.hint && data.hint.includes('force=true') && 
-            window.confirm(`${data.error}\n\nAre you sure you want to delete this course type and all related courses?`)) {
+        if (
+          data.hint &&
+          data.hint.includes("force=true") &&
+          window.confirm(
+            `${data.error}\n\nAre you sure you want to delete this course type and all related courses?`
+          )
+        ) {
           // Force delete if there are related courses
-          const forceResponse = await fetch(`/api/course-types/${selectedCourseType.id}?force=true`, {
-            method: 'DELETE',
-          });
-          
+          const forceResponse = await fetch(
+            `/api/course-types/${selectedCourseType.id}?force=true`,
+            {
+              method: "DELETE",
+            }
+          );
+
           if (!forceResponse.ok) {
             const forceData = await forceResponse.json();
-            throw new Error(forceData.error || 'Failed to delete course type');
+            throw new Error(forceData.error || "Failed to delete course type");
           }
         } else {
-          throw new Error(data.error || 'Failed to delete course type');
+          throw new Error(data.error || "Failed to delete course type");
         }
       }
-      
+
       // Close modal and refresh data
       setIsDeleteModalOpen(false);
       setSelectedCourseType(null);
       fetchCourseTypes();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'An error occurred');
+      alert(err instanceof Error ? err.message : "An error occurred");
     }
   };
 
@@ -208,9 +225,7 @@ export default function CourseTypePage() {
   return (
     <Layout>
       <div className="p-2">
-        <h1 className="text-lg md:text-xl text-gray-600 mb-2">
-          Course Type
-        </h1>
+        <h1 className="text-lg md:text-xl text-gray-600 mb-2">Course Type</h1>
 
         <div className="flex flex-col sm:flex-row sm:justify-between gap-2 mb-2">
           <Button
@@ -219,11 +234,11 @@ export default function CourseTypePage() {
             onClick={() => setIsModalOpen(true)}
             className="w-full sm:w-auto text-xs"
           >
-            <Plus size={14} className="mr-1" /> Add Course Type
+            Add Course Type
           </Button>
-          <input 
-            type="text" 
-            placeholder="Search..." 
+          <input
+            type="text"
+            placeholder="Search..."
             value={searchTerm}
             onChange={handleSearch}
             className="w-full sm:w-auto px-2 py-1 text-xs border rounded-lg"
@@ -255,22 +270,24 @@ export default function CourseTypePage() {
                       </div>
                     </div>
                     <div className="p-2">
-                      <p className="text-xs text-gray-700 mb-2">Course Type: {courseType.course_type}</p>
+                      <p className="text-xs text-gray-700 mb-2">
+                        Course Type: {courseType.course_type}
+                      </p>
                       <div className="flex justify-between">
-                        <button 
+                        <button
                           className="text-gray-600 p-1"
                           onClick={() => handlePreviewCourseType(courseType)}
                         >
                           <Eye size={14} />
                         </button>
                         <div className="flex gap-1">
-                          <button 
+                          <button
                             className="text-gray-600 p-1"
                             onClick={() => handleEditCourseType(courseType)}
                           >
                             <PenSquare size={14} />
                           </button>
-                          <button 
+                          <button
                             className="text-red-500 p-1"
                             onClick={() => handleDeleteClick(courseType)}
                           >
@@ -303,10 +320,14 @@ export default function CourseTypePage() {
         {/* Add Course Type Modal */}
         {isModalOpen && (
           <Modal onClose={() => setIsModalOpen(false)}>
-            <h2 className="text-base font-semibold mb-2 text-gray-700">Add New Course Type</h2>
+            <h2 className="text-base font-semibold mb-2 text-gray-700">
+              Add New Course Type
+            </h2>
             <form onSubmit={handleSubmit} className="space-y-2">
               <div>
-                <label className="block text-xs text-gray-700 mb-1">Course Type Name</label>
+                <label className="block text-xs text-gray-700 mb-1">
+                  Course Type Name
+                </label>
                 <input
                   type="text"
                   name="course_type"
@@ -342,10 +363,14 @@ export default function CourseTypePage() {
         {/* Edit Course Type Modal */}
         {isEditModalOpen && selectedCourseType && (
           <Modal onClose={() => setIsEditModalOpen(false)}>
-            <h2 className="text-base font-semibold mb-2 text-gray-700">Edit Course Type</h2>
+            <h2 className="text-base font-semibold mb-2 text-gray-700">
+              Edit Course Type
+            </h2>
             <form onSubmit={handleEditSubmit} className="space-y-2">
               <div>
-                <label className="block text-xs text-gray-700 mb-1">Course Type Name</label>
+                <label className="block text-xs text-gray-700 mb-1">
+                  Course Type Name
+                </label>
                 <input
                   type="text"
                   name="course_type"
@@ -382,7 +407,9 @@ export default function CourseTypePage() {
         {isPreviewModalOpen && selectedCourseType && (
           <Modal onClose={() => setIsPreviewModalOpen(false)}>
             <div className="space-y-4">
-              <h2 className="text-base font-semibold text-gray-700">Course Type Details</h2>
+              <h2 className="text-base font-semibold text-gray-700">
+                Course Type Details
+              </h2>
               <div className="bg-gray-100 h-48 w-full rounded-lg flex items-center justify-center">
                 <div className="text-6xl font-bold text-gray-300">
                   {selectedCourseType.course_type.substring(0, 2).toUpperCase()}
@@ -391,11 +418,15 @@ export default function CourseTypePage() {
               <div className="space-y-2">
                 <div>
                   <h3 className="text-xs font-medium text-gray-500">Name</h3>
-                  <p className="text-sm text-gray-700">{selectedCourseType.course_type}</p>
+                  <p className="text-sm text-gray-700">
+                    {selectedCourseType.course_type}
+                  </p>
                 </div>
                 <div>
                   <h3 className="text-xs font-medium text-gray-500">ID</h3>
-                  <p className="text-sm text-gray-700">{selectedCourseType.id}</p>
+                  <p className="text-sm text-gray-700">
+                    {selectedCourseType.id}
+                  </p>
                 </div>
               </div>
               <div className="flex justify-end">
@@ -415,21 +446,24 @@ export default function CourseTypePage() {
         {/* Delete Modal */}
         {isDeleteModalOpen && selectedCourseType && (
           <Modal onClose={() => setIsDeleteModalOpen(false)}>
-            <h2 className="text-base font-semibold text-gray-700">Delete Course Type</h2>
+            <h2 className="text-base font-semibold text-gray-700">
+              Delete Course Type
+            </h2>
             <p className="text-xs text-gray-600 mt-2">
-              Are you sure you want to delete <strong>{selectedCourseType.course_type}</strong>?
+              Are you sure you want to delete{" "}
+              <strong>{selectedCourseType.course_type}</strong>?
             </p>
             <div className="flex justify-end mt-2">
-              <Button 
-                variant="gray" 
+              <Button
+                variant="gray"
                 size="small"
                 onClick={() => setIsDeleteModalOpen(false)}
                 className="text-xs px-2 py-1 mr-2"
               >
                 Cancel
               </Button>
-              <Button 
-                variant="red" 
+              <Button
+                variant="red"
                 size="small"
                 onClick={handleDeleteConfirm}
                 className="text-xs px-2 py-1"

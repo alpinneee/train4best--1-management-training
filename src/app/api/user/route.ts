@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth/next"
 import { prisma } from "@/lib/prisma"
 import { hash } from "bcryptjs"
-import { authOptions } from "@/lib/auth"
 
 // GET /api/user - Get all users
 export async function GET() {
@@ -46,11 +44,11 @@ export async function GET() {
 // POST /api/user - Create a new user
 export async function POST(request: Request) {
   try {
-    const { username, password, jobTitle } = await request.json()
+    const { username, password, jobTitle, email } = await request.json()
 
-    if (!username || !password || !jobTitle) {
+    if (!username || !password || !jobTitle || !email) {
       return NextResponse.json(
-        { error: 'Username, password, and role are required' },
+        { error: 'Username, password, email, and role are required' },
         { status: 400 }
       )
     }
@@ -69,9 +67,6 @@ export async function POST(request: Request) {
       )
     }
 
-    // Create email from username
-    const email = `${username.toLowerCase().replace(/\s+/g, '.')}@example.com`
-
     // Check if username or email already exists
     const existingUser = await prisma.user.findFirst({
       where: {
@@ -89,20 +84,42 @@ export async function POST(request: Request) {
       )
     }
 
-    // Create new user
+    // Hash the password
+    const hashedPassword = await hash(password, 10)
+
+    // Generate unique ID
+    const userId = `user_${Date.now()}`
+
+    // Berbeda perlakuan berdasarkan role
+    const jobTitleLower = jobTitle.toLowerCase();
+    
+    if (jobTitleLower === 'instructor') {
+      // Buat instructure terlebih dahulu
+      const newInstructure = await prisma.instructure.create({
+        data: {
+          id: `inst_${Date.now()}`,
+          full_name: username,
+          phone_number: "-", // Default value
+          address: "-", // Default value
+          profiency: "-", // Default value
+        }
+      });
+      
+      // Kemudian buat user dengan referensi ke instructure
     const newUser = await prisma.user.create({
       data: {
-        id: `user_${Date.now()}`,
+          id: userId,
         username,
         email,
-        password, // In production, hash this password
+          password: hashedPassword,
         userTypeId: userType.id,
+          instructureId: newInstructure.id,
         last_login: new Date(),
       },
       include: {
         userType: true,
       },
-    })
+      });
 
     return NextResponse.json({
       id: newUser.id,
@@ -110,12 +127,72 @@ export async function POST(request: Request) {
       email: newUser.email,
       role: newUser.userType.usertype,
       createdAt: newUser.last_login ? new Date(newUser.last_login).toISOString() : null,
-    }, { status: 201 })
+      }, { status: 201 });
+    } else if (jobTitleLower === 'participant') {
+      // Buat user terlebih dahulu
+      const newUser = await prisma.user.create({
+        data: {
+          id: userId,
+          username,
+          email,
+          password: hashedPassword,
+          userTypeId: userType.id,
+          last_login: new Date(),
+        },
+        include: {
+          userType: true,
+        },
+      });
+      
+      // Kemudian buat participant dengan referensi ke user
+      await prisma.participant.create({
+        data: {
+          id: `participant_${Date.now()}`,
+          full_name: username,
+          phone_number: "-", // Default value
+          address: "-", // Default value
+          gender: "Unknown", // Default value
+          birth_date: new Date(), // Default to current date
+          userId: newUser.id,
+        }
+      });
+
+      return NextResponse.json({
+        id: newUser.id,
+        name: newUser.username,
+        email: newUser.email,
+        role: newUser.userType.usertype,
+        createdAt: newUser.last_login ? new Date(newUser.last_login).toISOString() : null,
+      }, { status: 201 });
+    } else {
+      // Create new user without instructor/participant data (for admin or other roles)
+      const newUser = await prisma.user.create({
+        data: {
+          id: userId,
+          username,
+          email,
+          password: hashedPassword,
+          userTypeId: userType.id,
+          last_login: new Date(),
+        },
+        include: {
+          userType: true,
+        },
+      });
+
+      return NextResponse.json({
+        id: newUser.id,
+        name: newUser.username,
+        email: newUser.email,
+        role: newUser.userType.usertype,
+        createdAt: newUser.last_login ? new Date(newUser.last_login).toISOString() : null,
+      }, { status: 201 });
+    }
   } catch (error) {
-    console.error('Error creating user:', error)
+    console.error('Error creating user:', error);
     return NextResponse.json(
       { error: 'Failed to create user' },
       { status: 500 }
-    )
+    );
   }
 } 
