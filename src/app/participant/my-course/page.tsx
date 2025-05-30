@@ -62,7 +62,6 @@ export default function MyCoursePage() {
   const [selectedCourse, setSelectedCourse] = useState<SelectedCourse | null>(null);
   const [registering, setRegistering] = useState(false);
   const [registrationResult, setRegistrationResult] = useState<RegistrationResult | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState('Transfer Bank');
   const [userEmail, setUserEmail] = useState('');
   const [userName, setUserName] = useState('');
   const [registrationError, setRegistrationError] = useState('');
@@ -86,7 +85,7 @@ export default function MyCoursePage() {
     setManualEmail(value);
     
     if (value && !isValidEmail(value)) {
-      setEmailError('Email tidak valid. Gunakan format: contoh@domain.com');
+      setEmailError('Invalid email. Use format: example@domain.com');
     } else {
       setEmailError('');
     }
@@ -155,43 +154,8 @@ export default function MyCoursePage() {
         setIsDbConfigured(false);
         setError('Database belum dikonfigurasi. Silakan klik tombol "Konfigurasi Database" di bawah.');
       } else {
-        // Tampilkan data dummy untuk debugging
-        console.log('Fallback to dummy data');
-        const dummyData = [
-          {
-            id: "dummy_1",
-            quota: 20,
-            price: 1500000,
-            status: "Active",
-            start_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-            end_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-            location: "Jakarta",
-            room: "Room A101",
-            availableSlots: 15,
-            course: {
-              course_name: "Programming Fundamentals",
-              courseType: { course_type: "Technical" }
-            }
-          },
-          {
-            id: "dummy_2",
-            quota: 15,
-            price: 2000000,
-            status: "Active",
-            start_date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
-            end_date: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
-            location: "Bandung",
-            room: "Room B202",
-            availableSlots: 8,
-            course: {
-              course_name: "Machine Learning Basics",
-              courseType: { course_type: "Technical" }
-            }
-          }
-        ];
-        
-        setCourses(dummyData);
-        setError('Could not load courses from server. Showing sample courses instead.');
+        // Remove dummy data and just show error
+        setError('Gagal memuat kursus dari server. Silakan coba lagi nanti.');
       }
     } finally {
       setLoading(false);
@@ -359,14 +323,14 @@ export default function MyCoursePage() {
     // Validate email if not logged in and manual email is being used
     if (!isLoggedIn && manualEmail) {
       if (!isValidEmail(manualEmail)) {
-        setRegistrationError('Email tidak valid. Harap masukkan email yang benar.');
+        setRegistrationError('Invalid email. Please enter a correct email.');
         return;
       }
     }
     
     // Check terms acceptance
     if (!termsAccepted) {
-      setRegistrationError('Anda harus menyetujui persyaratan kursus untuk melanjutkan.');
+      setRegistrationError('You must agree to the course terms to continue.');
       return;
     }
     
@@ -379,18 +343,18 @@ export default function MyCoursePage() {
       
       // Validate the email to use
       if (!emailToUse || !isValidEmail(emailToUse)) {
-        setRegistrationError('Email tidak valid. Harap masukkan email yang benar untuk mendaftar.');
+        setRegistrationError('Invalid email. Please enter a valid email to register.');
         setRegistering(false);
         return;
       }
       
       const registrationData = {
         classId: selectedCourse.id,
-        paymentMethod,
-        email: emailToUse
+        email: emailToUse,
+        paymentMethod: 'Transfer Bank'
       };
       
-      // Daftarkan peserta
+      // Register the participant
       const response = await fetch('/api/course/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -402,29 +366,29 @@ export default function MyCoursePage() {
       if (response.ok) {
         setRegistrationResult(data.data);
         
-        // Simpan email yang berhasil untuk penggunaan di masa depan
+        // Save successful email for future use
         if (data.data?.userInfo?.email) {
           localStorage.setItem('userEmail', data.data.userInfo.email);
         } else if (emailToUse) {
           localStorage.setItem('userEmail', emailToUse);
         }
       } else {
-        // Pesan error yang lebih deskriptif dalam Bahasa Indonesia
-        if (data.error?.includes("tidak ditemukan")) {
-          setRegistrationError('Informasi pengguna tidak ditemukan. Silakan masuk kembali dan pastikan email Anda benar.');
-        } else if (data.error?.includes("profile is incomplete") || data.error?.includes("profil")) {
-          setRegistrationError('Profil Anda belum lengkap. Silakan lengkapi profil Anda sebelum mendaftar ke kursus.');
-        } else if (data.error?.includes("already registered") || data.error?.includes("sudah terdaftar")) {
-          setRegistrationError('Anda sudah terdaftar di kelas ini.');
-        } else if (data.error?.includes("Class is full") || data.error?.includes("penuh")) {
-          setRegistrationError('Maaf, kelas ini sudah penuh.');
+        // More descriptive error messages in English
+        if (data.error?.includes("not found")) {
+          setRegistrationError('User information was not found. Please login again and ensure your email is correct.');
+        } else if (data.error?.includes("profile is incomplete")) {
+          setRegistrationError('Your profile is incomplete. Please complete your profile before registering for a course.');
+        } else if (data.error?.includes("already registered")) {
+          setRegistrationError('You are already registered for this class.');
+        } else if (data.error?.includes("Class is full")) {
+          setRegistrationError('Sorry, this class is already full.');
         } else {
-          setRegistrationError(data.error || 'Gagal mendaftar ke kursus.');
+          setRegistrationError(data.error || 'Failed to register for the course.');
         }
       }
     } catch (error) {
-      console.error('Error mendaftar kursus:', error);
-      setRegistrationError('Gagal mendaftar ke kursus. Silakan coba lagi.');
+      console.error('Error registering course:', error);
+      setRegistrationError('Failed to register for the course. Please try again.');
     } finally {
       setRegistering(false);
     }
@@ -435,7 +399,6 @@ export default function MyCoursePage() {
     setSelectedCourse(null);
     setRegistrationResult(null);
     setRegistrationError('');
-    setPaymentMethod('Transfer Bank');
     setManualEmail('');
     setEmailError('');
     setTermsAccepted(false);
@@ -444,11 +407,12 @@ export default function MyCoursePage() {
   const goToPayment = () => {
     closeModal();
     if (registrationResult) {
-      router.push(`/participant/payment?ref=${registrationResult.referenceNumber}`);
+      // Redirect langsung ke Midtrans dengan reference number
+      window.location.href = `/api/midtrans/payment?reference=${registrationResult.referenceNumber}`;
     }
   };
   
-  // Grid layout untuk menampilkan kartu kursus
+  // Grid layout for displaying course cards
   const renderCourses = () => {
     if (loading || checkingLoginStatus) {
       return (
@@ -462,7 +426,7 @@ export default function MyCoursePage() {
       return (
         <div className="space-y-4 py-8">
           <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-md text-sm">
-            Database belum dikonfigurasi. Silakan klik tombol di bawah untuk mengonfigurasi database.
+            Database is not configured. Please click the button below to configure the database.
           </div>
           
           <div className="flex justify-center">
@@ -471,7 +435,7 @@ export default function MyCoursePage() {
               disabled={configuring}
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed"
             >
-              {configuring ? 'Mengkonfigurasi...' : 'Konfigurasi Database'}
+              {configuring ? 'Configuring...' : 'Configure Database'}
             </button>
           </div>
         </div>
@@ -492,33 +456,8 @@ export default function MyCoursePage() {
                 disabled={configuring}
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed"
               >
-                {configuring ? 'Mengkonfigurasi...' : 'Konfigurasi Database'}
+                {configuring ? 'Configuring...' : 'Configure Database'}
               </button>
-            </div>
-          )}
-          
-          {courses.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              {courses.map((course) => (
-                <CourseCard
-                  key={course.id}
-                  id={course.id}
-                  title={course.course.course_name}
-                  type={course.course.courseType.course_type}
-                  image={course.imageUrl || null}
-                  className={`${course.location} - ${new Date(course.start_date).toLocaleDateString('id-ID', { 
-                    month: 'short', 
-                    day: 'numeric' 
-                  })}`}
-                  startDate={course.start_date}
-                  endDate={course.end_date}
-                  price={course.price}
-                  location={course.location}
-                  room={course.room}
-                  quota={course.quota}
-                  onRegister={handleRegisterClick}
-                />
-              ))}
             </div>
           )}
         </div>
@@ -528,13 +467,7 @@ export default function MyCoursePage() {
     if (courses.length === 0) {
       return (
         <div className="text-center py-8">
-          <p className="text-gray-500 text-sm">Tidak ada kursus tersedia saat ini.</p>
-          <button
-            onClick={setupDatabase}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Tambahkan Data Contoh
-          </button>
+          <p className="text-gray-500 text-sm">No courses available at this time.</p>
         </div>
       );
     }
@@ -548,7 +481,7 @@ export default function MyCoursePage() {
             title={course.course.course_name}
             type={course.course.courseType.course_type}
             image={course.imageUrl || null}
-            className={`${course.location} - ${new Date(course.start_date).toLocaleDateString('id-ID', { 
+            className={`${course.location} - ${new Date(course.start_date).toLocaleDateString('en-US', { 
               month: 'short', 
               day: 'numeric' 
             })}`}
@@ -568,7 +501,7 @@ export default function MyCoursePage() {
   return (
     <Layout variant="participant">
       <div className="p-2 sm:p-3 max-w-7xl mx-auto">
-        <h1 className="text-xl font-bold text-gray-800 mb-3">Kursus Tersedia</h1>
+        <h1 className="text-xl font-bold text-gray-800 mb-3">Available Courses</h1>
         
         {renderCourses()}
         
@@ -576,7 +509,7 @@ export default function MyCoursePage() {
         {isRegisterModalOpen && (
           <Modal onClose={closeModal}>
             <h2 className="text-lg font-semibold text-gray-800 mb-3">
-              {registrationResult ? 'Pendaftaran Berhasil' : 'Daftar Kursus'}
+              {registrationResult ? 'Registration Successful' : 'Course Registration'}
             </h2>
             
             {registrationError && (
@@ -588,12 +521,12 @@ export default function MyCoursePage() {
             {registrationResult ? (
               <div className="space-y-3">
                 <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded-md text-sm">
-                  Pendaftaran berhasil! Silakan lanjutkan ke pembayaran.
+                  Registration successful! Please proceed to payment through Midtrans.
                 </div>
                 
                 <div className="space-y-1 p-3 bg-gray-50 rounded-md text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Peserta:</span>
+                    <span className="text-gray-600">Participant:</span>
                     <span className="font-medium">
                       {registrationResult.userInfo?.fullName || userName || userEmail.split('@')[0]}
                     </span>
@@ -603,23 +536,23 @@ export default function MyCoursePage() {
                     <span>{registrationResult.userInfo?.email || userEmail}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Kursus:</span>
+                    <span className="text-gray-600">Course:</span>
                     <span className="font-medium">{registrationResult.course}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Kelas:</span>
+                    <span className="text-gray-600">Class:</span>
                     <span>{registrationResult.className}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Pembayaran:</span>
-                    <span className="font-medium">{new Intl.NumberFormat('id-ID', {
+                    <span className="text-gray-600">Payment:</span>
+                    <span className="font-medium">{new Intl.NumberFormat('en-US', {
                       style: 'currency',
                       currency: 'IDR',
                       minimumFractionDigits: 0
                     }).format(registrationResult.payment)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">No. Referensi:</span>
+                    <span className="text-gray-600">Reference No.:</span>
                     <span className="font-medium">{registrationResult.referenceNumber}</span>
                   </div>
                 </div>
@@ -629,21 +562,24 @@ export default function MyCoursePage() {
                     onClick={closeModal}
                     className="px-3 py-1.5 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 text-sm"
                   >
-                    Tutup
+                    Close
                   </button>
                   {registrationResult.courseScheduleId && (
                     <button
                       onClick={() => router.push(`/course-schedule/${registrationResult.courseScheduleId}`)}
                       className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
                     >
-                      Lihat Jadwal
+                      View Schedule
                     </button>
                   )}
                   <button
                     onClick={goToPayment}
-                    className="px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+                    className="px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 text-sm flex items-center gap-1"
                   >
-                    Bayar
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    </svg>
+                    Pay via Midtrans
                   </button>
                 </div>
               </div>
@@ -657,21 +593,6 @@ export default function MyCoursePage() {
                 )}
                 
                 <div className="space-y-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Metode Pembayaran
-                    </label>
-                    <select 
-                      value={paymentMethod}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                      className="w-full px-2 py-1.5 border border-gray-300 rounded text-gray-700 text-sm"
-                    >
-                      <option value="Transfer Bank">Transfer Bank</option>
-                      <option value="E-Wallet">E-Wallet</option>
-                      <option value="Kartu Kredit">Kartu Kredit</option>
-                    </select>
-                  </div>
-                  
                   <div className="flex items-start">
                     <input
                       type="checkbox"
@@ -681,7 +602,7 @@ export default function MyCoursePage() {
                       className="h-4 w-4 text-blue-600 border-gray-300 rounded mt-0.5"
                     />
                     <label htmlFor="terms" className="ml-2 block text-xs text-gray-700">
-                      Saya menyetujui persyaratan kursus dan memahami bahwa pembayaran diperlukan untuk mengkonfirmasi pendaftaran.
+                      I agree to the course terms and understand that payment is required to confirm registration.
                     </label>
                   </div>
                   
@@ -690,14 +611,14 @@ export default function MyCoursePage() {
                       onClick={closeModal}
                       className="px-3 py-1.5 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 text-sm"
                     >
-                      Batal
+                      Cancel
                     </button>
                     <button
                       onClick={handleRegisterSubmit}
                       disabled={registering || (!isLoggedIn && (!manualEmail || !!emailError))}
                       className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-sm"
                     >
-                      {registering ? 'Memproses...' : 'Daftar'}
+                      {registering ? 'Processing...' : 'Register'}
                     </button>
                   </div>
                 </div>

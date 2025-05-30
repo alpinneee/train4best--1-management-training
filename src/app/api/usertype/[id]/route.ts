@@ -107,6 +107,10 @@ export async function PUT(request: Request, { params }: Params) {
 export async function DELETE(request: Request, { params }: Params) {
   try {
     const { id } = params;
+    const { searchParams } = new URL(request.url);
+    const force = searchParams.get('force') === 'true';
+    
+    console.log(`DELETE usertype: ${id}, force: ${force}`);
 
     // Check if usertype exists
     const existingUsertype = await prisma.userType.findUnique({
@@ -114,33 +118,85 @@ export async function DELETE(request: Request, { params }: Params) {
         id,
       },
       include: {
-        users: {
-          take: 1, // Only need to check if there are any users
+        user: {
+          select: { id: true, username: true },
+          take: 5, // Get a few users for the error message
         },
       },
     });
 
     if (!existingUsertype) {
+      console.log('Usertype not found');
       return NextResponse.json(
         { error: 'Usertype not found' },
         { status: 404 }
       );
     }
+    
+    console.log(`Usertype has ${existingUsertype.user.length} users`);
 
     // Check if usertype is in use
-    if (existingUsertype.users.length > 0) {
+    if (existingUsertype.user.length > 0 && !force) {
+      const userNames = existingUsertype.user.map(user => user.username).join(', ');
+      const totalUsers = existingUsertype.user.length;
+      const moreText = totalUsers > 5 ? ` and ${totalUsers - 5} more` : '';
+      
+      console.log(`Cannot delete: usertype is in use by ${totalUsers} users`);
       return NextResponse.json(
-        { error: 'Cannot delete usertype that is in use by users' },
+        { 
+          error: `Cannot delete usertype that is in use by users: ${userNames}${moreText}`, 
+          canForce: true,
+          usersCount: totalUsers
+        },
         { status: 400 }
       );
     }
 
+    // If force is true, update users to use a default usertype first
+    if (force && existingUsertype.user.length > 0) {
+      console.log('Force delete: finding or creating default usertype');
+      // Find or create a "User" type as default
+      let defaultType = await prisma.userType.findFirst({
+        where: {
+          usertype: 'User',
+        },
+      });
+      
+      if (!defaultType) {
+        console.log('Creating default "User" usertype');
+        defaultType = await prisma.userType.create({
+          data: {
+            id: 'default-' + Date.now().toString(),
+            usertype: 'User',
+            description: 'Default user type'
+          },
+        });
+      }
+      
+      console.log(`Reassigning ${existingUsertype.user.length} users to usertype: ${defaultType.id}`);
+      
+      // Update all users to the default type
+      await prisma.user.updateMany({
+        where: {
+          userTypeId: id,
+        },
+        data: {
+          userTypeId: defaultType.id,
+        },
+      });
+      
+      console.log('Users reassigned successfully');
+    }
+
     // Delete usertype
+    console.log('Deleting usertype');
     await prisma.userType.delete({
       where: {
         id,
       },
     });
+    
+    console.log('Usertype deleted successfully');
 
     return NextResponse.json(
       { message: 'Usertype deleted successfully' },
@@ -149,7 +205,7 @@ export async function DELETE(request: Request, { params }: Params) {
   } catch (error) {
     console.error('Error deleting usertype:', error);
     return NextResponse.json(
-      { error: 'Failed to delete usertype' },
+      { error: 'Failed to delete usertype: ' + (error instanceof Error ? error.message : String(error)) },
       { status: 500 }
     );
   }

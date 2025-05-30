@@ -1,199 +1,156 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { decode, sign } from "jsonwebtoken";
-import { prisma } from "@/lib/prisma";
+import { sign, verify } from "jsonwebtoken";
 
-export async function POST(req: Request) {
-  try {
-    const cookieStore = cookies();
-    const sessionToken = cookieStore.get("next-auth.session-token")?.value;
-    const debugToken = cookieStore.get("debug_token")?.value;
-    
-    // Cek apakah ada token
-    if (!sessionToken && !debugToken) {
-      console.log("Tidak ada token untuk di-refresh");
-      return NextResponse.json({
-        success: false,
-        error: "Tidak ada sesi yang aktif"
-      }, { status: 401 });
-    }
-    
-    // Coba decode token yang ada
-    const token = sessionToken || debugToken;
-    let decoded;
-    
-    try {
-      decoded = decode(token as string);
-    } catch (error) {
-      console.error("Token tidak valid untuk di-decode:", error);
-      return NextResponse.json({
-        success: false,
-        error: "Sesi tidak valid"
-      }, { status: 401 });
-    }
-    
-    if (!decoded || typeof decoded !== 'object' || !decoded.email) {
-      console.log("Token tidak memiliki format yang valid");
-      return NextResponse.json({
-        success: false,
-        error: "Format sesi tidak valid"
-      }, { status: 401 });
-    }
-    
-    // Cari user berdasarkan email di token
-    const user = await prisma.user.findUnique({
-      where: { email: decoded.email as string },
-      include: { userType: true }
-    });
-    
-    if (!user) {
-      console.log("User tidak ditemukan untuk token");
-      return NextResponse.json({
-        success: false,
-        error: "User tidak ditemukan"
-      }, { status: 401 });
-    }
-    
-    // Buat token baru dengan data yang sama
-    const newToken = sign(
-      {
-        id: user.id,
-        email: user.email,
-        name: user.username,
-        userType: user.userType.usertype
-      },
-      process.env.NEXTAUTH_SECRET || "RAHASIA_FALLBACK_YANG_AMAN_DAN_PANJANG_UNTUK_DEVELOPMENT",
-      { expiresIn: "30d" } // Sama dengan maxAge di konfigurasi NextAuth
-    );
-    
-    // Buat response dengan token baru
-    const response = NextResponse.json({
-      success: true,
-      message: "Token berhasil di-refresh"
-    });
-    
-    // Set cookie baru dengan token yang telah di-refresh
-    response.cookies.set("next-auth.session-token", newToken, {
-      httpOnly: true,
-      path: "/",
-      maxAge: 30 * 24 * 60 * 60, // 30 hari
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production"
-    });
-    
-    // Juga refresh debug_token jika ada
-    if (debugToken) {
-      response.cookies.set("debug_token", newToken, {
-        httpOnly: true,
-        path: "/",
-        maxAge: 30 * 24 * 60 * 60, // 30 hari
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production"
-      });
-    }
-    
-    // Log untuk debugging
-    console.log("Token berhasil di-refresh untuk user:", user.email);
-    
-    return response;
-  } catch (error) {
-    console.error("Error refresh token:", error);
-    return NextResponse.json({
-      success: false,
-      error: "Gagal refresh token"
-    }, { status: 500 });
-  }
+// Fungsi untuk logging
+function logDebug(message: string, data?: any) {
+  console.log(`[REFRESH] ${message}`, data ? JSON.stringify(data, null, 2) : '');
 }
 
-// Tambahkan handler GET untuk mendukung refresh dengan redirect
 export async function GET(req: Request) {
   try {
-    // Ambil parameter redirect jika ada
-    const redirectUrl = new URL(req.url).searchParams.get('redirect');
+    // Get the redirect URL from query params
+    const { searchParams } = new URL(req.url);
+    const redirectPath = searchParams.get('redirect') || '/';
     
+    logDebug(`Token refresh requested with redirect to: ${redirectPath}`);
+    
+    // Get cookies
     const cookieStore = cookies();
     const sessionToken = cookieStore.get("next-auth.session-token")?.value;
     const debugToken = cookieStore.get("debug_token")?.value;
+    const adminToken = cookieStore.get("admin_token")?.value;
     
-    console.log("Mencoba refresh token dengan redirect ke:", redirectUrl);
+    logDebug(`Cookies found: sessionToken=${!!sessionToken}, debugToken=${!!debugToken}, adminToken=${!!adminToken}`);
     
-    // Cek apakah ada token
-    if (!sessionToken && !debugToken) {
-      console.log("Tidak ada token untuk di-refresh, redirect ke login");
+    // Check if we have any token
+    if (!sessionToken && !debugToken && !adminToken) {
+      logDebug(`No tokens found, redirecting to login`);
       return NextResponse.redirect(new URL("/login", req.url));
     }
     
-    // Coba decode token yang ada
-    const token = sessionToken || debugToken;
-    let decoded;
+    // Try to verify and refresh the token
+    const secret = process.env.NEXTAUTH_SECRET || "RAHASIA_FALLBACK_YANG_AMAN_DAN_PANJANG_UNTUK_DEVELOPMENT";
+    const token = adminToken || debugToken || sessionToken;
     
     try {
-      decoded = decode(token as string);
-    } catch (error) {
-      console.error("Token tidak valid untuk di-decode, redirect ke login:", error);
+      // Verify the token
+      const decoded = verify(token as string, secret) as any;
+      logDebug(`Token verified successfully`, decoded);
+      
+      // Jika token valid dan user adalah admin dan mencoba akses dashboard, redirect ke user
+      if (decoded.userType && decoded.userType.toLowerCase() === 'admin' && 
+          (redirectPath === '/dashboard' || redirectPath === '/dashboard/')) {
+        logDebug(`Admin user trying to access dashboard, redirecting to /user`);
+        return NextResponse.redirect(new URL("/user", req.url));
+      }
+      
+      // If token is valid, just redirect to the original path
+      // We don't need to refresh it if it's still valid
+      logDebug(`Token is valid, redirecting to: ${redirectPath}`);
+      
+      // Create response with redirect
+      const response = NextResponse.redirect(new URL(redirectPath, req.url));
+      
+      return response;
+    } catch (verifyError) {
+      logDebug(`Token verification failed: ${(verifyError as Error).message}`);
+      
+      try {
+        // Try to decode without verification to get user info
+        const decodedWithoutVerify = JSON.parse(Buffer.from(token!.split('.')[1], 'base64').toString());
+        logDebug(`Decoded token payload without verification:`, decodedWithoutVerify);
+        
+        if (decodedWithoutVerify && decodedWithoutVerify.id && decodedWithoutVerify.userType) {
+          // Pastikan format userType konsisten
+          let userType = decodedWithoutVerify.userType;
+          
+          // Penanganan khusus untuk Admin
+          if (typeof userType === 'string' && userType.toLowerCase() === 'admin') {
+            userType = 'Admin'; // Pastikan format Admin dengan A kapital
+            logDebug(`Normalized Admin userType to: ${userType}`);
+            
+            // Jika admin mencoba akses dashboard, redirect ke user
+            if (redirectPath === '/dashboard' || redirectPath === '/dashboard/') {
+              logDebug(`Admin user trying to access dashboard, redirecting to /user`);
+              return NextResponse.redirect(new URL("/user", req.url));
+            }
+          }
+          
+          // Create a new token
+          const newToken = sign(
+            {
+              id: decodedWithoutVerify.id,
+              email: decodedWithoutVerify.email,
+              name: decodedWithoutVerify.name,
+              userType: userType,
+              isAdmin: userType.toLowerCase() === 'admin' // Add isAdmin flag
+            },
+            secret,
+            { expiresIn: "1d" }
+          );
+          
+          logDebug(`New token created`);
+          
+          // Create response with redirect
+          const response = NextResponse.redirect(new URL(redirectPath, req.url));
+          
+          // Set the new token in cookies
+          response.cookies.set("debug_token", newToken, {
+            httpOnly: true,
+            path: "/",
+            maxAge: 60 * 60 * 24, // 1 day
+            sameSite: "lax",
+            secure: process.env.NODE_ENV === "production"
+          });
+          
+          response.cookies.set("next-auth.session-token", newToken, {
+            httpOnly: true,
+            path: "/",
+            maxAge: 60 * 60 * 24,
+            sameSite: "lax",
+            secure: process.env.NODE_ENV === "production"
+          });
+          
+          // If user is admin, set admin_token too
+          if (userType.toLowerCase() === 'admin') {
+            const adminToken = sign(
+              {
+                id: decodedWithoutVerify.id,
+                email: decodedWithoutVerify.email,
+                name: decodedWithoutVerify.name,
+                userType: 'Admin',
+                isAdmin: true,
+                timestamp: Date.now()
+              },
+              secret,
+              { expiresIn: "7d" }
+            );
+            
+            response.cookies.set("admin_token", adminToken, {
+              httpOnly: true,
+              path: "/",
+              maxAge: 7 * 24 * 60 * 60, // 7 days
+              sameSite: "lax",
+              secure: process.env.NODE_ENV === "production"
+            });
+            
+            logDebug(`Admin token set`);
+          }
+          
+          logDebug(`New cookies set, redirecting to: ${redirectPath}`);
+          return response;
+        }
+      } catch (decodeError) {
+        logDebug(`Failed to decode token: ${(decodeError as Error).message}`);
+      }
+      
+      // If we can't refresh the token, redirect to login
+      logDebug(`Cannot refresh token, redirecting to login`);
       return NextResponse.redirect(new URL("/login", req.url));
     }
-    
-    if (!decoded || typeof decoded !== 'object' || !decoded.email) {
-      console.log("Token tidak memiliki format yang valid, redirect ke login");
-      return NextResponse.redirect(new URL("/login", req.url));
-    }
-    
-    // Cari user berdasarkan email di token
-    const user = await prisma.user.findUnique({
-      where: { email: decoded.email as string },
-      include: { userType: true }
-    });
-    
-    if (!user) {
-      console.log("User tidak ditemukan untuk token, redirect ke login");
-      return NextResponse.redirect(new URL("/login", req.url));
-    }
-    
-    // Buat token baru dengan data yang sama
-    const newToken = sign(
-      {
-        id: user.id,
-        email: user.email,
-        name: user.username,
-        userType: user.userType.usertype
-      },
-      process.env.NEXTAUTH_SECRET || "RAHASIA_FALLBACK_YANG_AMAN_DAN_PANJANG_UNTUK_DEVELOPMENT",
-      { expiresIn: "30d" } // Sama dengan maxAge di konfigurasi NextAuth
-    );
-    
-    // Tentukan URL redirect
-    const targetUrl = redirectUrl || "/dashboard";
-    
-    // Buat response dengan redirect
-    const response = NextResponse.redirect(new URL(targetUrl, req.url));
-    
-    // Set cookie baru dengan token yang telah di-refresh
-    response.cookies.set("next-auth.session-token", newToken, {
-      httpOnly: true,
-      path: "/",
-      maxAge: 30 * 24 * 60 * 60, // 30 hari
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production"
-    });
-    
-    // Juga refresh debug_token jika ada
-    if (debugToken) {
-      response.cookies.set("debug_token", newToken, {
-        httpOnly: true,
-        path: "/",
-        maxAge: 30 * 24 * 60 * 60, // 30 hari
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production"
-      });
-    }
-    
-    // Log untuk debugging
-    console.log("Token berhasil di-refresh untuk user:", user.email, "redirect ke:", targetUrl);
-    
-    return response;
   } catch (error) {
-    console.error("Error refresh token GET:", error);
+    logDebug(`Error in refresh route: ${(error as Error).message}`);
     return NextResponse.redirect(new URL("/login", req.url));
   }
 } 

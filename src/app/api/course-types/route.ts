@@ -48,14 +48,14 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check if course type with same name already exists
-    const existingType = await prisma.courseType.findFirst({
-      where: { 
-        course_type: { equals: course_type, mode: 'insensitive' }
-      }
-    });
+    // Check if course type with same name already exists - using manual case-insensitive check
+    const existingTypes = await prisma.courseType.findMany();
+    
+    const courseTypeExists = existingTypes.some(
+      type => type.course_type.toLowerCase() === course_type.toLowerCase()
+    );
 
-    if (existingType) {
+    if (courseTypeExists) {
       return NextResponse.json(
         { error: 'Course type with this name already exists' },
         { status: 409 }

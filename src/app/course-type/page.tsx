@@ -8,6 +8,7 @@ import Button from "@/components/common/button";
 import Modal from "@/components/common/Modal";
 import Card from "@/components/common/card";
 import Layout from "@/components/common/Layout";
+import { toast, Toaster } from "react-hot-toast";
 
 interface CourseType {
   id: string;
@@ -31,6 +32,8 @@ export default function CourseTypePage() {
   const [newCourseType, setNewCourseType] = useState({
     course_type: ''
   });
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formLoading, setFormLoading] = useState(false);
 
   // Load course types on initial render
   useEffect(() => {
@@ -40,6 +43,7 @@ export default function CourseTypePage() {
   // Fetch course types with pagination
   const fetchCourseTypes = async () => {
     setLoading(true);
+    setError(null);
     try {
       const queryParams = new URLSearchParams({
         search: searchTerm
@@ -74,12 +78,21 @@ export default function CourseTypePage() {
       ...prev,
       [name]: value
     }));
+    // Clear form error when user types
+    if (formError) setFormError(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormLoading(true);
+    setFormError(null);
     
     try {
+      if (!newCourseType.course_type.trim()) {
+        setFormError("Course type name is required");
+        return;
+      }
+      
       const response = await fetch('/api/course-types', {
         method: 'POST',
         headers: {
@@ -88,8 +101,9 @@ export default function CourseTypePage() {
         body: JSON.stringify(newCourseType),
       });
       
+      const data = await response.json();
+      
       if (!response.ok) {
-        const data = await response.json();
         throw new Error(data.error || 'Failed to create course type');
       }
       
@@ -99,10 +113,17 @@ export default function CourseTypePage() {
         course_type: ''
       });
       
+      // Show success message
+      toast.success("Course type added successfully");
+      
       // Refresh course types
       fetchCourseTypes();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'An error occurred');
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setFormError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setFormLoading(false);
     }
   };
 
@@ -111,6 +132,7 @@ export default function CourseTypePage() {
     setNewCourseType({
       course_type: courseType.course_type
     });
+    setFormError(null);
     setIsEditModalOpen(true);
   };
 
@@ -119,7 +141,15 @@ export default function CourseTypePage() {
     
     if (!selectedCourseType) return;
     
+    setFormLoading(true);
+    setFormError(null);
+    
     try {
+      if (!newCourseType.course_type.trim()) {
+        setFormError("Course type name is required");
+        return;
+      }
+      
       const response = await fetch(`/api/course-types/${selectedCourseType.id}`, {
         method: 'PUT',
         headers: {
@@ -128,8 +158,9 @@ export default function CourseTypePage() {
         body: JSON.stringify(newCourseType),
       });
       
+      const data = await response.json();
+      
       if (!response.ok) {
-        const data = await response.json();
         throw new Error(data.error || 'Failed to update course type');
       }
       
@@ -140,10 +171,17 @@ export default function CourseTypePage() {
         course_type: ''
       });
       
+      // Show success message
+      toast.success("Course type updated successfully");
+      
       // Refresh course types
       fetchCourseTypes();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'An error occurred');
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setFormError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setFormLoading(false);
     }
   };
 
@@ -160,6 +198,8 @@ export default function CourseTypePage() {
   const handleDeleteConfirm = async () => {
     if (!selectedCourseType) return;
     
+    setFormLoading(true);
+    
     try {
       const response = await fetch(`/api/course-types/${selectedCourseType.id}`, {
         method: 'DELETE',
@@ -175,13 +215,18 @@ export default function CourseTypePage() {
             method: 'DELETE',
           });
           
+          const forceData = await forceResponse.json();
+          
           if (!forceResponse.ok) {
-            const forceData = await forceResponse.json();
             throw new Error(forceData.error || 'Failed to delete course type');
           }
+          
+          toast.success("Course type and related courses deleted successfully");
         } else {
           throw new Error(data.error || 'Failed to delete course type');
         }
+      } else {
+        toast.success("Course type deleted successfully");
       }
       
       // Close modal and refresh data
@@ -189,7 +234,10 @@ export default function CourseTypePage() {
       setSelectedCourseType(null);
       fetchCourseTypes();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'An error occurred');
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      toast.error(errorMessage);
+    } finally {
+      setFormLoading(false);
     }
   };
 
@@ -208,6 +256,7 @@ export default function CourseTypePage() {
   return (
     <Layout>
       <div className="p-2">
+        <Toaster position="top-right" />
         <h1 className="text-lg md:text-xl text-gray-600 mb-2">
           Course Type
         </h1>
@@ -313,9 +362,13 @@ export default function CourseTypePage() {
                   value={newCourseType.course_type}
                   onChange={handleInputChange}
                   placeholder="Enter course type name"
-                  className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className={`w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${formError ? 'border-red-500' : ''}`}
                   required
+                  disabled={formLoading}
                 />
+                {formError && (
+                  <p className="text-red-500 text-xs mt-1">{formError}</p>
+                )}
               </div>
               <div className="flex justify-end gap-2">
                 <Button
@@ -323,6 +376,7 @@ export default function CourseTypePage() {
                   size="small"
                   onClick={() => setIsModalOpen(false)}
                   className="text-xs px-2 py-1"
+                  disabled={formLoading}
                 >
                   Cancel
                 </Button>
@@ -331,8 +385,9 @@ export default function CourseTypePage() {
                   size="small"
                   type="submit"
                   className="text-xs px-2 py-1"
+                  disabled={formLoading}
                 >
-                  Submit
+                  {formLoading ? 'Submitting...' : 'Submit'}
                 </Button>
               </div>
             </form>
@@ -352,9 +407,13 @@ export default function CourseTypePage() {
                   value={newCourseType.course_type}
                   onChange={handleInputChange}
                   placeholder="Enter course type name"
-                  className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className={`w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${formError ? 'border-red-500' : ''}`}
                   required
+                  disabled={formLoading}
                 />
+                {formError && (
+                  <p className="text-red-500 text-xs mt-1">{formError}</p>
+                )}
               </div>
               <div className="flex justify-end gap-2">
                 <Button
@@ -362,6 +421,7 @@ export default function CourseTypePage() {
                   size="small"
                   onClick={() => setIsEditModalOpen(false)}
                   className="text-xs px-2 py-1"
+                  disabled={formLoading}
                 >
                   Cancel
                 </Button>
@@ -370,8 +430,9 @@ export default function CourseTypePage() {
                   size="small"
                   type="submit"
                   className="text-xs px-2 py-1"
+                  disabled={formLoading}
                 >
-                  Save Changes
+                  {formLoading ? 'Saving...' : 'Save Changes'}
                 </Button>
               </div>
             </form>
@@ -425,6 +486,7 @@ export default function CourseTypePage() {
                 size="small"
                 onClick={() => setIsDeleteModalOpen(false)}
                 className="text-xs px-2 py-1 mr-2"
+                disabled={formLoading}
               >
                 Cancel
               </Button>
@@ -433,8 +495,9 @@ export default function CourseTypePage() {
                 size="small"
                 onClick={handleDeleteConfirm}
                 className="text-xs px-2 py-1"
+                disabled={formLoading}
               >
-                Delete
+                {formLoading ? 'Deleting...' : 'Delete'}
               </Button>
             </div>
           </Modal>

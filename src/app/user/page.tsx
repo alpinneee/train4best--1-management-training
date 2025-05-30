@@ -15,6 +15,11 @@ interface User {
   createdAt: string;
 }
 
+interface UserType {
+  id: string;
+  usertype: string;
+}
+
 interface Column {
   header: string;
   accessor: keyof User | ((data: User) => React.ReactNode);
@@ -22,6 +27,7 @@ interface Column {
 
 const UserPage = () => {
   const [users, setUsers] = useState<User[]>([]);
+  const [userTypes, setUserTypes] = useState<UserType[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRole, setSelectedRole] = useState("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -40,10 +46,25 @@ const UserPage = () => {
 
   const itemsPerPage = 10;
 
-  // Fetch users on component mount
+  // Fetch users and user types on component mount
   useEffect(() => {
     fetchUsers();
+    fetchUserTypes();
   }, []);
+
+  const fetchUserTypes = async () => {
+    try {
+      const response = await fetch("/api/usertype");
+      if (!response.ok) {
+        throw new Error("Failed to fetch user types");
+      }
+      const data = await response.json();
+      setUserTypes(data || []);
+    } catch (error) {
+      console.error("Error fetching user types:", error);
+      toast.error("Failed to load user types");
+    }
+  };
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -289,235 +310,238 @@ const UserPage = () => {
   if (loading && users.length === 0) {
     return (
       <Layout>
-        <div className="p-2 text-center">Loading users...</div>
+        <div className="p-2 text-center text-gray-700">Loading users...</div>
       </Layout>
     );
   }
 
   return (
     <Layout>
-      <div className="flex flex-col gap-2 p-2">
-        <h1 className="text-lg md:text-xl text-gray-700 mb-2">
-          Users Management
-        </h1>
+      <div className="p-4">
+        {/* Navigation Links */}
 
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 mb-2 rounded relative">
-            <span className="block sm:inline">{error}</span>
-            <button 
-              className="absolute top-0 bottom-0 right-0 px-4 py-2"
-              onClick={() => setError("")}
-            >
-              &times;
-            </button>
-          </div>
-        )}
 
-        {users.length === 0 && !loading ? (
-          <div className="text-center py-4 text-gray-500">No users found</div>
-        ) : (
-          <div className="overflow-x-auto -mx-2 px-2">
-            <Table
-              columns={columns}
-              data={currentUsers}
-              currentPage={currentPage}
-              totalPages={totalPages}
-              itemsPerPage={itemsPerPage}
-              totalItems={filteredUsers.length}
-              onPageChange={setCurrentPage}
-            />
-          </div>
-        )}
+        <h1 className="text-2xl font-bold mb-4 text-gray-700">User Management</h1>
 
-        {/* Add User Modal */}
-        {isModalOpen && (
-          <Modal onClose={() => setIsModalOpen(false)}>
-            <h2 className="text-base font-semibold mb-2 text-gray-700">
-              Add New User
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-2">
-              <div>
-                <label className="block mb-1 text-xs text-gray-700">Username</label>
-                <input
-                  type="text"
-                  name="username"
-                  value={newUser.username}
-                  onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                  className="w-full px-2 py-1 text-xs rounded border border-gray-300 text-gray-700"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-700 mb-1">Role</label>
-                <select
-                  name="jobTitle"
-                  value={newUser.jobTitle}
-                  onChange={(e) => setNewUser({ ...newUser, jobTitle: e.target.value })}
-                  className="w-full px-2 py-1 text-xs rounded border border-gray-300 text-gray-700"
-                  required
-                >
-                  <option value="">Select Role</option>
-                  {uniqueRoles.map((role) => (
-                    <option key={role} value={role}>
-                      {role}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block mb-1 text-xs text-gray-700">Password</label>
-                <input
-                  type="password"
-                  name="password"
-                  value={newUser.password}
-                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                  className="w-full px-2 py-1 text-xs rounded border border-gray-300 text-gray-700"
-                  required
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button
-                  variant="gray"
-                  size="small"
-                  onClick={() => setIsModalOpen(false)}
-                  className="text-xs px-2 py-1"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="primary"
-                  size="small"
-                  type="submit"
-                  disabled={loading}
-                  className="text-xs px-2 py-1"
-                >
-                  {loading ? "Adding..." : "Add User"}
-                </Button>
-              </div>
-            </form>
-          </Modal>
-        )}
-
-        {/* Edit User Modal */}
-        {isEditModalOpen && (
-          <Modal onClose={() => setIsEditModalOpen(false)}>
-            <h2 className="text-base font-semibold mb-2 text-gray-700">
-              Edit User
-            </h2>
-            <form onSubmit={handleEditSubmit} className="space-y-2">
-              <div>
-                <label className="block text-xs text-gray-700 mb-1">Username</label>
-                <input
-                  type="text"
-                  name="username"
-                  value={newUser.username}
-                  onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                  className="w-full px-2 py-1 text-xs rounded border border-gray-300 text-gray-700"
-                  required
-                  disabled={loading}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-700 mb-1">Role</label>
-                <select
-                  name="jobTitle"
-                  value={newUser.jobTitle}
-                  onChange={(e) => setNewUser({ ...newUser, jobTitle: e.target.value })}
-                  className="w-full px-2 py-1 text-xs rounded border border-gray-300 text-gray-700"
-                  required
-                  disabled={loading}
-                >
-                  <option value="">Select Role</option>
-                  {uniqueRoles.map((role) => (
-                    <option key={role} value={role}>
-                      {role}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-gray-700 mb-1">New Password (Optional)</label>
-                <input
-                  type="password"
-                  name="password"
-                  value={newUser.password}
-                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                  className="w-full px-2 py-1 text-xs rounded border border-gray-300 text-gray-700"
-                  placeholder="Leave empty to keep current password"
-                  disabled={loading}
-                />
-                <p className="text-xs text-gray-500 mt-1">Leave empty to keep current password</p>
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button
-                  variant="gray"
-                  size="small"
-                  onClick={() => setIsEditModalOpen(false)}
-                  className="text-xs px-2 py-1"
-                  disabled={loading}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="primary"
-                  size="small"
-                  type="submit"
-                  className="text-xs px-2 py-1"
-                  disabled={loading}
-                >
-                  {loading ? "Saving..." : "Save Changes"}
-                </Button>
-              </div>
-            </form>
-          </Modal>
-        )}
-
-        {/* Delete Modal */}
-        {isDeleteModalOpen && selectedUser && (
-          <Modal onClose={() => setIsDeleteModalOpen(false)}>
-            <h2 className="text-base font-semibold text-gray-700">Delete User</h2>
-            <p className="text-xs text-gray-600 mt-2">
-              Are you sure you want to delete user <span className="font-semibold">{selectedUser.name}</span>?
-            </p>
-            {error && error.includes("associated records") && (
-              <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-3 py-2 mt-2 rounded text-xs">
-                <p>Warning: This user has associated records. Force deletion may cause data inconsistency.</p>
-              </div>
-            )}
-            <div className="flex justify-end mt-3 gap-2">
-              <Button
-                variant="gray"
-                size="small"
-                onClick={() => setIsDeleteModalOpen(false)}
-                className="text-xs px-2 py-1"
-                disabled={loading}
+        <div className="flex flex-col gap-2 p-2">
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 mb-2 rounded relative">
+              <span className="block sm:inline">{error}</span>
+              <button 
+                className="absolute top-0 bottom-0 right-0 px-4 py-2"
+                onClick={() => setError("")}
               >
-                Cancel
-              </Button>
-              {error && error.includes("associated records") ? (
-                <Button
-                  variant="red"
-                  size="small"
-                  onClick={() => handleDelete(true)}
-                  className="text-xs px-2 py-1"
-                  disabled={loading}
-                >
-                  Force Delete
-                </Button>
-              ) : (
-                <Button
-                  variant="red"
-                  size="small"
-                  onClick={() => handleDelete()}
-                  className="text-xs px-2 py-1"
-                  disabled={loading}
-                >
-                  {loading ? "Deleting..." : "Delete"}
-                </Button>
-              )}
+                &times;
+              </button>
             </div>
-          </Modal>
-        )}
+          )}
+
+          {users.length === 0 && !loading ? (
+            <div className="text-center py-4 text-gray-500">No users found</div>
+          ) : (
+            <div className="overflow-x-auto -mx-2 px-2">
+              <Table
+                columns={columns}
+                data={currentUsers}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                itemsPerPage={itemsPerPage}
+                totalItems={filteredUsers.length}
+                onPageChange={setCurrentPage}
+              />
+            </div>
+          )}
+
+          {/* Add User Modal */}
+          {isModalOpen && (
+            <Modal onClose={() => setIsModalOpen(false)}>
+              <h2 className="text-base font-semibold mb-2 text-gray-700">
+                Add New User
+              </h2>
+              <form onSubmit={handleSubmit} className="space-y-2">
+                <div>
+                  <label className="block mb-1 text-xs text-gray-700">Username</label>
+                  <input
+                    type="text"
+                    name="username"
+                    value={newUser.username}
+                    onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+                    className="w-full px-2 py-1 text-xs rounded border border-gray-300 text-gray-700"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-700 mb-1">Role</label>
+                  <select
+                    name="jobTitle"
+                    value={newUser.jobTitle}
+                    onChange={(e) => setNewUser({ ...newUser, jobTitle: e.target.value })}
+                    className="w-full px-2 py-1 text-xs rounded border border-gray-300 text-gray-700"
+                    required
+                  >
+                    <option value="">Select Role</option>
+                    {userTypes.map((type) => (
+                      <option key={type.id} value={type.usertype}>
+                        {type.usertype}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block mb-1 text-xs text-gray-700">Password</label>
+                  <input
+                    type="password"
+                    name="password"
+                    value={newUser.password}
+                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                    className="w-full px-2 py-1 text-xs rounded border border-gray-300 text-gray-700"
+                    required
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button
+                    variant="gray"
+                    size="small"
+                    onClick={() => setIsModalOpen(false)}
+                    className="text-xs px-2 py-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="small"
+                    type="submit"
+                    disabled={loading}
+                    className="text-xs px-2 py-1"
+                  >
+                    {loading ? "Adding..." : "Add User"}
+                  </Button>
+                </div>
+              </form>
+            </Modal>
+          )}
+
+          {/* Edit User Modal */}
+          {isEditModalOpen && (
+            <Modal onClose={() => setIsEditModalOpen(false)}>
+              <h2 className="text-base font-semibold mb-2 text-gray-700">
+                Edit User
+              </h2>
+              <form onSubmit={handleEditSubmit} className="space-y-2">
+                <div>
+                  <label className="block text-xs text-gray-700 mb-1">Username</label>
+                  <input
+                    type="text"
+                    name="username"
+                    value={newUser.username}
+                    onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+                    className="w-full px-2 py-1 text-xs rounded border border-gray-300 text-gray-700"
+                    required
+                    disabled={loading}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-700 mb-1">Role</label>
+                  <select
+                    name="jobTitle"
+                    value={newUser.jobTitle}
+                    onChange={(e) => setNewUser({ ...newUser, jobTitle: e.target.value })}
+                    className="w-full px-2 py-1 text-xs rounded border border-gray-300 text-gray-700"
+                    required
+                    disabled={loading}
+                  >
+                    <option value="">Select Role</option>
+                    {userTypes.map((type) => (
+                      <option key={type.id} value={type.usertype}>
+                        {type.usertype}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-700 mb-1">New Password (Optional)</label>
+                  <input
+                    type="password"
+                    name="password"
+                    value={newUser.password}
+                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                    className="w-full px-2 py-1 text-xs rounded border border-gray-300 text-gray-700"
+                    placeholder="Leave empty to keep current password"
+                    disabled={loading}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Leave empty to keep current password</p>
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button
+                    variant="gray"
+                    size="small"
+                    onClick={() => setIsEditModalOpen(false)}
+                    className="text-xs px-2 py-1"
+                    disabled={loading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="small"
+                    type="submit"
+                    className="text-xs px-2 py-1"
+                    disabled={loading}
+                  >
+                    {loading ? "Saving..." : "Save Changes"}
+                  </Button>
+                </div>
+              </form>
+            </Modal>
+          )}
+
+          {/* Delete Modal */}
+          {isDeleteModalOpen && selectedUser && (
+            <Modal onClose={() => setIsDeleteModalOpen(false)}>
+              <h2 className="text-base font-semibold text-gray-700">Delete User</h2>
+              <p className="text-xs text-gray-600 mt-2">
+                Are you sure you want to delete user <span className="font-semibold">{selectedUser.name}</span>?
+              </p>
+              {error && error.includes("associated records") && (
+                <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-3 py-2 mt-2 rounded text-xs">
+                  <p>Warning: This user has associated records. Force deletion may cause data inconsistency.</p>
+                </div>
+              )}
+              <div className="flex justify-end mt-3 gap-2">
+                <Button
+                  variant="gray"
+                  size="small"
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  className="text-xs px-2 py-1"
+                  disabled={loading}
+                >
+                  Cancel
+                </Button>
+                {error && error.includes("associated records") ? (
+                  <Button
+                    variant="red"
+                    size="small"
+                    onClick={() => handleDelete(true)}
+                    className="text-xs px-2 py-1"
+                    disabled={loading}
+                  >
+                    Force Delete
+                  </Button>
+                ) : (
+                  <Button
+                    variant="red"
+                    size="small"
+                    onClick={() => handleDelete()}
+                    className="text-xs px-2 py-1"
+                    disabled={loading}
+                  >
+                    {loading ? "Deleting..." : "Delete"}
+                  </Button>
+                )}
+              </div>
+            </Modal>
+          )}
+        </div>
       </div>
     </Layout>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Layout from "@/components/common/Layout";
 import { 
   BookOpen, 
@@ -9,11 +9,12 @@ import {
   Calendar, 
   Clock, 
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from "lucide-react";
 
 interface Course {
-  id: number;
+  id: string;
   name: string;
   progress: number;
   nextSession: string;
@@ -21,83 +22,190 @@ interface Course {
 }
 
 interface Certificate {
-  id: number;
+  id: string;
   courseName: string;
   issueDate: string;
   expiryDate: string;
   status: "valid" | "expired" | "expiring";
 }
 
+interface Stat {
+  title: string;
+  value: string;
+  icon: string;
+  color: string;
+}
+
+interface Notification {
+  type: string;
+  icon: string;
+  title: string;
+  message: string;
+  color: string;
+}
+
 const DashboardPage = () => {
   const [activeTab, setActiveTab] = useState("courses");
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
+  const [stats, setStats] = useState<Stat[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isDbConfigured, setIsDbConfigured] = useState(true);
+  const [configuring, setConfiguring] = useState(false);
 
-  const courses: Course[] = [
-    {
-      id: 1,
-      name: "AIoT Fundamentals",
-      progress: 75,
-      nextSession: "2024-03-15",
-      status: "active"
-    },
-    {
-      id: 2,
-      name: "Web Development",
-      progress: 100,
-      nextSession: "2024-02-20",
-      status: "completed"
-    },
-    {
-      id: 3,
-      name: "Data Science",
-      progress: 0,
-      nextSession: "2024-04-01",
-      status: "upcoming"
-    }
-  ];
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        // Try to get email from localStorage for demo purposes
+        const userEmail = localStorage.getItem('userEmail');
+        const queryParam = userEmail ? `?email=${encodeURIComponent(userEmail)}` : '';
+        
+        const response = await fetch(`/api/participant/dashboard${queryParam}`);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          
+          // Check if database is not configured
+          if (response.status === 500 && errorText.includes('database')) {
+            setIsDbConfigured(false);
+            throw new Error('Database not configured');
+          }
+          
+          throw new Error(`Failed to fetch dashboard data: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.data) {
+          setCourses(data.data.courses || []);
+          setCertificates(data.data.certificates || []);
+          setStats(data.data.stats || []);
+          setNotifications(data.data.notifications || []);
+          setIsDbConfigured(true);
+        }
+      } catch (err) {
+        console.error("Error fetching dashboard data:", err);
+        if (err instanceof Error && err.message.includes('Database not configured')) {
+          setIsDbConfigured(false);
+          setError('Database not configured. Please click the button below to configure the database.');
+        } else {
+          setError('Failed to load dashboard data. Please try again later.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchDashboardData();
+  }, []);
 
-  const certificates: Certificate[] = [
-    {
-      id: 1,
-      courseName: "Web Development",
-      issueDate: "2024-02-20",
-      expiryDate: "2025-02-20",
-      status: "valid"
-    },
-    {
-      id: 2,
-      courseName: "AIoT Fundamentals",
-      issueDate: "2023-12-15",
-      expiryDate: "2024-12-15",
-      status: "expiring"
+  // Setup database
+  const setupDatabase = async () => {
+    setConfiguring(true);
+    try {
+      const response = await fetch('/api/seed', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ mode: 'minimal' })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setIsDbConfigured(true);
+        
+        // Save demo email for seamless experience
+        localStorage.setItem('userEmail', 'demo@example.com');
+        
+        alert('Database configured successfully!');
+        window.location.reload();
+      } else {
+        const error = await response.text();
+        console.error('Error configuring database:', error);
+        alert('Failed to configure database. See console for details.');
+      }
+    } catch (error) {
+      console.error('Error setting up database:', error);
+      alert('An error occurred while configuring the database.');
+    } finally {
+      setConfiguring(false);
     }
-  ];
+  };
 
-  const stats = [
-    {
-      title: "Active Courses",
-      value: "2",
-      icon: <BookOpen className="w-5 h-5" />,
-      color: "bg-blue-100 text-blue-600"
-    },
-    {
-      title: "Certificates",
-      value: "2",
-      icon: <FileText className="w-5 h-5" />,
-      color: "bg-green-100 text-green-600"
-    },
-    {
-      title: "Pending Payments",
-      value: "1",
-      icon: <CreditCard className="w-5 h-5" />,
-      color: "bg-yellow-100 text-yellow-600"
-    },
-    {
-      title: "Upcoming Sessions",
-      value: "2",
-      icon: <Calendar className="w-5 h-5" />,
-      color: "bg-purple-100 text-purple-600"
+  // Render icon based on name
+  const renderIcon = (iconName: string, className: string = "w-5 h-5") => {
+    switch (iconName) {
+      case "BookOpen": return <BookOpen className={className} />;
+      case "FileText": return <FileText className={className} />;
+      case "CreditCard": return <CreditCard className={className} />;
+      case "Calendar": return <Calendar className={className} />;
+      case "Clock": return <Clock className={className} />;
+      case "CheckCircle2": return <CheckCircle2 className={className} />;
+      case "AlertCircle": return <AlertCircle className={className} />;
+      default: return <BookOpen className={className} />;
     }
-  ];
+  };
+
+  // Show database configuration if needed
+  if (!isDbConfigured) {
+    return (
+      <Layout variant="participant">
+        <div className="p-4">
+          <div className="bg-white rounded-lg shadow p-6 max-w-lg mx-auto">
+            <h2 className="text-xl font-medium text-gray-800 mb-4">Database Configuration Required</h2>
+            <p className="text-gray-600 mb-6">
+              The database needs to be configured before you can view your dashboard. 
+              Click the button below to set up the database with sample data.
+            </p>
+            <button
+              onClick={setupDatabase}
+              disabled={configuring}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed"
+            >
+              {configuring ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 inline animate-spin" />
+                  Configuring...
+                </>
+              ) : 'Configure Database'}
+            </button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Show loading state
+  if (loading) {
+    return (
+      <Layout variant="participant">
+        <div className="p-4 flex justify-center items-center min-h-[50vh]">
+          <div className="flex flex-col items-center">
+            <Loader2 className="w-10 h-10 text-blue-500 animate-spin mb-2" />
+            <p className="text-gray-500">Loading dashboard data...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <Layout variant="participant">
+        <div className="p-4">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+            <p>{error}</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout variant="participant">
@@ -112,7 +220,7 @@ const DashboardPage = () => {
                   <p className="text-2xl font-semibold text-gray-700">{stat.value}</p>
                 </div>
                 <div className={`p-2 rounded-full ${stat.color}`}>
-                  {stat.icon}
+                  {renderIcon(stat.icon)}
                 </div>
               </div>
             </div>
@@ -150,7 +258,12 @@ const DashboardPage = () => {
           <div className="p-4">
             {activeTab === "courses" && (
               <div className="space-y-4">
-                {courses.map((course) => (
+                {courses.length === 0 ? (
+                  <div className="text-center py-6 text-gray-500">
+                    No courses found. Register for a course to see it here.
+                  </div>
+                ) : (
+                  courses.map((course) => (
                   <div key={course.id} className="border rounded-lg p-4">
                     <div className="flex justify-between items-start">
                       <div>
@@ -183,13 +296,19 @@ const DashboardPage = () => {
                       </div>
                     </div>
                   </div>
-                ))}
+                  ))
+                )}
               </div>
             )}
 
             {activeTab === "certificates" && (
               <div className="space-y-4">
-                {certificates.map((cert) => (
+                {certificates.length === 0 ? (
+                  <div className="text-center py-6 text-gray-500">
+                    No certificates found. Complete a course to earn a certificate.
+                  </div>
+                ) : (
+                  certificates.map((cert) => (
                   <div key={cert.id} className="border rounded-lg p-4">
                     <div className="flex justify-between items-start">
                       <div>
@@ -214,7 +333,8 @@ const DashboardPage = () => {
                       </div>
                     </div>
                   </div>
-                ))}
+                  ))
+                )}
               </div>
             )}
           </div>
@@ -223,22 +343,31 @@ const DashboardPage = () => {
         {/* Notifications */}
         <div className="bg-white rounded-lg shadow p-4">
           <h3 className="font-medium mb-3 text-gray-700">Important Notifications</h3>
-          <div className="space-y-3">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-yellow-500 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-gray-700">Payment Due</p>
-                <p className="text-xs text-gray-500">Payment for Data Science course is due in 3 days</p>
-              </div>
+          {notifications.length === 0 ? (
+            <div className="text-center py-4 text-gray-500 text-sm">
+              No notifications at this time.
             </div>
-            <div className="flex items-start gap-3">
-              <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5" />
+          ) : (
+            <div className="space-y-3">
+              {notifications.map((notification, index) => (
+                <div key={index} className="flex items-start gap-3">
+                  {notification.icon === "AlertCircle" && (
+                    <AlertCircle className={`w-5 h-5 text-${notification.color}-500 mt-0.5`} />
+                  )}
+                  {notification.icon === "CheckCircle2" && (
+                    <CheckCircle2 className={`w-5 h-5 text-${notification.color}-500 mt-0.5`} />
+                  )}
+                  {notification.icon === "CreditCard" && (
+                    <CreditCard className={`w-5 h-5 text-${notification.color}-500 mt-0.5`} />
+                  )}
               <div>
-                <p className="text-sm font-medium text-gray-700">Certificate Available</p>
-                <p className="text-xs text-gray-500">Your Web Development certificate is ready to download</p>
+                    <p className="text-sm font-medium text-gray-700">{notification.title}</p>
+                    <p className="text-xs text-gray-500">{notification.message}</p>
+                  </div>
               </div>
+              ))}
             </div>
-          </div>
+          )}
         </div>
       </div>
     </Layout>

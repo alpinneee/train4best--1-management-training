@@ -3,183 +3,222 @@ import { getToken } from "next-auth/jwt"
 import { NextRequestWithAuth } from "next-auth/middleware"
 import jwt from "jsonwebtoken"
 
-// Definisi tipe untuk token
-interface CustomToken {
-  id?: string
-  name?: string | null
-  email?: string | null
-  userType?: string
-  exp?: number
-  [key: string]: unknown
+// Fungsi untuk logging
+function logDebug(message: string, data?: any) {
+  console.log(`[MIDDLEWARE] ${message}`, data ? JSON.stringify(data, null, 2) : '');
 }
 
+// Daftar rute publik yang tidak memerlukan autentikasi
+const publicRoutes = [
+  "/", 
+  "/login", 
+  "/register", 
+  "/api/auth", 
+  "/api/auth/refresh",
+  "/api/auth/session-check",
+  "/api/profile",
+  "/api/direct-login",
+  "/api/debug-session",
+  "/api/debug-token",
+  "/api/logout",
+  "/api/admin-auth-bypass",
+  "/api/dashboard-access",
+  "/api/dashboard-verify",
+  "/api/direct-dashboard",
+  "/api/dashboard",
+  "/api/force-login",
+  "/debug-login",
+  "/debug-auth",
+  "/admin-login",
+  "/admin-dashboard",
+  "/participant-dashboard",
+  "/instructure-dashboard",
+  "/dashboard-access",
+  "/dashboard-direct",
+  "/dashboard-static",
+  "/dashboard-bypass",
+  "/dashboard-final",
+  "/dashboard-fix",
+  "/force-dashboard",
+  "/_next", 
+  "/favicon.ico", 
+  "/img"
+];
+
+// Rute yang hanya bisa diakses admin
+const adminRoutes = [
+  '/user',
+  '/usertype',
+  '/user-rule',
+  '/instructure', // Halaman manajemen instructor
+  '/courses',
+  '/course-type',
+  '/course-schedule',
+  '/payment-report',
+  '/list-certificate',
+  '/certificate-expired',
+  '/participant',
+  '/dashboard'  // Admin boleh mengakses dashboard
+];
+
+// Rute untuk instructor
+const instructorRoutes = [
+  '/instructure/dashboard',
+  '/instructure/courses', 
+  '/instructure/students', 
+  '/instructure/assignment'
+];
+
+// Rute untuk participant
+const participantRoutes = [
+  '/participant/dashboard',
+  '/participant/my-course',
+  '/participant/my-certificate',
+  '/participant/payment'
+];
+
 export default async function middleware(request: NextRequestWithAuth) {
-  const path = request.nextUrl.pathname
-  console.log(`Middleware dipanggil untuk path: ${path}`);
+  const path = request.nextUrl.pathname;
+  logDebug(`Middleware dipanggil untuk path: ${path}`);
 
-  // Daftar rute yang hanya bisa diakses oleh admin
-  const adminRoutes = [
-    '/dashboard',
-    '/user',
-    '/usertype',
-    '/user-rule',
-    '/instructure', // Halaman manajemen instructor
-    '/courses',
-    '/course-type',
-    '/course-schedule',
-    '/payment-report',
-    '/list-certificate',
-    '/certificate-expired',
-    '/participant'
-  ]
-
-  // Daftar rute untuk instructor
-  const instructorRoutes = [
-    '/instructure/dashboard',
-    '/instructure/courses', 
-    '/instructure/students', 
-    '/instructure/assignment'
-  ]
-
-  // Daftar rute untuk participant
-  const participantRoutes = [
-    '/participant/dashboard',
-    '/participant/my-course',
-    '/participant/my-certificate',
-    '/participant/payment'
-  ]
-
-  // Daftar rute publik
-  const publicRoutes = [
-    "/", 
-    "/login", 
-    "/register", 
-    "/api/auth", 
-    "/api/auth/refresh",
-    "/api/profile",
-    "/api/direct-login",
-    "/api/debug-session",
-    "/api/debug-token",
-    "/api/logout",
-    "/debug-login",
-    "/debug-auth",
-    "/profile", // Tambahkan profile sebagai rute publik sementara
-    "/_next", 
-    "/favicon.ico", 
-    "/img"
-  ]
-
-  // Izinkan akses ke rute publik
+  // Izinkan akses ke rute publik tanpa autentikasi
   if (publicRoutes.some(route => path.startsWith(route))) {
-    console.log(`Path ${path} adalah rute publik, akses diizinkan`);
-    return NextResponse.next()
+    logDebug(`Path ${path} adalah rute publik, akses diizinkan`);
+    return NextResponse.next();
   }
 
   try {
-    let userType = null;
-    let hasValidToken = false;
+    // Cek apakah ini adalah percobaan login berulang untuk mencegah loop
+    const isRedirectLoop = request.cookies.get("redirect_attempt")?.value === "true";
+    if (isRedirectLoop) {
+      logDebug(`Terdeteksi redirect loop untuk ${path}, membersihkan cookies dan melanjutkan`);
+      const response = NextResponse.next();
+      response.cookies.set("redirect_attempt", "", { maxAge: 0 });
+      return response;
+    }
 
-    // Cek cookie debug_token terlebih dahulu
-    const debugToken = request.cookies.get("debug_token")?.value
-    if (debugToken) {
-      console.log(`Debug token ditemukan untuk ${path}`);
-      // Tambahkan validasi token debug
+    // Cek token dari berbagai sumber
+    const adminToken = request.cookies.get("admin_token")?.value;
+    const dashboardToken = request.cookies.get("dashboard_token")?.value;
+    const debugToken = request.cookies.get("debug_token")?.value;
+    
+    // Coba verifikasi token
+    const secret = process.env.NEXTAUTH_SECRET || "ee242735312254106fe3e96a49c7439e224a303ff71c148eee211ee52b6df1719d261fbf28697c6375bfa1ff473b328d31659d6308da93ea03ae630421a8024e";
+    let userType = null;
+    let userId = null;
+    let userEmail = null;
+
+    // Cek semua token yang tersedia
+    if (adminToken) {
       try {
-        const decoded = jwt.verify(debugToken, process.env.NEXTAUTH_SECRET || "RAHASIA_FALLBACK_YANG_AMAN_DAN_PANJANG_UNTUK_DEVELOPMENT") as jwt.JwtPayload;
-        
+        const decoded = jwt.verify(adminToken, secret) as jwt.JwtPayload;
         if (decoded) {
-          console.log(`Debug token valid untuk ${path}, userType:`, decoded.userType);
-          userType = decoded.userType as string;
-          hasValidToken = true;
+          logDebug(`Admin token valid`);
+          userType = "Admin";
+          userId = decoded.id;
+          userEmail = decoded.email;
         }
       } catch (error) {
-        console.error('Debug token invalid:', error);
-        // Jangan langsung redirect, coba cek next-auth token dulu
+        logDebug(`Admin token invalid: ${(error as Error).message}`);
       }
     }
 
-    // Jika tidak ada debug token yang valid, coba cek token NextAuth
-    if (!hasValidToken) {
-      console.log(`Mencoba verifikasi NextAuth token untuk ${path}`);
-      
-      const token = await getToken({ 
-        req: request,
-        secret: process.env.NEXTAUTH_SECRET || "RAHASIA_FALLBACK_YANG_AMAN_DAN_PANJANG_UNTUK_DEVELOPMENT"
-      }) as CustomToken | null;
-      
-      console.log(`NextAuth token untuk ${path}:`, token ? "ditemukan" : "tidak ditemukan");
-      
-      // Jika token ditemukan, ambil userType
-      if (token) {
-        userType = token.userType;
-        hasValidToken = true;
-        console.log(`UserType dari NextAuth token:`, userType);
+    if (!userType && dashboardToken) {
+      try {
+        const decoded = jwt.verify(dashboardToken, secret) as jwt.JwtPayload;
+        if (decoded) {
+          logDebug(`Dashboard token valid`);
+          userType = decoded.userType;
+          userId = decoded.id;
+          userEmail = decoded.email;
+        }
+      } catch (error) {
+        logDebug(`Dashboard token invalid: ${(error as Error).message}`);
       }
     }
 
-    // Jika tidak ada token valid, coba refresh token
-    if (!hasValidToken) {
-      // Redirect ke login
-      console.log(`Tidak ada token valid untuk ${path}, redirect ke login`);
-      return NextResponse.redirect(new URL("/login", request.url));
+    if (!userType && debugToken) {
+      try {
+        const decoded = jwt.verify(debugToken, secret) as jwt.JwtPayload;
+        if (decoded) {
+          logDebug(`Debug token valid`);
+          userType = decoded.userType;
+          userId = decoded.id;
+          userEmail = decoded.email;
+        }
+      } catch (error) {
+        logDebug(`Debug token invalid: ${(error as Error).message}`);
+      }
     }
 
-    // Cek userType ada atau tidak
     if (!userType) {
-      console.error('User type tidak ditemukan dalam token.');
-      return NextResponse.redirect(new URL("/login", request.url));
+      try {
+        const token = await getToken({ 
+          req: request,
+          secret: secret
+        });
+        
+        if (token) {
+          logDebug(`NextAuth token valid`);
+          userType = token.userType as string;
+          userId = token.id as string;
+          userEmail = token.email as string;
+        }
+      } catch (error) {
+        logDebug(`Error saat verifikasi NextAuth token: ${(error as Error).message}`);
+      }
     }
 
-    // Cek akses berdasarkan userType
-    let hasAccess = false;
-    
-    if (userType === 'admin') {
-      hasAccess = true; // Admin dapat mengakses semua rute
-    } else if (userType === 'instructor' && instructorRoutes.some(route => path.startsWith(route))) {
-      hasAccess = true;
-    } else if (userType === 'participant' && participantRoutes.some(route => path.startsWith(route))) {
-      hasAccess = true;
-    } else if (userType === 'super_admin') {
-      hasAccess = true; // Super admin juga bisa akses semua
-    }
-    
-    if (!hasAccess) {
-      console.log(`Pengguna dengan userType ${userType} tidak memiliki akses ke ${path}`);
-      // Redirect ke dashboard sesuai dengan userType
-      let redirectPath = '/dashboard';
-      if (userType === 'instructor') redirectPath = '/instructure/dashboard';
-      if (userType === 'participant') redirectPath = '/participant/dashboard';
-      
-      return NextResponse.redirect(new URL(redirectPath, request.url));
-    }
-
-    // Akses diizinkan, tambahkan header keamanan
-    console.log(`Akses diizinkan untuk ${path} dengan userType ${userType}`);
-    const response = NextResponse.next();
-    response.headers.set("X-Frame-Options", "DENY");
-    response.headers.set("X-XSS-Protection", "1; mode=block");
-    response.headers.set("X-Content-Type-Options", "nosniff");
-    
-    return response;
-  } catch (error) {
-    console.error(`Error dalam middleware untuk ${path}:`, error);
-    // Jangan langsung redirect ke login, coba refresh token dulu
-    try {
-      // Coba refresh token via cookie
-      const response = NextResponse.redirect(new URL("/api/auth/refresh?redirect=" + encodeURIComponent(path), request.url));
+    // Jika tidak ada token valid, redirect ke login
+    if (!userType) {
+      logDebug(`Tidak ada token valid untuk ${path}, redirect ke login`);
+      const response = NextResponse.redirect(new URL("/login", request.url));
+      response.cookies.set("redirect_attempt", "true", { maxAge: 60 });
       return response;
-    } catch (refreshError) {
-      console.error("Failed to refresh token:", refreshError);
-      // Jika gagal refresh, baru redirect ke login
-      return NextResponse.redirect(new URL("/login", request.url));
     }
+
+    // Verifikasi akses berdasarkan userType
+    const userTypeLower = typeof userType === 'string' ? userType.toLowerCase() : '';
+    logDebug(`User type: ${userTypeLower}, path: ${path}`);
+
+    // Cek akses berdasarkan tipe pengguna
+    if (userTypeLower === 'admin') {
+      // Admin dapat mengakses semua rute admin
+      if (adminRoutes.some(route => path.startsWith(route))) {
+        logDebug(`Admin mengakses rute admin: ${path}, akses diizinkan`);
+        return NextResponse.next();
+      }
+    } else if (userTypeLower === 'instructure') {
+      // Instructor hanya dapat mengakses rute instructor
+      if (instructorRoutes.some(route => path.startsWith(route))) {
+        logDebug(`Instructor mengakses rute instructor: ${path}, akses diizinkan`);
+        return NextResponse.next();
+      }
+    } else if (userTypeLower === 'participant') {
+      // Participant hanya dapat mengakses rute participant
+      if (participantRoutes.some(route => path.startsWith(route))) {
+        logDebug(`Participant mengakses rute participant: ${path}, akses diizinkan`);
+        return NextResponse.next();
+      }
+    }
+
+    // Jika tidak memiliki akses yang sesuai, redirect ke dashboard berdasarkan userType
+    let redirectPath = '/dashboard-static';
+    if (userTypeLower === 'admin') redirectPath = '/dashboard';
+    if (userTypeLower === 'instructure') redirectPath = '/instructure-dashboard';
+    if (userTypeLower === 'participant') redirectPath = '/participant-dashboard';
+
+    logDebug(`User ${userTypeLower} tidak memiliki akses ke ${path}, redirect ke ${redirectPath}`);
+    return NextResponse.redirect(new URL(redirectPath, request.url));
+  } catch (error) {
+    logDebug(`Error dalam middleware: ${(error as Error).message}`);
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 }
 
 // Konfigurasi rute yang akan diproteksi oleh middleware
 export const config = {
   matcher: [
-    "/dashboard/:path*",    // Rute dashboard dan sub-routenya
     "/user/:path*",         // Manajemen pengguna
     "/usertype/:path*",     // Tipe pengguna
     "/user-rule/:path*",    // Aturan pengguna

@@ -25,68 +25,89 @@ const LoginForm = () => {
     try {
       console.log("Login attempt with:", { email });
       
-      // Gunakan signIn dari NextAuth
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
+      // Use direct login API instead of NextAuth signIn
+      const response = await fetch('/api/direct-login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
       });
-
-      console.log("SignIn result:", result);
-
-      if (result?.error) {
-        setError(result.error);
-        toast.error(result.error);
+      
+      const data = await response.json();
+      console.log("Direct login response:", data);
+      
+      if (!data.success) {
+        setError(data.error || "Login failed");
+        toast.error(data.error || "Login failed");
         return;
       }
-
-      if (result?.ok) {
-        toast.success("Login berhasil!");
-        
-        // Tunggu session diperbarui dengan timeout lebih lama
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        // Cek session setelah login
-        const response = await fetch('/api/auth/session');
-        const sessionData = await response.json();
-        console.log("Session after login:", sessionData);
-
-        if (!sessionData?.user) {
-          console.error("Session tidak ditemukan setelah login");
-          toast.error("Terjadi masalah dengan session");
-          return;
-        }
-
-        // Tentukan redirect berdasarkan userType dari session
-        const userType = sessionData.user.userType;
-        console.log("Detected userType:", userType);
-        
-        let redirectPath = '/dashboard'; // default
-
-        if (userType) {
-          // Convert to lowercase to ensure consistent checking
-          const userTypeLower = userType.toLowerCase();
-          
-          if (userTypeLower === 'instructor') {
-            redirectPath = '/instructure/dashboard';
-          } else if (userTypeLower === 'participant') {
-            redirectPath = '/participant/dashboard';
-          } else if (userTypeLower === 'admin') {
-            redirectPath = '/dashboard';
-          } else {
-            console.warn("Unknown userType:", userType);
-          }
-        } else {
-          console.warn("userType is missing in session");
-        }
-
-        console.log("Redirecting to:", redirectPath);
-        // Use window.location for a hard redirect to avoid client-side routing issues
-        window.location.href = redirectPath;
+      
+      // Login successful
+      toast.success("Login successful!");
+      
+      // Get redirect URL from the response body or header, or use default based on user type
+      let redirectPath = data.redirectUrl;
+      
+      if (!redirectPath) {
+        // Fallback to header
+        redirectPath = response.headers.get('X-Redirect-URL');
       }
+      
+      if (!redirectPath) {
+        // Fallback to user type based redirect
+        const userType = data.user?.userType?.toLowerCase();
+        
+        if (userType === 'admin') {
+          // redirectPath = '/.ldashboard';
+          
+          console.log("Admin user detected, redirecting to /user");
+        } else if (userType === 'instructure') {
+          redirectPath = '/instructure-dashboard';
+          console.log("Instructor user detected, redirecting to /instructure-dashboard");
+        } else if (userType === 'participant') {
+          redirectPath = '/participant-dashboard';
+          console.log("Participant user detected, redirecting to /participant-dashboard");
+        } else {
+          redirectPath = '/dashboard-static';
+          console.log("Unknown user type, redirecting to /dashboard-static");
+        }
+      }
+      
+      console.log("Redirecting to:", redirectPath, "for user type:", data.user?.userType);
+      
+      // Special handling for admin users
+      const isAdmin = data.user?.userType?.toLowerCase() === 'admin';
+      const delay = isAdmin ? 1200 : 800; // Longer delay for admin users
+      
+      if (isAdmin) {
+        console.log("ADMIN LOGIN: Using longer delay for admin redirect:", delay, "ms");
+        
+        // For admin users, we'll use a more direct approach
+        console.log("ADMIN LOGIN: Adding special admin flag to localStorage");
+        localStorage.setItem("admin_login_timestamp", Date.now().toString());
+        localStorage.setItem("admin_email", data.user.email);
+        
+        // Override redirectPath for admin
+        redirectPath = "/dashboard";
+      }
+      
+      // Add a delay to ensure cookies are set
+      setTimeout(() => {
+        // Use window.location for a hard redirect to avoid client-side routing issues
+        if (isAdmin) {
+          console.log("ADMIN LOGIN: Executing redirect to", redirectPath);
+          
+          // For admin, use a different approach - direct URL with reload
+          window.location.replace(redirectPath);
+        } else {
+          window.location.href = redirectPath;
+        }
+      }, delay);
+      
     } catch (error) {
       console.error("Login error:", error);
-      const errorMessage = error instanceof Error ? error.message : "Terjadi kesalahan saat login";
+      const errorMessage = error instanceof Error ? error.message : "An error occurred during login";
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -94,12 +115,15 @@ const LoginForm = () => {
     }
   };
 
-  // Tampilkan link ke debug login
+  // Display link to debug login
   const DebugLoginLink = () => (
     <div className="mt-4 text-center">
-      <Link href="/debug-login" className="text-xs text-gray-500 hover:underline">
-        Login Debug
+      <Link href="/debug-login" className="text-xs text-gray-500 hover:underline mr-4">
+        Debug Login
       </Link>
+      <Link href="/generate-secret" className="text-xs text-blue-500 hover:underline font-semibold">
+          Generate Secret
+        </Link>
     </div>
   );
 
@@ -142,7 +166,7 @@ const LoginForm = () => {
                 transition={{ duration: 0.6, delay: 0.4 }}
                 className="-intro-x mt-10 text-4xl font-medium leading-tight text-white"
               >
-                Selamat Datang di Train4best
+                Welcome to Train4best
               </motion.div>
               <motion.div
                 initial={{ y: 20, opacity: 0 }}
@@ -150,7 +174,7 @@ const LoginForm = () => {
                 transition={{ duration: 0.6, delay: 0.6 }}
                 className="-intro-x mt-5 text-lg text-white text-opacity-70 dark:text-slate-400"
               >
-                Layanan pelanggan : +62 821-3023-7117
+                Customer service: +62 821-3023-7117
               </motion.div>
             </div>
           </motion.div>
@@ -170,7 +194,7 @@ const LoginForm = () => {
                 transition={{ duration: 0.6, delay: 0.3 }}
                 className="intro-x text-center text-2xl font-bold text-black xl:text-left xl:text-3xl"
               >
-                Masuk
+                Login
               </motion.h2>
               <motion.div
                 initial={{ y: -20, opacity: 0 }}
@@ -178,7 +202,7 @@ const LoginForm = () => {
                 transition={{ duration: 0.6, delay: 0.4 }}
                 className="intro-x mt-2 text-center text-slate-400 xl:hidden"
               >
-                Selamat Datang di Train4best
+                Welcome to Train4best
               </motion.div>
 
               {error && (
@@ -204,7 +228,7 @@ const LoginForm = () => {
                   <div className="intro-x mt-4 relative">
                     <input
                       type={showPassword ? "text" : "password"}
-                      placeholder="Kata Sandi"
+                      placeholder="Password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       className="block min-w-full px-4 py-3 xl:min-w-[350px] disabled:bg-slate-100 disabled:cursor-not-allowed dark:disabled:bg-darkmode-800/50 dark:disabled:border-transparent transition duration-200 ease-in-out w-full text-sm border-slate-200 shadow-sm rounded-md placeholder:text-slate-400/90 focus:ring-4 focus:ring-[#373A8D] focus:ring-opacity-20 focus:border-[#373A8D] focus:border-opacity-40 dark:bg-darkmode-800 dark:border-transparent dark:focus:ring-slate-700 dark:focus:ring-opacity-50 dark:placeholder:text-slate-500/80 text-black"
@@ -212,7 +236,7 @@ const LoginForm = () => {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 to-black"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-700"
                     >
                       {showPassword ? (
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
@@ -233,19 +257,9 @@ const LoginForm = () => {
                   transition={{ duration: 0.6, delay: 0.6 }}
                   className="intro-x mt-4 flex text-xs text-slate-600 dark:text-slate-500 sm:text-sm"
                 >
-                  <div className="mr-auto flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="mr-2 border transition-all duration-100 ease-in-out shadow-sm border-slate-200 cursor-pointer rounded focus:ring-4 focus:ring-[#373A8D] focus:ring-opacity-20"
-                    />
-                    <label className="cursor-pointer select-none">
-                      Ingat saya
-                    </label>
-                  </div>
+          
                   <Link href="/forgot-password" className="text-[#373A8D]">
-                    Lupa Kata Sandi?
+                    Forgot Password?
                   </Link>
                 </motion.div>
                 <motion.div
@@ -259,13 +273,13 @@ const LoginForm = () => {
                     disabled={loading}
                     className="w-full px-4 py-3 align-top xl:mr-3 xl:w-32 transition duration-200 border shadow-sm inline-flex items-center justify-center rounded-md font-medium cursor-pointer focus:ring-4 focus:ring-[#373A8D] focus:ring-opacity-20 focus-visible:outline-none dark:focus:ring-slate-700 dark:focus:ring-opacity-50 [&:hover:not(:disabled)]:bg-opacity-90 [&:hover:not(:disabled)]:border-opacity-90 bg-[#373A8D] border-[#373A8D] text-white disabled:opacity-70"
                   >
-                    {loading ? "Memuat..." : "Masuk"}
+                    {loading ? "Loading..." : "Login"}
                   </button>
                   <Link
                     href="/register"
                     className="mt-3 w-full px-4 py-3 align-top xl:mt-0 xl:w-32 transition duration-200 border shadow-sm inline-flex items-center justify-center rounded-md font-medium cursor-pointer focus:ring-4 focus:ring-[#373A8D] focus:ring-opacity-20 focus-visible:outline-none dark:focus:ring-slate-700 dark:focus:ring-opacity-50 [&:hover:not(:disabled)]:bg-opacity-90 [&:hover:not(:disabled)]:border-opacity-90 border-secondary text-slate-700 dark:border-darkmode-100/40 dark:text-slate-700 [&:hover:not(:disabled)]:bg-secondary/20 [&:hover:not(:disabled)]:dark:bg-darkmode-100/10"
                   >
-                    Daftar
+                    Register
                   </Link>
                 </motion.div>
               </form>

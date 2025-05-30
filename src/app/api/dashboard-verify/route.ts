@@ -1,17 +1,15 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { cookies } from "next/headers";
 import { verify } from "jsonwebtoken";
+import { cookies } from "next/headers";
 
 // Fungsi untuk logging
 function logDebug(message: string, data?: any) {
-  console.log(`[SESSION-CHECK] ${message}`, data ? JSON.stringify(data, null, 2) : '');
+  console.log(`[DASHBOARD-VERIFY] ${message}`, data ? JSON.stringify(data, null, 2) : '');
 }
 
 export async function GET(req: Request) {
   try {
-    logDebug('Checking session status');
+    logDebug("Dashboard verification requested");
     
     // Check cookies for tokens
     const cookieStore = cookies();
@@ -31,7 +29,7 @@ export async function GET(req: Request) {
     if (dashboardToken) {
       try {
         const decoded = verify(dashboardToken, secret) as any;
-        if (decoded) {
+        if (decoded && decoded.dashboard_access === true) {
           logDebug("Dashboard token valid", decoded);
           tokenValid = true;
           userData = {
@@ -50,7 +48,7 @@ export async function GET(req: Request) {
     if (!tokenValid && adminToken) {
       try {
         const decoded = verify(adminToken, secret) as any;
-        if (decoded) {
+        if (decoded && decoded.isAdmin === true) {
           logDebug("Admin token valid", decoded);
           tokenValid = true;
           userData = {
@@ -105,22 +103,22 @@ export async function GET(req: Request) {
     
     // Return result
     if (tokenValid) {
-      logDebug("Session check successful");
+      logDebug("Dashboard verification successful");
       return NextResponse.json({
         valid: true,
         user: userData
       });
     } else {
-      logDebug("Session check failed, no valid token");
+      logDebug("Dashboard verification failed, no valid token");
       return NextResponse.json({
         valid: false
       });
     }
   } catch (error) {
-    console.error("Error checking session:", error);
+    console.error("Error verifying dashboard access:", error);
     return NextResponse.json({
       valid: false,
-      error: "Failed to check session",
+      error: "Failed to verify dashboard access",
       details: error instanceof Error ? error.message : "Unknown error"
     }, { status: 500 });
   }

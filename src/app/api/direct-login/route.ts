@@ -1,15 +1,21 @@
 import { NextResponse } from "next/server";
 import { compare } from "bcryptjs";
 import { sign } from "jsonwebtoken";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+
+// Fungsi untuk logging
+function logDebug(message: string, data?: any) {
+  console.log(`[DEBUG] ${message}`, data ? JSON.stringify(data) : '');
+}
 
 export async function POST(req: Request) {
   try {
     // Dapatkan email dan password dari request
     const { email, password } = await req.json();
+    logDebug(`Login attempt for: ${email}`);
     
     if (!email || !password) {
+      logDebug('Missing email or password');
       return NextResponse.json({
         success: false,
         error: "Email dan password diperlukan"
@@ -23,33 +29,76 @@ export async function POST(req: Request) {
     });
     
     if (!user) {
+      logDebug(`User not found: ${email}`);
       return NextResponse.json({
         success: false,
         error: "User tidak ditemukan"
       }, { status: 404 });
     }
     
+    logDebug(`User found: ${email}, userType: ${user.userType.usertype}`);
+    
     // Verifikasi password
     const isPasswordValid = await compare(password, user.password);
     
     if (!isPasswordValid) {
+      logDebug(`Invalid password for: ${email}`);
       return NextResponse.json({
         success: false,
         error: "Password tidak valid"
       }, { status: 401 });
     }
     
+    logDebug(`Password valid for: ${email}`);
+    
+    // Pastikan userType dalam format yang konsisten (kapital di awal)
+    let userTypeFormatted = user.userType.usertype;
+    
+    // Penanganan khusus untuk tipe Admin
+    if (userTypeFormatted.toLowerCase() === 'admin') {
+      userTypeFormatted = 'Admin'; // Pastikan format Admin dengan A kapital
+    } else {
+      // Format lainnya (kapital di awal)
+      userTypeFormatted = userTypeFormatted.charAt(0).toUpperCase() + userTypeFormatted.slice(1).toLowerCase();
+    }
+    
+    logDebug(`Formatted userType: ${userTypeFormatted} (original: ${user.userType.usertype})`);
+    
     // Buat token JWT manual dengan secret yang valid
+    const secret = process.env.NEXTAUTH_SECRET || "e78d5a16cb1781adedf7dec940c51b54c97009a615dc7bafe078cb82c1b17fac";
+    logDebug(`Using secret: ${secret.substring(0, 5)}...`);
+    
+    const tokenPayload = {
+      id: user.id,
+      email: user.email,
+      name: user.username,
+      userType: userTypeFormatted
+    };
+    
+    logDebug(`Token payload:`, tokenPayload);
+    
     const token = sign(
-      {
-        id: user.id,
-        email: user.email,
-        name: user.username,
-        userType: user.userType.usertype
-      },
-      process.env.NEXTAUTH_SECRET || "RAHASIA_FALLBACK_YANG_AMAN_DAN_PANJANG_UNTUK_DEVELOPMENT", // Secret harus tidak kosong dan cukup panjang
+      tokenPayload,
+      secret,
       { expiresIn: "1d" }
     );
+    
+    logDebug(`Token generated, length: ${token.length}`);
+    
+    // Tentukan redirect URL berdasarkan userType
+    let redirectUrl = '/dashboard';
+    const userTypeLower = userTypeFormatted.toLowerCase();
+    
+    if (userTypeLower === 'admin') {
+      redirectUrl = '/dashboard'; // Admin ke dashboard
+      logDebug(`Admin user, setting redirect URL to: ${redirectUrl}`);
+    } else if (userTypeLower === 'instructure') {
+      redirectUrl = '/instructure/dashboard';
+    } else if (userTypeLower === 'participant') {
+      redirectUrl = '/participant/dashboard';
+    }
+    
+    logDebug(`Redirect URL set to: ${redirectUrl} for userType: ${userTypeFormatted}`);
     
     // Kembalikan info user dan token dengan header redirect
     const response = NextResponse.json({
@@ -59,28 +108,87 @@ export async function POST(req: Request) {
         id: user.id,
         email: user.email,
         name: user.username,
-        userType: user.userType.usertype,
+        userType: userTypeFormatted,
         hasProfile: user.participant && user.participant.length > 0
-      }
+      },
+      redirectUrl // Include redirect URL in the response body
     });
     
-    // Set cookie debug_token
-    response.cookies.set("debug_token", token, {
-      httpOnly: true,
-      path: "/",
-      maxAge: 60 * 60 * 24, // 1 hari
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production"
-    });
+    // Log untuk debugging khusus admin
+    if (userTypeLower === 'admin') {
+      logDebug(`ADMIN LOGIN: Setting up cookies and headers for admin user: ${user.email}`);
+      logDebug(`ADMIN LOGIN: Redirect URL: ${redirectUrl}`);
+    }
     
-    // Set cookie untuk next-auth juga sebagai fallback
-    response.cookies.set("next-auth.session-token", token, {
-      httpOnly: true,
-      path: "/",
-      maxAge: 60 * 60 * 24,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production"
-    });
+    // Hapus cookie lama jika ada untuk menghindari konflik
+    response.cookies.set("debug_token", "", { maxAge: 0 });
+    response.cookies.set("next-auth.session-token", "", { maxAge: 0 });
+    response.cookies.set("redirect_attempt", "", { maxAge: 0 });
+    response.cookies.set("admin_token", "", { maxAge: 0 });
+    
+    logDebug(`Old cookies cleared`);
+    
+    // Penanganan khusus untuk admin
+    if (userTypeLower === 'admin') {
+      // Buat token khusus admin dengan expiry yang lebih lama
+      const adminToken = sign(
+        {
+          ...tokenPayload,
+          isAdmin: true,
+          timestamp: Date.now()
+        },
+        secret,
+        { expiresIn: "7d" } // Token admin berlaku 7 hari
+      );
+      
+      // Set cookie admin_token
+      response.cookies.set("admin_token", adminToken, {
+        httpOnly: true,
+        path: "/",
+        maxAge: 7 * 24 * 60 * 60, // 7 hari
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production"
+      });
+      
+      // Set juga cookie biasa untuk kompatibilitas
+      response.cookies.set("debug_token", adminToken, {
+        httpOnly: true,
+        path: "/",
+        maxAge: 7 * 24 * 60 * 60, // 7 hari
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production"
+      });
+      
+      response.cookies.set("next-auth.session-token", adminToken, {
+        httpOnly: true,
+        path: "/",
+        maxAge: 7 * 24 * 60 * 60, // 7 hari
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production"
+      });
+      
+      logDebug(`ADMIN LOGIN: Special admin cookies set`);
+    } else {
+      // Set cookie debug_token untuk non-admin
+      response.cookies.set("debug_token", token, {
+        httpOnly: true,
+        path: "/",
+        maxAge: 60 * 60 * 24, // 1 hari
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production"
+      });
+      
+      // Set cookie untuk next-auth juga sebagai fallback
+      response.cookies.set("next-auth.session-token", token, {
+        httpOnly: true,
+        path: "/",
+        maxAge: 60 * 60 * 24,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production"
+      });
+    }
+    
+    logDebug(`Cookies set: debug_token and next-auth.session-token`);
     
     // Set header untuk redirect
     response.headers.set(
@@ -88,16 +196,23 @@ export async function POST(req: Request) {
       `login_success=true; Path=/; Max-Age=60;`
     );
     
-    // Tambahkan info redirect URL ke respons
-    response.headers.set("X-Redirect-URL", `/profile?email=${encodeURIComponent(user.email)}`);
+    // Tambahkan info redirect URL ke respons header
+    response.headers.set("X-Redirect-URL", redirectUrl);
     
+    // Log khusus admin
+    if (userTypeLower === 'admin') {
+      logDebug(`ADMIN LOGIN: Final response headers:`, Object.fromEntries(response.headers.entries()));
+      logDebug(`ADMIN LOGIN: Final cookies:`, response.cookies);
+    }
+    
+    logDebug(`Response headers set, returning response`);
     return response;
   } catch (error) {
     console.error("Error login:", error);
     return NextResponse.json({
       success: false,
       error: "Gagal melakukan login",
-      details: error.message
+      details: error instanceof Error ? error.message : "Unknown error"
     }, { status: 500 });
   }
 } 

@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import Layout from "@/components/common/Layout";
+import InstructureProfileSetup from "@/components/InstructureProfileSetup";
 import { 
   BookOpen, 
   Users, 
@@ -30,6 +32,7 @@ interface StudentProgress {
 
 const DashboardPage = () => {
   const [activeTab, setActiveTab] = useState("courses");
+  const { data: session } = useSession();
 
   const teachingCourses: TeachingCourse[] = [
     {
@@ -232,6 +235,14 @@ const DashboardPage = () => {
             </div>
           </div>
         </div>
+        
+        {/* Instructure Profile Setup - will show if profile completion is needed */}
+        {session?.user?.id && (
+          <InstructureProfileSetup 
+            userId={session.user.id} 
+            username={session.user.name || ''} 
+          />
+        )}
       </div>
     </Layout>
   );

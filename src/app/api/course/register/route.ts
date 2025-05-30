@@ -217,13 +217,6 @@ export async function POST(req: Request) {
       );
     }
     
-    if (!paymentMethod) {
-      return NextResponse.json(
-        { error: "Payment method is required" },
-        { status: 400 }
-      );
-    }
-    
     // Validate email format if provided
     if (email) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -235,7 +228,7 @@ export async function POST(req: Request) {
       }
     }
     
-    console.log(`Course registration request for class ${classId}, payment ${paymentMethod}, email: ${email || 'not provided'}`);
+    console.log(`Course registration request for class ${classId}, payment ${paymentMethod || 'Transfer Bank'}, email: ${email || 'not provided'}`);
     
     // PRIORITAS 1: Cek user yang sedang login (session)
     let currentUser = null;
@@ -468,6 +461,14 @@ export async function POST(req: Request) {
     // Create course registration
     const registrationId = `reg_${Date.now()}_${Math.round(Math.random() * 10000)}`;
     
+    // Pastikan participantId tidak undefined
+    if (!participantId) {
+      return NextResponse.json(
+        { error: "Profil peserta tidak ditemukan atau tidak dapat dibuat" },
+        { status: 500 }
+      );
+    }
+    
     await prisma.courseRegistration.create({
       data: {
         id: registrationId,
@@ -475,7 +476,7 @@ export async function POST(req: Request) {
         reg_status: "Registered",
         payment: classData.price,
         payment_status: "Unpaid",
-        payment_method: paymentMethod,
+        payment_method: paymentMethod || "Transfer Bank",
         present_day: 0,
         classId,
         participantId
@@ -491,7 +492,7 @@ export async function POST(req: Request) {
         id: paymentId,
         paymentDate: new Date(),
         amount: classData.price,
-        paymentMethod,
+        paymentMethod: paymentMethod || "Transfer Bank",
         referenceNumber,
         status: "Unpaid",
         registrationId,

@@ -21,14 +21,62 @@ const Navbar: FC<NavbarProps> = ({ onMobileMenuClick }) => {
   });
 
   useEffect(() => {
-    // Update user data when session changes
-    if (session?.user) {
+    // Fungsi untuk mendapatkan data pengguna dari berbagai sumber
+    const getUserData = async () => {
+      console.log("Getting user data, session status:", status);
+      console.log("Session data:", session);
+      
+      // 1. Coba dari session (next-auth)
+      if (session?.user) {
+        console.log("Using data from session:", session.user);
+        setUserData({
+          name: session.user.name || "User",
+          role: session.user.userType || "User"
+        });
+        return;
+      }
+
+      // 2. Coba dari localStorage (untuk admin)
+      const adminEmail = localStorage.getItem("admin_email");
+      const adminTimestamp = localStorage.getItem("admin_login_timestamp");
+      if (adminEmail && adminTimestamp) {
+        console.log("Using data from localStorage admin:", { adminEmail, adminTimestamp });
+        setUserData({
+          name: adminEmail.split('@')[0] || "Admin",
+          role: "Admin"
+        });
+        return;
+      }
+
+      // 3. Coba dari API
+      try {
+        console.log("Fetching user data from API");
+        const response = await fetch('/api/auth/session-check');
+        const data = await response.json();
+        console.log("API response:", data);
+        
+        if (data.valid && data.user) {
+          console.log("Using data from API:", data.user);
+          setUserData({
+            name: data.user.name || "User",
+            role: data.user.userType || "User"
+          });
+          return;
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      }
+
+      // 4. Fallback ke nilai default jika semua gagal
+      console.log("Using fallback data");
       setUserData({
-        name: session.user.name || "User",
-        role: session.user.userType || "User"
+        name: "User",
+        role: "Guest"
       });
-    }
-  }, [session]);
+    };
+
+    getUserData();
+  }, [session, status]);
 
   // Fungsi untuk menampilkan modal logout
   const handleLogoutClick = () => {
@@ -77,7 +125,7 @@ const Navbar: FC<NavbarProps> = ({ onMobileMenuClick }) => {
             </div>
 
             {/* Navigation Links */}
-            <div className="hidden md:flex items-center space-x-6">
+            {/* <div className="flex items-center space-x-6">
               <Link 
                 href="/application" 
                 className="hover:text-gray-200 text-sm font-medium transition-colors hover:bg-indigo-700/50 px-4 py-2 rounded-xl"
@@ -90,7 +138,7 @@ const Navbar: FC<NavbarProps> = ({ onMobileMenuClick }) => {
               >
                 Dashboard
               </Link>
-            </div>
+            </div> */}
 
             {/* Right Side - Notifications & Profile */}
             <div className="flex items-center space-x-6">
@@ -132,12 +180,6 @@ const Navbar: FC<NavbarProps> = ({ onMobileMenuClick }) => {
                       <span className="text-sm">Profile</span>
                     </Link>
 
-                    <Link
-                      href="/add-account"
-                      className="flex items-center px-4 py-2.5 hover:bg-indigo-600/30 border-b border-indigo-600/30 transition-colors"
-                    >
-                      <span className="text-sm">Add Account</span>
-                    </Link>
 
                     <Link
                       href="/reset-password"

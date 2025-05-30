@@ -81,16 +81,25 @@ const editUsertypeAPI = async (idUsertype: string, updatedUser: NewUser): Promis
   }
 };
 
-const deleteUsertypeAPI = async (idUsertype: string): Promise<void> => {
+const deleteUsertypeAPI = async (idUsertype: string, force: boolean = false): Promise<void> => {
   try {
-    const response = await fetch(`/api/usertype/${idUsertype}`, {
+    console.log(`Attempting to delete usertype: ${idUsertype}, force: ${force}`);
+    const url = force ? `/api/usertype/${idUsertype}?force=true` : `/api/usertype/${idUsertype}`;
+    console.log(`Request URL: ${url}`);
+    
+    const response = await fetch(url, {
       method: 'DELETE',
     });
     
+    console.log(`Response status: ${response.status}`);
+    const responseData = await response.json();
+    console.log('Response data:', responseData);
+    
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `Error: ${response.status}`);
+      throw new Error(responseData.error || `Error: ${response.status}`);
     }
+    
+    console.log('Delete successful');
   } catch (error) {
     console.error("Failed to delete usertype:", error);
     throw error;
@@ -228,20 +237,27 @@ const UserPage = (): ReactElement => {
     }
   };
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = async (force: boolean = false) => {
     if (!userToDelete) return;
     setError(null);
 
     try {
-      await deleteUsertypeAPI(userToDelete.idUsertype);
+      await deleteUsertypeAPI(userToDelete.idUsertype, force);
       setUsertypeData(prev =>
         prev.filter(user => user.idUsertype !== userToDelete.idUsertype)
       );
       setIsDeleteModalOpen(false);
       setUserToDelete(null);
     } catch (error) {
+      console.error('Delete error:', error);
       if (error instanceof Error) {
-        setError(error.message);
+        const errorMessage = error.message;
+        // Cek apakah error berisi informasi tentang user yang menggunakan usertype ini
+        if (errorMessage.includes('in use by users')) {
+          setError(`${errorMessage}\n\nKlik tombol "Force Delete" untuk menghapus paksa. User akan dialihkan ke usertype default.`);
+        } else {
+          setError(errorMessage);
+        }
       } else {
         setError("Failed to delete usertype");
       }
@@ -441,6 +457,11 @@ const UserPage = (): ReactElement => {
             <p className="text-xs text-gray-600 mt-2">
               Apakah Anda yakin ingin menghapus usertype <span className="font-semibold">{userToDelete?.usertype}</span>?
             </p>
+            {error && error.includes('in use by users') && (
+              <div className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded border border-red-200">
+                <p>{error}</p>
+              </div>
+            )}
             <div className="flex justify-end mt-3 gap-2">
               <Button
                 variant="gray"
@@ -450,14 +471,25 @@ const UserPage = (): ReactElement => {
               >
                 Cancel
               </Button>
-              <Button
-                variant="red"
-                size="small"
-                onClick={handleDeleteConfirm}
-                className="text-xs px-2 py-1"
-              >
-                Hapus
-              </Button>
+              {error && error.includes('in use by users') ? (
+                <Button
+                  variant="red"
+                  size="small"
+                  onClick={() => handleDeleteConfirm(true)}
+                  className="text-xs px-2 py-1"
+                >
+                  Force Delete
+                </Button>
+              ) : (
+                <Button
+                  variant="red"
+                  size="small"
+                  onClick={() => handleDeleteConfirm()}
+                  className="text-xs px-2 py-1"
+                >
+                  Hapus
+                </Button>
+              )}
             </div>
           </Modal>
         )}
