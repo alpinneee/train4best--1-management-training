@@ -36,7 +36,20 @@ const Navbar: FC<NavbarProps> = ({ onMobileMenuClick }) => {
         return;
       }
 
-      // 2. Coba dari localStorage (untuk admin)
+      // 2. Coba dari localStorage untuk participant
+      const userEmail = localStorage.getItem("userEmail");
+      const username = localStorage.getItem("username");
+      
+      if (username && userEmail) {
+        console.log("Using data from localStorage participant:", { username, userEmail });
+        setUserData({
+          name: username,
+          role: "Participant"
+        });
+        return;
+      }
+      
+      // 3. Coba dari localStorage (untuk admin)
       const adminEmail = localStorage.getItem("admin_email");
       const adminTimestamp = localStorage.getItem("admin_login_timestamp");
       if (adminEmail && adminTimestamp) {
@@ -48,7 +61,7 @@ const Navbar: FC<NavbarProps> = ({ onMobileMenuClick }) => {
         return;
       }
 
-      // 3. Coba dari API
+      // 4. Coba dari API
       try {
         console.log("Fetching user data from API");
         const response = await fetch('/api/auth/session-check');
@@ -67,7 +80,29 @@ const Navbar: FC<NavbarProps> = ({ onMobileMenuClick }) => {
         console.error("Error fetching user data:", error);
       }
 
-      // 4. Fallback ke nilai default jika semua gagal
+      // 5. Try to get user info from API using stored email
+      if (userEmail) {
+        try {
+          const response = await fetch(`/api/user/info?email=${encodeURIComponent(userEmail)}`);
+          const data = await response.json();
+          
+          if (data && data.username) {
+            console.log("Using data from user info API:", data);
+            setUserData({
+              name: data.username,
+              role: data.userType || "Participant"
+            });
+            
+            // Save username to localStorage
+            localStorage.setItem('username', data.username);
+            return;
+          }
+        } catch (error) {
+          console.error("Error fetching user info:", error);
+        }
+      }
+
+      // 6. Fallback ke nilai default jika semua gagal
       console.log("Using fallback data");
       setUserData({
         name: "User",
