@@ -56,6 +56,9 @@ const InstructurePage = () => {
     proficiency: "",
     address: "",
     photo: "",
+    email: "",
+    username: "",
+    password: "",
   });
   
   const [selectedProficiency, setSelectedProficiency] = useState("all");
@@ -137,6 +140,9 @@ const InstructurePage = () => {
       proficiency: "",
       address: "",
       photo: "",
+      email: "",
+      username: "",
+      password: "",
     });
     setIsEditMode(false);
     setCurrentInstructure(null);
@@ -164,6 +170,9 @@ const InstructurePage = () => {
         proficiency: data.proficiency,
         address: data.address,
         photo: data.photo || "",
+        email: data.email || "",
+        username: data.username || "",
+        password: data.password || "",
       });
       
       setCurrentInstructure(instructure);
@@ -179,20 +188,27 @@ const InstructurePage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.fullName || !formData.phoneNumber || !formData.proficiency || !formData.address) {
+    if (!formData.fullName || !formData.phoneNumber || !formData.proficiency || 
+        !formData.address || !formData.email || !formData.username || !formData.password) {
       alert('Please fill all required fields');
       return;
     }
     
     try {
       if (isEditMode && currentInstructure) {
-        // Update existing instructure
+        // Update existing instructure - only update instructure data, not user data
         const response = await fetch(`/api/instructure/${currentInstructure.id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(formData),
+          body: JSON.stringify({
+            fullName: formData.fullName,
+            phoneNumber: formData.phoneNumber,
+            proficiency: formData.proficiency,
+            address: formData.address,
+            photo: formData.photo,
+          }),
         });
         
         if (!response.ok) {
@@ -200,7 +216,7 @@ const InstructurePage = () => {
         }
         
       } else {
-        // Create new instructure
+        // Create new instructure with user account
         const response = await fetch('/api/instructure', {
           method: 'POST',
           headers: {
@@ -210,7 +226,8 @@ const InstructurePage = () => {
         });
         
         if (!response.ok) {
-          throw new Error('Failed to create instructure');
+          const data = await response.json();
+          throw new Error(data.error || 'Failed to create instructure');
         }
       }
       
@@ -476,6 +493,49 @@ const InstructurePage = () => {
                     required
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                    disabled={isEditMode}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Username
+                  </label>
+                  <input
+                    type="text"
+                    name="username"
+                    value={formData.username}
+                    onChange={handleInputChange}
+                    className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                    disabled={isEditMode}
+                  />
+                </div>
+                {!isEditMode && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      name="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                )}
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     Phone Number

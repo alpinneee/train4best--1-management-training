@@ -17,7 +17,8 @@ const Navbar: FC<NavbarProps> = ({ onMobileMenuClick }) => {
   const { data: session, status } = useSession();
   const [userData, setUserData] = useState({
     name: "",
-    role: ""
+    role: "",
+    email: ""
   });
 
   useEffect(() => {
@@ -31,7 +32,8 @@ const Navbar: FC<NavbarProps> = ({ onMobileMenuClick }) => {
         console.log("Using data from session:", session.user);
         setUserData({
           name: session.user.name || "User",
-          role: session.user.userType || "User"
+          role: session.user.userType || "User",
+          email: session.user.email || ""
         });
         return;
       }
@@ -44,7 +46,8 @@ const Navbar: FC<NavbarProps> = ({ onMobileMenuClick }) => {
         console.log("Using data from localStorage participant:", { username, userEmail });
         setUserData({
           name: username,
-          role: "Participant"
+          role: "Participant",
+          email: userEmail
         });
         return;
       }
@@ -56,7 +59,8 @@ const Navbar: FC<NavbarProps> = ({ onMobileMenuClick }) => {
         console.log("Using data from localStorage admin:", { adminEmail, adminTimestamp });
         setUserData({
           name: adminEmail.split('@')[0] || "Admin",
-          role: "Admin"
+          role: "Admin",
+          email: adminEmail
         });
         return;
       }
@@ -72,7 +76,8 @@ const Navbar: FC<NavbarProps> = ({ onMobileMenuClick }) => {
           console.log("Using data from API:", data.user);
           setUserData({
             name: data.user.name || "User",
-            role: data.user.userType || "User"
+            role: data.user.userType || "User",
+            email: data.user.email || ""
           });
           return;
         }
@@ -88,9 +93,14 @@ const Navbar: FC<NavbarProps> = ({ onMobileMenuClick }) => {
           
           if (data && data.username) {
             console.log("Using data from user info API:", data);
+            
+            // Cek apakah ini admin berdasarkan email atau data lainnya
+            const isAdmin = localStorage.getItem("admin_email") === userEmail;
+            
             setUserData({
               name: data.username,
-              role: data.userType || "Participant"
+              role: isAdmin ? "Admin" : (data.userType || "Participant"),
+              email: userEmail
             });
             
             // Save username to localStorage
@@ -106,7 +116,8 @@ const Navbar: FC<NavbarProps> = ({ onMobileMenuClick }) => {
       console.log("Using fallback data");
       setUserData({
         name: "User",
-        role: "Guest"
+        role: "Guest",
+        email: ""
       });
     };
 
@@ -205,7 +216,7 @@ const Navbar: FC<NavbarProps> = ({ onMobileMenuClick }) => {
                   <div className="absolute right-0 mt-3 w-48 bg-[#362d98] rounded-2xl shadow-lg overflow-hidden z-50 border border-white/10">
                     <div className="px-4 py-3 border-b border-indigo-600/30">
                       <p className="font-semibold text-sm">{userData.name}</p>
-                      <p className="text-xs text-gray-300">{userData.role}</p>
+                      <p className="text-xs text-gray-300">{userData.email}</p>
                     </div>
 
                     <Link

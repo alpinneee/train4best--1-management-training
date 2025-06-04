@@ -112,6 +112,12 @@ export default function ProfilePage() {
     if (!emailToUse && session?.user?.email) {
       emailToUse = session.user.email;
       console.log("Using email from session:", emailToUse);
+      
+      // If we have userType in session, store it in localStorage
+      if (session.user.userType) {
+        localStorage.setItem('userType', session.user.userType);
+        console.log("Stored userType in localStorage:", session.user.userType);
+      }
     }
     
     // Try admin email from localStorage
@@ -120,6 +126,9 @@ export default function ProfilePage() {
       if (adminEmail) {
         emailToUse = adminEmail;
         console.log("Using admin email from localStorage:", emailToUse);
+        
+        // Store admin role in localStorage
+        localStorage.setItem('userType', 'Admin');
       }
     }
     
@@ -175,6 +184,12 @@ export default function ProfilePage() {
           jobTitle: result.data.job_title || '',
           company: result.data.company || '',
         });
+        
+        // Store user type in localStorage if available
+        if (result.data.userType) {
+          localStorage.setItem('userType', result.data.userType);
+          console.log("Stored userType from API in localStorage:", result.data.userType);
+        }
         
         // Check if profile is complete
         const requiredFields = ['fullName', 'gender', 'phone_number', 'address', 'birth_date'];
@@ -323,6 +338,12 @@ export default function ProfilePage() {
             }));
             // Save username to localStorage for future use
             localStorage.setItem('username', data.username);
+            
+            // Save userType if available
+            if (data.userType) {
+              localStorage.setItem('userType', data.userType);
+              console.log("Stored userType from user info API:", data.userType);
+            }
           }
         })
         .catch(err => console.error("Error fetching user info:", err));
@@ -396,11 +417,22 @@ export default function ProfilePage() {
     
     // Try localStorage for admin
     const adminEmail = localStorage.getItem("admin_email");
-    if (adminEmail) {
+    const adminTimestamp = localStorage.getItem("admin_login_timestamp");
+    if (adminEmail && adminTimestamp) {
       return {
         name: adminEmail.split('@')[0] || "Admin",
         email: adminEmail,
         role: 'Admin'
+      };
+    }
+    
+    // Try localStorage for user type
+    const userType = localStorage.getItem("userType");
+    if (userType) {
+      return {
+        name: formData.fullName || localStorage.getItem("username") || 'User',
+        email: formData.email || localStorage.getItem("userEmail") || '',
+        role: userType
       };
     }
     
@@ -418,8 +450,8 @@ export default function ProfilePage() {
   const getSidebarVariant = (): 'admin' | 'participant' | 'instructure' => {
     const role = userData.role.toLowerCase();
     
-    if (role === 'admin') return 'admin';
-    if (role === 'instructure' || role === 'instructor') return 'instructure';
+    if (role.includes('admin')) return 'admin';
+    if (role.includes('instruct')) return 'instructure';
     return 'participant';
   };
 
@@ -487,7 +519,7 @@ export default function ProfilePage() {
             </div>
             <div className="ml-3">
               <p className="text-sm text-yellow-700">
-                Silakan lengkapi profil Anda untuk pengalaman yang lebih baik.
+                Please complete your profile for a better experience.
               </p>
             </div>
           </div>
