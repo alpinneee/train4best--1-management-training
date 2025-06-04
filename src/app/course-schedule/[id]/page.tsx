@@ -7,6 +7,7 @@ import { FileText, Edit, Trash2, History, UserCheck } from "lucide-react";
 import Modal from "@/components/common/Modal";
 import Layout from "@/components/common/Layout";
 import Image from "next/image";
+import InstructorSelectionTable from "../../../components/common/InstructorSelectionTable";
 
 interface Participant {
   id: string;
@@ -33,8 +34,8 @@ interface AvailableParticipant {
 
 interface AvailableInstructure {
   id: string;
-  name: string;
-  phoneNumber: string;
+  full_name: string;
+  phone_number: string;
   profiency: string;
 }
 
@@ -93,6 +94,10 @@ const CourseScheduleDetail = () => {
     status: 'Active'
   });
 
+  const [isInstructorSelectionModalOpen, setIsInstructorSelectionModalOpen] = useState(false);
+  const [selectedInstructorIds, setSelectedInstructorIds] = useState<string[]>([]);
+  const [allInstructors, setAllInstructors] = useState<any[]>([]);
+
   const searchParticipants = async (query: string) => {
     try {
       const response = await fetch(`/api/participant?search=${encodeURIComponent(query)}`);
@@ -119,8 +124,8 @@ const CourseScheduleDetail = () => {
       const data = await response.json();
       return data.data.map((instructure: any) => ({
         id: instructure.id,
-        name: instructure.name,
-        phoneNumber: instructure.phone_number,
+        full_name: instructure.name,
+        phone_number: instructure.phone_number,
         profiency: instructure.profiency
       }));
     } catch (error) {
@@ -159,6 +164,10 @@ const CourseScheduleDetail = () => {
         durationDay: data.durationDay.toString(),
         status: data.status
       });
+
+      if (data.instructures) {
+        setSelectedInstructorIds(data.instructures.map((instructor: { instructureId: string }) => instructor.instructureId));
+      }
     } catch (err) {
       console.error('Error in fetchCourseSchedule:', err);
       setError(err instanceof Error ? err.message : 'Failed to load course schedule');
@@ -167,9 +176,43 @@ const CourseScheduleDetail = () => {
     }
   };
 
+  const fetchAllInstructors = async () => {
+    try {
+      const response = await fetch('/api/instructure');
+      if (!response.ok) {
+        throw new Error(`Server responded with ${response.status}`);
+      }
+      const data = await response.json();
+      
+      // Transform the data to match the Instructor interface
+      const instructors = data.data.map((instructor: {
+        id: string;
+        name: string;
+        phone_number?: string;
+        profiency?: string;
+      }) => ({
+        id: instructor.id,
+        full_name: instructor.name,
+        phone_number: instructor.phone_number || '',
+        profiency: instructor.profiency || '',
+      }));
+      
+      setAllInstructors(instructors);
+    } catch (error) {
+      console.error("Error fetching instructors:", error);
+    }
+  };
+
   useEffect(() => {
     fetchCourseSchedule();
+    fetchAllInstructors();
   }, [scheduleId]);
+
+  useEffect(() => {
+    if (courseDetails?.instructures) {
+      setSelectedInstructorIds(courseDetails.instructures.map((instructor: { instructureId: string }) => instructor.instructureId));
+    }
+  }, [courseDetails]);
 
   const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -321,6 +364,48 @@ const CourseScheduleDetail = () => {
     }
   };
 
+  const handleSelectInstructor = async (instructorId: string) => {
+    try {
+      const response = await fetch(`/api/course-schedule/${scheduleId}/instructure`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          instructureId: instructorId,
+        }),
+      });
+
+      if (response.ok) {
+        setSelectedInstructorIds(prev => [...prev, instructorId]);
+        // Update the course schedule to reflect the change
+        fetchCourseSchedule();
+      } else {
+        console.error("Failed to add instructor");
+      }
+    } catch (error) {
+      console.error("Error adding instructor:", error);
+    }
+  };
+
+  const handleRemoveInstructor = async (instructorId: string) => {
+    try {
+      const response = await fetch(`/api/course-schedule/${scheduleId}/instructure/${instructorId}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        setSelectedInstructorIds(prev => prev.filter(id => id !== instructorId));
+        // Update the course schedule to reflect the change
+        fetchCourseSchedule();
+      } else {
+        console.error("Failed to remove instructor");
+      }
+    } catch (error) {
+      console.error("Error removing instructor:", error);
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -372,7 +457,7 @@ const CourseScheduleDetail = () => {
   }
 
   return (
-    <Layout>
+    <Layout variant="admin">
       <div className="p-2">
         <div className="flex justify-between items-center mb-2">
           <h1 className="text-lg md:text-xl text-gray-700">Course Schedule Detail</h1>
@@ -539,10 +624,10 @@ const CourseScheduleDetail = () => {
               <Button
                 variant="primary"
                 size="small"
-                onClick={() => setIsInstructureModalOpen(true)}
+                onClick={() => setIsInstructorSelectionModalOpen(true)}
                 className="w-full sm:w-auto text-xs"
               >
-                Add Instructure
+                Manage Instructors
               </Button>
               <div className="text-xs text-gray-600">
                 {courseDetails.instructures.length} Instructors
@@ -820,75 +905,28 @@ const CourseScheduleDetail = () => {
           </Modal>
         )}
 
-        {/* Add Instructure Modal */}
-        {isInstructureModalOpen && (
-          <Modal onClose={() => {
-            setIsInstructureModalOpen(false);
-            setAvailableInstructures([]);
-            setSelectedInstructureId("");
-          }}>
-            <h2 className="text-base font-semibold mb-2 text-gray-700">Add Instructure</h2>
-            <form onSubmit={handleAddInstructure}>
-              <div className="space-y-2">
-                <div>
-                  <label className="block text-xs text-gray-700 mb-1">Search Instructure</label>
-                  <input
-                    type="text"
-                    placeholder="Type to search..."
-                    onChange={handleInstructureSearch}
-                    className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-                
-                {availableInstructures.length > 0 && (
-                  <div className="max-h-40 overflow-y-auto border rounded">
-                    {availableInstructures.map((instructure) => (
-                      <div
-                        key={instructure.id}
-                        className={`p-2 text-xs hover:bg-gray-100 cursor-pointer ${
-                          selectedInstructureId === instructure.id ? 'bg-blue-50' : ''
-                        }`}
-                        onClick={() => setSelectedInstructureId(instructure.id)}
-                      >
-                        <div className="font-medium">{instructure.name}</div>
-                        <div className="text-gray-500">{instructure.profiency}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                {selectedInstructureId && (
-                  <div className="p-2 border rounded bg-gray-50">
-                    <p className="text-xs font-medium">Selected Instructor:</p>
-                    <p className="text-xs">{availableInstructures.find(i => i.id === selectedInstructureId)?.name}</p>
-                    <p className="text-xs text-gray-500">{availableInstructures.find(i => i.id === selectedInstructureId)?.profiency}</p>
-                  </div>
-                )}
-              </div>
-              <div className="flex justify-end gap-2 mt-2">
-                <Button
-                  variant="gray"
-                  size="small"
-                  onClick={() => {
-                    setIsInstructureModalOpen(false);
-                    setAvailableInstructures([]);
-                    setSelectedInstructureId("");
-                  }}
-                  className="text-xs px-2 py-1"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="primary"
-                  size="small"
-                  type="submit"
-                  disabled={!selectedInstructureId}
-                  className={`text-xs px-2 py-1 ${!selectedInstructureId ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  Add
-                </Button>
-              </div>
-            </form>
+        {/* Instructor Selection Modal */}
+        {isInstructorSelectionModalOpen && (
+          <Modal 
+            onClose={() => setIsInstructorSelectionModalOpen(false)}
+          >
+            <h2 className="text-base font-semibold mb-4 text-gray-700">Manage Instructors</h2>
+            <InstructorSelectionTable 
+              instructors={allInstructors}
+              selectedInstructors={selectedInstructorIds}
+              onSelectInstructor={handleSelectInstructor}
+              onRemoveInstructor={handleRemoveInstructor}
+            />
+            <div className="flex justify-end mt-4">
+              <Button
+                variant="primary"
+                size="small"
+                onClick={() => setIsInstructorSelectionModalOpen(false)}
+                className="text-xs px-4 py-1"
+              >
+                Done
+              </Button>
+            </div>
           </Modal>
         )}
 
