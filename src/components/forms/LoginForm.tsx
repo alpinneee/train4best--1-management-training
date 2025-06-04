@@ -46,6 +46,16 @@ const LoginForm = () => {
       // Login successful
       toast.success("Login successful!");
       
+      // Store user data in localStorage
+      if (data.user) {
+        localStorage.setItem("userEmail", data.user.email);
+        localStorage.setItem("username", data.user.name);
+        console.log("Stored user data in localStorage:", { 
+          email: data.user.email, 
+          username: data.user.name 
+        });
+      }
+      
       // Get redirect URL from the response body or header, or use default based on user type
       let redirectPath = data.redirectUrl;
       
@@ -68,6 +78,9 @@ const LoginForm = () => {
         } else if (userType === 'participant') {
           redirectPath = '/participant-dashboard';
           console.log("Participant user detected, redirecting to /participant-dashboard");
+        } else if (userType === 'unassigned') {
+          redirectPath = '/profile';
+          console.log("Unassigned user detected, redirecting to profile page to complete registration");
         } else {
           redirectPath = '/dashboard-static';
           console.log("Unknown user type, redirecting to /dashboard-static");
@@ -90,6 +103,13 @@ const LoginForm = () => {
         
         // Override redirectPath for admin
         redirectPath = "/dashboard";
+      } else if (data.user?.userType?.toLowerCase() === 'participant') {
+        // Ensure participant users go to the participant dashboard
+        console.log("PARTICIPANT LOGIN: Ensuring participant dashboard redirect");
+        redirectPath = "/participant/dashboard";
+        
+        // Store user email in localStorage for participant dashboard usage
+        localStorage.setItem("userEmail", data.user.email);
       }
       
       // Add a delay to ensure cookies are set

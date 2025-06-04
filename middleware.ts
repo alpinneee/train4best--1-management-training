@@ -17,6 +17,7 @@ const publicRoutes = [
   "/api/auth/refresh",
   "/api/auth/session-check",
   "/api/profile",
+  "/profile",
   "/api/direct-login",
   "/api/debug-session",
   "/api/debug-token",
@@ -101,6 +102,7 @@ export default async function middleware(request: NextRequestWithAuth) {
     const adminToken = request.cookies.get("admin_token")?.value;
     const dashboardToken = request.cookies.get("dashboard_token")?.value;
     const debugToken = request.cookies.get("debug_token")?.value;
+    const participantToken = request.cookies.get("participant_token")?.value;
     
     // Coba verifikasi token
     const secret = process.env.NEXTAUTH_SECRET || "ee242735312254106fe3e96a49c7439e224a303ff71c148eee211ee52b6df1719d261fbf28697c6375bfa1ff473b328d31659d6308da93ea03ae630421a8024e";
@@ -120,6 +122,21 @@ export default async function middleware(request: NextRequestWithAuth) {
         }
       } catch (error) {
         logDebug(`Admin token invalid: ${(error as Error).message}`);
+      }
+    }
+
+    // Check participant token if no admin token found
+    if (!userType && participantToken) {
+      try {
+        const decoded = jwt.verify(participantToken, secret) as jwt.JwtPayload;
+        if (decoded) {
+          logDebug(`Participant token valid`);
+          userType = "Participant";
+          userId = decoded.id;
+          userEmail = decoded.email;
+        }
+      } catch (error) {
+        logDebug(`Participant token invalid: ${(error as Error).message}`);
       }
     }
 
@@ -207,6 +224,7 @@ export default async function middleware(request: NextRequestWithAuth) {
     if (userTypeLower === 'admin') redirectPath = '/dashboard';
     if (userTypeLower === 'instructure') redirectPath = '/instructure-dashboard';
     if (userTypeLower === 'participant') redirectPath = '/participant-dashboard';
+    if (userTypeLower === 'unassigned') redirectPath = '/profile';
 
     logDebug(`User ${userTypeLower} tidak memiliki akses ke ${path}, redirect ke ${redirectPath}`);
     return NextResponse.redirect(new URL(redirectPath, request.url));

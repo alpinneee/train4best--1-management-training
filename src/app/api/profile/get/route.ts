@@ -41,6 +41,7 @@ export async function GET(req: Request) {
           id: user.id,
           email: user.email,
           name: user.username,
+          fullName: user.username,
           userType: user.userType.usertype,
           hasProfile: false
         }

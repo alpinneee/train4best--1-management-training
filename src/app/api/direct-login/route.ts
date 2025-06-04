@@ -57,6 +57,10 @@ export async function POST(req: Request) {
     // Penanganan khusus untuk tipe Admin
     if (userTypeFormatted.toLowerCase() === 'admin') {
       userTypeFormatted = 'Admin'; // Pastikan format Admin dengan A kapital
+    } else if (userTypeFormatted.toLowerCase() === 'participant') {
+      userTypeFormatted = 'Participant'; // Pastikan format Participant dengan P kapital
+      // Add extra log to debug participant login
+      logDebug(`Participant user detected, userType: ${userTypeFormatted}`);
     } else {
       // Format lainnya (kapital di awal)
       userTypeFormatted = userTypeFormatted.charAt(0).toUpperCase() + userTypeFormatted.slice(1).toLowerCase();
@@ -94,8 +98,17 @@ export async function POST(req: Request) {
       logDebug(`Admin user, setting redirect URL to: ${redirectUrl}`);
     } else if (userTypeLower === 'instructure') {
       redirectUrl = '/instructure/dashboard';
+      logDebug(`Instructure user, setting redirect URL to: ${redirectUrl}`);
     } else if (userTypeLower === 'participant') {
       redirectUrl = '/participant/dashboard';
+      logDebug(`Participant user, setting redirect URL to: ${redirectUrl}`);
+      
+      // Add extra check to ensure participant redirect is working
+      console.log(`CRITICAL: Participant user ${user.email} is being redirected to ${redirectUrl}`);
+    } else if (userTypeLower === 'unassigned') {
+      // Redirect unassigned users to profile page to complete their profile
+      redirectUrl = '/participant/dashboard';
+      logDebug(`Unassigned user, redirecting to profile page: ${redirectUrl}`);
     }
     
     logDebug(`Redirect URL set to: ${redirectUrl} for userType: ${userTypeFormatted}`);
@@ -113,6 +126,48 @@ export async function POST(req: Request) {
       },
       redirectUrl // Include redirect URL in the response body
     });
+    
+    // Store user email in cookie for all users to ensure profile page can access it
+    response.cookies.set("userEmail", user.email, {
+      httpOnly: false, // Allow JavaScript access
+      path: "/",
+      maxAge: 3600, // 1 hour
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production"
+    });
+    
+    // Also store username in cookie
+    response.cookies.set("username", user.username, {
+      httpOnly: false, // Allow JavaScript access
+      path: "/",
+      maxAge: 3600, // 1 hour
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production"
+    });
+    
+    // Add a script to store email and username in localStorage
+    const storageScript = `
+      localStorage.setItem('userEmail', '${user.email}');
+      localStorage.setItem('username', '${user.username}');
+      console.log('Stored user data in localStorage:', { email: '${user.email}', username: '${user.username}' });
+    `;
+    
+    // Set a cookie with the script to execute
+    response.headers.set(
+      "Set-Cookie", 
+      `login_success=true; Path=/; Max-Age=60; userEmailScript=${encodeURIComponent(storageScript)}`
+    );
+    
+    // Add headers with the email and username for the frontend to use
+    response.headers.set("X-User-Email", user.email);
+    response.headers.set("X-Username", user.username);
+    
+    logDebug(`Set user cookies for user: ${user.email}`);
+    
+    // Store user email in cookie if user is unassigned
+    if (userTypeLower === 'unassigned') {
+      logDebug(`Unassigned user, special handling for: ${user.email}`);
+    }
     
     // Log untuk debugging khusus admin
     if (userTypeLower === 'admin') {
@@ -168,6 +223,47 @@ export async function POST(req: Request) {
       });
       
       logDebug(`ADMIN LOGIN: Special admin cookies set`);
+    } else if (userTypeLower === 'participant') {
+      // Set participant-specific cookies
+      console.log(`Setting participant-specific cookies for user: ${user.email}`);
+      
+      const participantToken = sign(
+        {
+          ...tokenPayload,
+          isParticipant: true,
+          timestamp: Date.now()
+        },
+        secret,
+        { expiresIn: "3d" } // Token participant berlaku 3 hari
+      );
+      
+      // Set cookie participant_token
+      response.cookies.set("participant_token", participantToken, {
+        httpOnly: true,
+        path: "/",
+        maxAge: 3 * 24 * 60 * 60, // 3 hari
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production"
+      });
+      
+      // Set also standard cookies
+      response.cookies.set("debug_token", participantToken, {
+        httpOnly: true,
+        path: "/",
+        maxAge: 3 * 24 * 60 * 60,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production"
+      });
+      
+      response.cookies.set("next-auth.session-token", participantToken, {
+        httpOnly: true,
+        path: "/",
+        maxAge: 3 * 24 * 60 * 60,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production"
+      });
+      
+      console.log(`Participant cookies set for: ${user.email}`);
     } else {
       // Set cookie debug_token untuk non-admin
       response.cookies.set("debug_token", token, {

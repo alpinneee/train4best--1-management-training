@@ -11,6 +11,11 @@ interface LogoutModalProps {
 const LogoutModal: React.FC<LogoutModalProps> = ({ isOpen, onClose }) => {
   const handleLogout = async () => {
     try {
+      // Clear localStorage items first
+      localStorage.removeItem("admin_login_timestamp");
+      localStorage.removeItem("admin_email");
+      localStorage.removeItem("userEmail");
+      
       // Call our custom logout endpoint first to clear all cookies
       await fetch('/api/auth/logout');
       

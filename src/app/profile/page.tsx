@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -38,13 +38,17 @@ export default function ProfilePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   
+  // Get initial email and name from localStorage if available
+  const initialEmail = typeof window !== 'undefined' ? localStorage.getItem('userEmail') || '' : '';
+  const initialName = typeof window !== 'undefined' ? localStorage.getItem('username') || '' : '';
+  
   // Form state
   const [isEditing, setIsEditing] = useState(true); // Selalu edit mode
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
   const [formData, setFormData] = useState<ProfileFormData>({
-    fullName: '',
-    email: '',
+    fullName: initialName,
+    email: initialEmail,
     phone: '',
     address: '',
     gender: '',
@@ -67,104 +71,176 @@ export default function ProfilePage() {
     error: null
   });
   
-  // Load participants awal
-  useEffect(() => {
-    const loadProfileData = async () => {
-      // Sederhanakan proses loading dengan langsung mengambil parameter dari URL
-      const urlParams = new URLSearchParams(window.location.search);
-      const emailParam = urlParams.get('email');
+  // Function to load profile data - memoized with useCallback
+  const loadProfileData = useCallback(async () => {
+    // Try to get email from URL first
+    const urlParams = new URLSearchParams(window.location.search);
+    const emailParam = urlParams.get('email');
+    
+    // Try to get email from various sources
+    let emailToUse = emailParam;
+    
+    // Check cookies first (direct login)
+    if (!emailToUse) {
+      const getCookie = (name: string) => {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop()?.split(';').shift();
+        return null;
+      };
       
-      // Coba dapatkan email dari berbagai sumber
-      let emailToUse = emailParam;
-      
-      // Jika tidak ada email di URL, coba dari session
-      if (!emailToUse && session?.user) {
-        emailToUse = session.user.email;
+      const cookieEmail = getCookie('userEmail');
+      if (cookieEmail) {
+        emailToUse = decodeURIComponent(cookieEmail);
+        console.log("Using email from cookie:", emailToUse);
+        
+        // Store in localStorage for persistence
+        localStorage.setItem('userEmail', emailToUse);
       }
-      
-      // Jika masih tidak ada, coba dari localStorage (untuk admin)
-      if (!emailToUse) {
-        const adminEmail = localStorage.getItem("admin_email");
-        if (adminEmail) {
-          emailToUse = adminEmail;
-        }
+    }
+    
+    // Try localStorage next
+    if (!emailToUse) {
+      const userEmail = localStorage.getItem("userEmail");
+      if (userEmail) {
+        emailToUse = userEmail;
+        console.log("Using email from localStorage:", emailToUse);
       }
-      
-      // Update debug info
+    }
+    
+    // Try session last
+    if (!emailToUse && session?.user?.email) {
+      emailToUse = session.user.email;
+      console.log("Using email from session:", emailToUse);
+    }
+    
+    // Try admin email from localStorage
+    if (!emailToUse) {
+      const adminEmail = localStorage.getItem("admin_email");
+      if (adminEmail) {
+        emailToUse = adminEmail;
+        console.log("Using admin email from localStorage:", emailToUse);
+      }
+    }
+    
+    // Update debug info
+    setDebugInfo(prev => ({
+      ...prev,
+      sessionStatus: status,
+      sessionData: session,
+      emailToUse
+    }));
+    
+    if (!emailToUse) {
+      console.log("No email found to fetch profile data");
+      setIsLoading(false);
       setDebugInfo(prev => ({
         ...prev,
-        sessionStatus: status,
-        sessionData: session,
-        emailToUse
+        error: "No email found to fetch profile data"
       }));
+      return;
+    }
+    
+    try {
+      console.log("Fetching profile data for email:", emailToUse);
+      const response = await fetch(`/api/profile/get?email=${encodeURIComponent(emailToUse)}`);
       
-      if (!emailToUse) {
-        console.log("No email found to fetch profile data");
+      if (!response.ok) {
+        console.error("Failed to fetch profile:", response.status);
         setIsLoading(false);
         setDebugInfo(prev => ({
           ...prev,
-          error: "No email found to fetch profile data"
+          error: `Failed to fetch profile: ${response.status}`
         }));
         return;
       }
       
-      try {
-        console.log("Fetching profile data for email:", emailToUse);
-        const response = await fetch(`/api/profile/get?email=${encodeURIComponent(emailToUse)}`);
+      const result = await response.json();
+      console.log("Profile data retrieved:", result);
+      
+      setDebugInfo(prev => ({
+        ...prev,
+        profileData: result
+      }));
+      
+      if (result.data) {
+        // Update form data with retrieved profile data
+        setFormData({
+          fullName: result.data.fullName || result.data.name || session?.user?.name || '',
+          email: result.data.email || emailToUse || '',
+          phone: result.data.phone_number || '',
+          address: result.data.address || '',
+          gender: result.data.gender || '',
+          birthDate: result.data.birth_date ? new Date(result.data.birth_date).toISOString().split('T')[0] : '',
+          jobTitle: result.data.job_title || '',
+          company: result.data.company || '',
+        });
         
-        if (!response.ok) {
-          console.error("Failed to fetch profile:", response.status);
-          setIsLoading(false);
-          setDebugInfo(prev => ({
-            ...prev,
-            error: `Failed to fetch profile: ${response.status}`
-          }));
-          return;
-        }
+        // Check if profile is complete
+        const requiredFields = ['fullName', 'gender', 'phone_number', 'address', 'birth_date'];
+        const hasCompleteProfile = requiredFields.every(field => !!result.data[field]);
         
-        const result = await response.json();
-        console.log("Profile data retrieved:", result);
-        
-        setDebugInfo(prev => ({
+        setProfileComplete(hasCompleteProfile && result.data.hasProfile);
+        setIsEditing(!hasCompleteProfile || !result.data.hasProfile);
+      } else {
+        // If no data returned, at least set the email and name from available sources
+        setFormData(prev => ({
           ...prev,
-          profileData: result
+          email: emailToUse || '',
+          fullName: session?.user?.name || ''
         }));
         
-        if (result.data) {
-          // Update form data with retrieved profile data
-          setFormData({
-            fullName: result.data.fullName || result.data.name || '',
-            email: result.data.email || '',
-            phone: result.data.phone_number || '',
-            address: result.data.address || '',
-            gender: result.data.gender || '',
-            birthDate: result.data.birth_date ? new Date(result.data.birth_date).toISOString().split('T')[0] : '',
-            jobTitle: result.data.job_title || '',
-            company: result.data.company || '',
-          });
-          
-          // Check if profile is complete
-          const requiredFields = ['fullName', 'gender', 'phone_number', 'address', 'birth_date'];
-          const hasCompleteProfile = requiredFields.every(field => !!result.data[field]);
-          
-          setProfileComplete(hasCompleteProfile && result.data.hasProfile);
-          setIsEditing(!hasCompleteProfile || !result.data.hasProfile);
-        }
-      } catch (error) {
-        console.error("Error fetching profile:", error);
-        setDebugInfo(prev => ({
+        // Set to editing mode since we don't have profile data
+        setIsEditing(true);
+        setProfileComplete(false);
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      setDebugInfo(prev => ({
+        ...prev,
+        error: error instanceof Error ? error.message : "Unknown error"
+      }));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [session, status]);
+  
+  // Add a special useEffect to handle direct login redirect
+  useEffect(() => {
+    // Check for direct login redirect
+    const checkDirectLogin = () => {
+      // Check if we have the X-User-Email header in localStorage
+      const userEmail = localStorage.getItem('userEmail');
+      
+      if (userEmail && !formData.email) {
+        console.log("Found user email in localStorage from direct login:", userEmail);
+        
+        // Update form data with the email
+        setFormData(prev => ({
           ...prev,
-          error: error instanceof Error ? error.message : "Unknown error"
+          email: userEmail,
+          fullName: session?.user?.name || '' // Add username from session if available
         }));
-      } finally {
-        setIsLoading(false);
       }
     };
     
+    // Run this check on mount
+    checkDirectLogin();
+  }, [formData.email, session?.user?.name]);
+  
+  // Separate useEffect to load profile data when email changes
+  useEffect(() => {
+    if (formData.email) {
+      loadProfileData();
+    }
+  }, [formData.email, loadProfileData]);
+  
+  // Load participants awal
+  useEffect(() => {
     if (status !== 'loading') {
       loadProfileData();
     }
-  }, [session, status]);
+  }, [status, loadProfileData]);
   
   // Initialize form with URL email parameter
   useEffect(() => {
@@ -194,6 +270,64 @@ export default function ProfilePage() {
       }
     }
   }, [session]);
+  
+  // Initialize form with session data when available
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user && !formData.fullName) {
+      console.log("Setting form data from session:", session.user);
+      setFormData(prev => ({
+        ...prev,
+        email: session.user.email || prev.email,
+        fullName: session.user.name || prev.fullName
+      }));
+    }
+  }, [session, status, formData.fullName]);
+  
+  // Add immediate initialization on component mount
+  useEffect(() => {
+    // Log all localStorage values for debugging
+    if (typeof window !== 'undefined') {
+      console.log("DEBUG: All localStorage values at profile page load:");
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key) {
+          console.log(`${key}: ${localStorage.getItem(key)}`);
+        }
+      }
+    }
+    
+    // Directly check localStorage and cookies on component mount
+    const userEmail = localStorage.getItem('userEmail');
+    const username = localStorage.getItem('username');
+    
+    // Log what we found
+    console.log("DIRECT INIT: Found in localStorage:", { userEmail, username });
+    
+    // If we have email in localStorage, use it immediately
+    if (userEmail) {
+      setFormData(prev => ({
+        ...prev,
+        email: userEmail,
+        fullName: username || prev.fullName
+      }));
+      
+      // Also try to get the username from the API immediately
+      fetch(`/api/user/info?email=${encodeURIComponent(userEmail)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.username) {
+            console.log("Got username from API:", data.username);
+            setFormData(prev => ({
+              ...prev,
+              fullName: data.username
+            }));
+            // Save username to localStorage for future use
+            localStorage.setItem('username', data.username);
+          }
+        })
+        .catch(err => console.error("Error fetching user info:", err));
+    }
+  }, []); // Empty dependency array to run only once on mount
   
   // Handle form input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -229,9 +363,14 @@ export default function ProfilePage() {
         // Tetap dalam mode edit tapi tandai sebagai selesai
         setProfileComplete(true);
         
-        // Kurangi delay pada reload
+        // Store email in localStorage for participant dashboard
+        if (formData.email) {
+          localStorage.setItem('userEmail', formData.email);
+        }
+        
+        // Redirect to participant dashboard after a short delay
         setTimeout(() => {
-          window.location.reload();
+          window.location.href = '/participant/dashboard';
         }, 1000);
       } else {
         setMessage({ text: data.error || 'Gagal memperbarui profil', type: 'error' });
@@ -284,6 +423,42 @@ export default function ProfilePage() {
     return 'participant';
   };
 
+  // Check if we have any user data
+  const checkUserLoggedIn = () => {
+    // Check session
+    if (session?.user) {
+      return true;
+    }
+    
+    // Check localStorage for userEmail
+    if (typeof window !== 'undefined' && localStorage.getItem('userEmail')) {
+      return true;
+    }
+    
+    // Check cookies for userEmail
+    if (typeof window !== 'undefined') {
+      const getCookie = (name: string) => {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop()?.split(';').shift();
+        return null;
+      };
+      
+      if (getCookie('userEmail')) {
+        return true;
+      }
+    }
+    
+    // Check form data
+    if (formData.email) {
+      return true;
+    }
+    
+    return false;
+  };
+  
+  const isLoggedIn = checkUserLoggedIn();
+  
   // Add conditional rendering for loading state
   if (isLoading || status === 'loading') {
     return (
@@ -294,22 +469,8 @@ export default function ProfilePage() {
     );
   }
 
-  // Check if we have any user data
-  const hasUserData = userData.email || session?.user;
-  
-  if (!hasUserData) {
-    return (
-      <div className="min-h-screen flex items-center justify-center flex-col">
-        <h1 className="text-3xl font-bold text-gray-700 animate-fade-in mb-4">Silakan login terlebih dahulu</h1>
-        <button
-          onClick={() => router.push('/debug-login')}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-        >
-          Login Sekarang
-        </button>
-      </div>
-    );
-  } 
+  // Show login prompt only if we're sure the user is not logged in
+ 
 
   const userRole = userData.role;
 
@@ -521,7 +682,10 @@ export default function ProfilePage() {
   };
 
   const renderRoleSpecificContent = () => {
-    switch (userRole?.toLowerCase()) {
+    // Ensure userRole is defined before trying to access toLowerCase()
+    const role = userRole?.toLowerCase() || 'participant';
+    
+    switch (role) {
       case 'admin':
       case 'super_admin':
         return (
@@ -535,7 +699,7 @@ export default function ProfilePage() {
                 </CardHeader>
                 <CardContent className="space-y-2 pt-4">
                   <div className="flex justify-between items-center text-gray-700">
-                    <span>Total Pengguna</span>
+                    <span>Total penguin</span>
                     <span className="font-semibold">100</span>
                   </div>
                   <div className="flex justify-between items-center text-gray-700">
@@ -620,6 +784,31 @@ export default function ProfilePage() {
     }
   };
 
+  // Render debug info in development environment
+  const renderDebugInfo = () => {
+    if (process.env.NODE_ENV !== 'production') {
+      return (
+        <div className="mt-8 p-4 border border-gray-300 rounded-md bg-gray-50">
+          <h3 className="text-lg font-medium text-gray-700 mb-2">Debug Info</h3>
+          <pre className="text-xs overflow-auto max-h-60 bg-white p-2 rounded border">
+            {JSON.stringify({
+              session: session ? {
+                user: session.user,
+                expires: session.expires
+              } : null,
+              status,
+              formData,
+              profileComplete,
+              isEditing,
+              debugInfo
+            }, null, 2)}
+          </pre>
+        </div>
+      );
+    }
+    return null;
+  };
+
   // Render halaman dengan Layout yang sesuai dengan role pengguna
   return (
     <Layout variant={getSidebarVariant()}>
@@ -635,7 +824,7 @@ export default function ProfilePage() {
           <div className="space-y-2">
             <CardTitle className="text-2xl text-gray-700">{formData.fullName || userData.name || 'User'}</CardTitle>
             <Badge variant="outline" className="text-sm px-3 py-1 bg-gray-50 border-gray-300">
-              {formatRoleName(userRole)}
+              {formatRoleName(userData.role)}
             </Badge>
           </div>
         </CardHeader>
@@ -646,6 +835,7 @@ export default function ProfilePage() {
           </div>
         </CardContent>
       </Card>
+      {renderDebugInfo()}
     </Layout>
   );
 }

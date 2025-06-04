@@ -14,12 +14,27 @@ export async function GET() {
     // Clear debug token
     cookieStore.delete("debug_token");
     
+    // Clear other auth tokens
+    cookieStore.delete("admin_token");
+    cookieStore.delete("participant_token");
+    cookieStore.delete("dashboard_token");
+    cookieStore.delete("force_login");
+    
     console.log("All authentication cookies cleared");
     
-    return NextResponse.json({ 
+    const response = NextResponse.json({ 
       success: true,
       message: "Logged out successfully"
     });
+    
+    // Set expired cookies to ensure they're removed
+    response.cookies.set("admin_token", "", { expires: new Date(0) });
+    response.cookies.set("participant_token", "", { expires: new Date(0) });
+    response.cookies.set("dashboard_token", "", { expires: new Date(0) });
+    response.cookies.set("debug_token", "", { expires: new Date(0) });
+    response.cookies.set("next-auth.session-token", "", { expires: new Date(0) });
+    
+    return response;
   } catch (error) {
     console.error("Logout error:", error);
     return NextResponse.json({ 
