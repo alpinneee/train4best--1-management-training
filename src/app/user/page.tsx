@@ -231,13 +231,24 @@ const UserPage = () => {
         ? `/api/user/${selectedUser.id}?force=true` 
         : `/api/user/${selectedUser.id}`;
       
+      console.log(`Sending DELETE request to: ${url}`);
+      
       const response = await fetch(url, {
         method: "DELETE",
       });
 
+      // Always try to get the response data
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        console.error("Error parsing response:", e);
+        data = { error: "Failed to parse server response" };
+      }
+
+      console.log("Delete response:", response.status, data);
+
       if (!response.ok) {
-        const data = await response.json();
-        
         // If error is about associated records and we're not forcing deletion
         if (data.error === 'Cannot delete user that has associated records' && !force) {
           setLoading(false);
@@ -256,8 +267,9 @@ const UserPage = () => {
       setSelectedUser(null);
       toast.success("User deleted successfully");
     } catch (error: any) {
-      setError(error.message);
-      toast.error(error.message);
+      console.error("Delete error:", error);
+      setError(error.message || "Failed to delete user");
+      toast.error(error.message || "Failed to delete user");
     } finally {
       setLoading(false);
     }
@@ -502,7 +514,7 @@ const UserPage = () => {
               <p className="text-xs text-gray-600 mt-2">
                 Are you sure you want to delete user <span className="font-semibold">{selectedUser.name}</span>?
               </p>
-              {error && error.includes("associated records") && (
+              {(error && (error.includes("associated records") || error.includes("Delete anyway?"))) && (
                 <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-3 py-2 mt-2 rounded text-xs">
                   <p>Warning: This user has associated records. Force deletion may cause data inconsistency.</p>
                 </div>
@@ -517,7 +529,7 @@ const UserPage = () => {
                 >
                   Cancel
                 </Button>
-                {error && error.includes("associated records") ? (
+                {error && (error.includes("Delete anyway?") || error.includes("associated records")) ? (
                   <Button
                     variant="red"
                     size="small"
