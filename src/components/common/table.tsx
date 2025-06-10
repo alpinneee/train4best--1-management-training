@@ -4,7 +4,7 @@ import { ReactNode } from "react";
 
 interface Column<T> {
   header: string;
-  accessor: keyof T | ((data: T) => ReactNode);
+  accessor: keyof T | ((data: T, index?: number) => ReactNode);
   className?: string;
 }
 
@@ -27,9 +27,9 @@ export default function Table<T>({
   itemsPerPage = 5,
   totalItems = 0,
 }: TableProps<T>) {
-  const renderCell = (item: T, column: Column<T>): ReactNode => {
+  const renderCell = (item: T, column: Column<T>, rowIndex: number): ReactNode => {
     if (typeof column.accessor === "function") {
-      return column.accessor(item);
+      return column.accessor(item, rowIndex);
     }
     return String(item[column.accessor as keyof T]);
   };
@@ -59,7 +59,7 @@ export default function Table<T>({
                     key={colIndex}
                     className={`p-2 text-sm text-gray-500 ${column.className}`}
                   >
-                    {renderCell(item, column)}
+                    {renderCell(item, column, rowIndex)}
                   </td>
                 ))}
               </tr>
@@ -84,7 +84,7 @@ export default function Table<T>({
                   {column.header}
                 </span>
                 <span className={`text-gray-900 break-words ${column.className}`}>
-                  {renderCell(item, column)}
+                  {renderCell(item, column, rowIndex)}
                 </span>
               </div>
             ))}

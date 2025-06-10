@@ -22,7 +22,7 @@ interface Payment {
 
 interface Column<T> {
   header: string;
-  accessor: keyof T | ((data: T) => React.ReactNode);
+  accessor: keyof T | ((data: T, index?: number) => React.ReactNode);
   className?: string;
 }
 
@@ -76,17 +76,26 @@ export default function PaymentReport() {
         throw new Error(errorData.error || errorData.details || `Error: ${response.status}`);
       }
       
-      const data = await response.json();
+      const responseData = await response.json();
       
-      // Check if data is an array
-      if (Array.isArray(data)) {
-        setPayments(data);
+      // Check if data is in the expected format (with data property)
+      if (responseData.data && Array.isArray(responseData.data)) {
+        console.log("Payments data received:", responseData.data);
+        setPayments(responseData.data);
         
-        if (data.length === 0) {
+        if (responseData.data.length === 0) {
+          console.log("No payments returned from API");
+        }
+      } else if (Array.isArray(responseData)) {
+        // Fallback if API returns direct array
+        console.log("Payments data received as direct array");
+        setPayments(responseData);
+        
+        if (responseData.length === 0) {
           console.log("No payments returned from API");
         }
       } else {
-        console.error("Invalid response format:", data);
+        console.error("Invalid response format:", responseData);
         setPayments([]);
         toast.error("Invalid data format received");
       }
@@ -159,7 +168,9 @@ export default function PaymentReport() {
   const columns: Column<Payment>[] = [
     { 
       header: "No", 
-      accessor: "no",
+      accessor: (_payment, index) => {
+        return typeof index === 'number' ? (currentPage - 1) * ITEMS_PER_PAGE + index + 1 : '-';
+      },
       className: "w-12 text-center"
     },
     { 
@@ -184,7 +195,18 @@ export default function PaymentReport() {
     },
     { 
       header: "Jumlah (idr)", 
-      accessor: "jumlah",
+      accessor: (payment) => {
+        // Format jumlah as currency if it's a number
+        if (typeof payment.amount === 'number') {
+          return new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            minimumFractionDigits: 0
+          }).format(payment.amount);
+        }
+        // If jumlah is already formatted or amount is not available
+        return payment.jumlah || '-';
+      },
       className: "min-w-[100px]"
     },
     {
@@ -273,18 +295,18 @@ export default function PaymentReport() {
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-lg md:text-xl text-gray-700">Payment Report</h1>
           
-          <Link 
+          {/* <Link 
             href="/payment/new" 
             className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700"
           >
             <Plus size={16} />
             New Payment
-          </Link>
+          </Link> */}
         </div>
 
         <form onSubmit={handleSearch} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <select 
+            {/* <select 
               className="w-full sm:w-auto px-2 py-1 text-xs border rounded"
               value={paymentMethod}
               onChange={handlePaymentMethodChange}
@@ -293,11 +315,11 @@ export default function PaymentReport() {
               <option value="Transfer Bank">Transfer Bank</option>
               <option value="E-Wallet">E-Wallet</option>
               <option value="Kartu Kredit">Kartu Kredit</option>
-            </select>
+            </select> */}
 
             <input
               type="date"
-              className="w-full sm:w-auto px-2 py-1 text-xs border rounded"
+              className="w-full sm:w-auto px-2 py-1 text-xs border rounded text-gray-700"
               placeholder="Start Date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
