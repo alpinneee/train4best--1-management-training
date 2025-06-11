@@ -24,6 +24,7 @@ interface ProfileFormData {
   birthDate: string;
   jobTitle: string;
   company: string;
+  profiency: string;
 }
 
 interface DebugInfo {
@@ -55,6 +56,7 @@ export default function ProfilePage() {
     birthDate: '',
     jobTitle: '',
     company: '',
+    profiency: '',
   });
   
   // Check if user has completed profile
@@ -152,7 +154,17 @@ export default function ProfilePage() {
     
     try {
       console.log("Fetching profile data for email:", emailToUse);
-      const response = await fetch(`/api/profile/get?email=${encodeURIComponent(emailToUse)}`);
+      
+      // Determine the endpoint based on user role
+      const userType = localStorage.getItem('userType') || '';
+      const isInstructor = userType.toLowerCase().includes('instruct');
+      const endpoint = isInstructor 
+        ? `/api/instructure/get?email=${encodeURIComponent(emailToUse)}`
+        : `/api/profile/get?email=${encodeURIComponent(emailToUse)}`;
+      
+      console.log("Using endpoint:", endpoint);
+      
+      const response = await fetch(endpoint);
       
       if (!response.ok) {
         console.error("Failed to fetch profile:", response.status);
@@ -165,7 +177,7 @@ export default function ProfilePage() {
       }
       
       const result = await response.json();
-      console.log("Profile data retrieved:", result);
+      console.log("Profile data retrieved:", JSON.stringify(result, null, 2));
       
       setDebugInfo(prev => ({
         ...prev,
@@ -173,30 +185,76 @@ export default function ProfilePage() {
       }));
       
       if (result.data) {
-        // Update form data with retrieved profile data
-        setFormData({
-          fullName: result.data.fullName || result.data.name || session?.user?.name || '',
-          email: result.data.email || emailToUse || '',
-          phone: result.data.phone_number || '',
-          address: result.data.address || '',
-          gender: result.data.gender || '',
-          birthDate: result.data.birth_date ? new Date(result.data.birth_date).toISOString().split('T')[0] : '',
-          jobTitle: result.data.job_title || '',
-          company: result.data.company || '',
-        });
+        if (isInstructor) {
+          // Update form data with retrieved instructure data
+          const instructureData = {
+            fullName: result.data.full_name || result.data.name || session?.user?.name || '',
+            email: result.data.email || emailToUse || '',
+            phone: result.data.phone_number || '',
+            address: result.data.address || '',
+            gender: '',
+            birthDate: '',
+            jobTitle: '',
+            company: '',
+            profiency: result.data.profiency || '',
+          };
+          
+          console.log("Setting instructure form data:", JSON.stringify(instructureData, null, 2));
+          setFormData(instructureData);
+          
+          // Store user type in localStorage
+          localStorage.setItem('userType', 'Instructure');
+          
+          // Check if profile is complete for instructure
+          const hasAllRequiredFields = 
+            !!instructureData.fullName && 
+            !!instructureData.phone && 
+            !!instructureData.address && 
+            !!instructureData.profiency;
+          
+          console.log("Instructure profile completeness:", {
+            hasAllRequiredFields,
+            hasProfile: result.data.hasProfile || false
+          });
+          
+          // Set profile complete status and editing mode
+          const isComplete = hasAllRequiredFields && result.data.hasProfile;
+          setProfileComplete(isComplete);
+          setIsEditing(!isComplete);
+          
+          // Also check localStorage for manual override
+          const hasProfileFlag = localStorage.getItem('hasProfile');
+          if (hasProfileFlag === 'true') {
+            setProfileComplete(true);
+            setIsEditing(false);
+          }
+        } else {
+          // Update form data with retrieved participant data
+          setFormData({
+            fullName: result.data.fullName || result.data.name || session?.user?.name || '',
+            email: result.data.email || emailToUse || '',
+            phone: result.data.phone_number || '',
+            address: result.data.address || '',
+            gender: result.data.gender || '',
+            birthDate: result.data.birth_date ? new Date(result.data.birth_date).toISOString().split('T')[0] : '',
+            jobTitle: result.data.job_title || '',
+            company: result.data.company || '',
+            profiency: '',
+          });
+          
+          // Check if profile is complete
+          const requiredFields = ['fullName', 'gender', 'phone_number', 'address', 'birth_date'];
+          const hasCompleteProfile = requiredFields.every(field => !!result.data[field]);
+          
+          setProfileComplete(hasCompleteProfile && result.data.hasProfile);
+          setIsEditing(!hasCompleteProfile || !result.data.hasProfile);
+        }
         
         // Store user type in localStorage if available
         if (result.data.userType) {
           localStorage.setItem('userType', result.data.userType);
           console.log("Stored userType from API in localStorage:", result.data.userType);
         }
-        
-        // Check if profile is complete
-        const requiredFields = ['fullName', 'gender', 'phone_number', 'address', 'birth_date'];
-        const hasCompleteProfile = requiredFields.every(field => !!result.data[field]);
-        
-        setProfileComplete(hasCompleteProfile && result.data.hasProfile);
-        setIsEditing(!hasCompleteProfile || !result.data.hasProfile);
       } else {
         // If no data returned, at least set the email and name from available sources
         setFormData(prev => ({
@@ -366,32 +424,63 @@ export default function ProfilePage() {
       // Hapus delay yang tidak perlu
       console.log("Submitting profile data with:", formData);
       
-      // First try - menggunakan endpoint update profile reguler
-      let response = await fetch('/api/profile/update', {
+      // Tentukan endpoint berdasarkan role pengguna
+      const isInstructor = userRole?.toLowerCase().includes('instruct');
+      const endpoint = isInstructor 
+        ? '/api/instructure/update'
+        : '/api/profile/update';
+      
+      console.log("Using endpoint:", endpoint, "isInstructor:", isInstructor);
+      
+      // Sesuaikan data yang dikirim berdasarkan role
+      const dataToSend = isInstructor 
+        ? {
+            email: formData.email,
+            fullName: formData.fullName,
+            phone: formData.phone,
+            address: formData.address,
+            profiency: formData.profiency
+          }
+        : formData;
+      
+      console.log("Data to send:", JSON.stringify(dataToSend, null, 2));
+      
+      let response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(dataToSend),
       });
       
       console.log("Profile update response status:", response.status);
       let data = await response.json();
-      console.log("Profile update response data:", data);
+      console.log("Profile update response data:", JSON.stringify(data, null, 2));
       
       if (response.ok) {
         setMessage({ text: 'Profil berhasil diperbarui!', type: 'success' });
-        // Tetap dalam mode edit tapi tandai sebagai selesai
-        setProfileComplete(true);
         
-        // Store email in localStorage for participant dashboard
+        // Store email in localStorage for persistence
         if (formData.email) {
           localStorage.setItem('userEmail', formData.email);
         }
         
-        // Redirect to participant dashboard after a short delay
+        // Store user type in localStorage
+        if (isInstructor) {
+          localStorage.setItem('userType', 'Instructure');
+          console.log("Stored userType as Instructure in localStorage");
+        }
+        
+        // Set profile as complete and exit editing mode
+        setProfileComplete(true);
+        setIsEditing(false);
+        
+        // Set hasProfile flag in localStorage
+        localStorage.setItem('hasProfile', 'true');
+        
+        // Reload the page after a short delay
         setTimeout(() => {
-          window.location.href = '/participant/dashboard';
+          window.location.reload();
         }, 1000);
       } else {
         setMessage({ text: data.error || 'Gagal memperbarui profil', type: 'error' });
@@ -406,12 +495,23 @@ export default function ProfilePage() {
 
   // Combine data from all possible sources
   const getUserData = (): UserData => {
+    // Check localStorage for user type first
+    const userType = localStorage.getItem("userType");
+    const userEmail = localStorage.getItem("userEmail");
+    const username = localStorage.getItem("username");
+    
+    console.log("getUserData localStorage values:", { userType, userEmail, username });
+    
+    // Determine if user is instructor based on userType
+    const isInstructor = userType?.toLowerCase().includes('instruct') || false;
+    
     // Try session first
     if (session?.user) {
+      console.log("getUserData using session data:", session.user);
       return {
-        name: session.user.name || '',
-        email: session.user.email || '',
-        role: session.user.userType || 'participant' // Use userType as role
+        name: session.user.name || username || '',
+        email: session.user.email || userEmail || '',
+        role: isInstructor ? 'Instructure' : (session.user.userType || 'participant')
       };
     }
     
@@ -419,6 +519,7 @@ export default function ProfilePage() {
     const adminEmail = localStorage.getItem("admin_email");
     const adminTimestamp = localStorage.getItem("admin_login_timestamp");
     if (adminEmail && adminTimestamp) {
+      console.log("getUserData using admin data");
       return {
         name: adminEmail.split('@')[0] || "Admin",
         email: adminEmail,
@@ -426,21 +527,22 @@ export default function ProfilePage() {
       };
     }
     
-    // Try localStorage for user type
-    const userType = localStorage.getItem("userType");
+    // Use userType from localStorage if available
     if (userType) {
+      console.log("getUserData using localStorage userType:", userType);
       return {
-        name: formData.fullName || localStorage.getItem("username") || 'User',
-        email: formData.email || localStorage.getItem("userEmail") || '',
+        name: formData.fullName || username || 'User',
+        email: formData.email || userEmail || '',
         role: userType
       };
     }
     
     // Fallback to form data
+    console.log("getUserData using formData fallback");
     return {
       name: formData.fullName || 'User',
       email: formData.email || '',
-      role: 'participant'
+      role: isInstructor ? 'Instructure' : 'participant'
     };
   };
   
@@ -530,6 +632,94 @@ export default function ProfilePage() {
   };
 
   // Profile edit form
+  const renderProfileForminstructure = () => {
+    if (isEditing) {
+      return (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {message.text && (
+            <div className={`p-3 rounded-md ${message.type === 'success' ? 'bg-green-50 text-green-700' : message.type === 'warning' ? 'bg-yellow-50 text-yellow-700' : 'bg-red-50 text-red-600'}`}>
+              {message.text}
+            </div>
+          )}
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                name="fullName"
+                value={formData.fullName}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-800"
+                required
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-800 bg-gray-100"
+                disabled
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nomor Telepon <span className="text-red-500">*</span></label>
+              <input
+                type="tel"
+                name="phone"
+                value={formData.phone}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-800"
+                required
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Keahlian <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                name="profiency"
+                value={formData.profiency}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-800"
+                required
+              />
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Alamat <span className="text-red-500">*</span></label>
+            <textarea
+              name="address"
+              value={formData.address}
+              onChange={handleInputChange}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-800"
+              required
+            ></textarea>
+          </div>
+          
+          <div className="flex justify-end space-x-3 pt-2">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              {isSubmitting ? 'Menyimpan...' : 'Simpan Profil'}
+            </button>
+          </div>
+        </form>
+      );
+    }
+    return null;
+  };
+
+
   const renderProfileForm = () => {
     if (isEditing) {
       return (
@@ -649,14 +839,26 @@ export default function ProfilePage() {
             </button>
           </div>
         </form>
+
+
+
       );
     }
     return null;
   };
 
-  // Existing profile content
+  // Render profile content with more debugging
   const renderProfileContent = () => {
     if (!isEditing) {
+      // Tentukan apakah pengguna adalah instructure
+      const isInstructor = userData.role.toLowerCase().includes('instruct');
+      
+      console.log("Rendering profile content:", {
+        isInstructor,
+        userData,
+        formData
+      });
+
       return (
         <>
           <div className="pb-4 border-b">
@@ -670,24 +872,36 @@ export default function ProfilePage() {
                 <span className="font-medium">No. Telepon:</span>
                 {formData.phone || '-'}
               </p>
-              <p className="text-gray-700 flex items-center gap-2">
-                <span className="font-medium">Jenis Kelamin:</span>
-                {formData.gender || '-'}
-              </p>
-              <p className="text-gray-700 flex items-center gap-2">
-                <span className="font-medium">Tanggal Lahir:</span>
-                {formData.birthDate ? new Date(formData.birthDate).toLocaleDateString('id-ID') : '-'}
-              </p>
-              {formData.jobTitle && (
-                <p className="text-gray-700 flex items-center gap-2">
-                  <span className="font-medium">Jabatan:</span>
-                  {formData.jobTitle}
-                </p>
+              
+              {!isInstructor && (
+                <>
+                  <p className="text-gray-700 flex items-center gap-2">
+                    <span className="font-medium">Jenis Kelamin:</span>
+                    {formData.gender || '-'}
+                  </p>
+                  <p className="text-gray-700 flex items-center gap-2">
+                    <span className="font-medium">Tanggal Lahir:</span>
+                    {formData.birthDate ? new Date(formData.birthDate).toLocaleDateString('id-ID') : '-'}
+                  </p>
+                  {formData.jobTitle && (
+                    <p className="text-gray-700 flex items-center gap-2">
+                      <span className="font-medium">Jabatan:</span>
+                      {formData.jobTitle}
+                    </p>
+                  )}
+                  {formData.company && (
+                    <p className="text-gray-700 flex items-center gap-2">
+                      <span className="font-medium">Perusahaan:</span>
+                      {formData.company}
+                    </p>
+                  )}
+                </>
               )}
-              {formData.company && (
+
+              {isInstructor && (
                 <p className="text-gray-700 flex items-center gap-2">
-                  <span className="font-medium">Perusahaan:</span>
-                  {formData.company}
+                  <span className="font-medium">Keahlian:</span>
+                  {formData.profiency || '-'}
                 </p>
               )}
             </div>
@@ -862,8 +1076,14 @@ export default function ProfilePage() {
         </CardHeader>
         <CardContent className="pt-6">
           <div className="space-y-6">
-            {renderProfileForm()}
-            {renderProfileContent()}
+            {/* Log user role outside JSX */}
+            {(() => {
+              console.log("Rendering form based on role:", userData.role);
+              return userData.role.toLowerCase().includes('instruct') 
+                ? renderProfileForminstructure()
+                : renderProfileForm();
+            })()}
+            {!isEditing && renderProfileContent()}
           </div>
         </CardContent>
       </Card>
