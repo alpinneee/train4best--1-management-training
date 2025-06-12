@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import Card from "@/components/common/card";
@@ -24,8 +24,39 @@ interface CalendarProps {
 }
 
 export function TrainingCalendar({ locale, upcomingTrainings }: CalendarProps) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [trainings, setTrainings] = useState(upcomingTrainings);
+
+  // Fetch trainings from database on component mount
+  useEffect(() => {
+    const fetchTrainings = async () => {
+      // If we already have trainings from props, don't fetch again
+      if (upcomingTrainings && upcomingTrainings.length > 0) {
+        setTrainings(upcomingTrainings);
+        return;
+      }
+      
+      setIsLoading(true);
+      try {
+        const response = await fetch('/api/dashboard');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.data && data.data.upcomingTrainings) {
+            setTrainings(data.data.upcomingTrainings);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching trainings:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTrainings();
+  }, [upcomingTrainings]);
+  
   // Extract training dates for highlighting
-  const trainingDates = upcomingTrainings.map(training => new Date(training.date));
+  const trainingDates = trainings.map(training => new Date(training.date));
   
   // Function to determine tile class based on date
   const tileClassName = ({ date, view }: { date: Date; view: string }) => {
@@ -120,9 +151,13 @@ export function TrainingCalendar({ locale, upcomingTrainings }: CalendarProps) {
           Upcoming Trainings
         </h3>
         
-        {upcomingTrainings.length > 0 ? (
+        {isLoading ? (
+          <div className="flex justify-center py-4">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900"></div>
+          </div>
+        ) : trainings.length > 0 ? (
           <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-            {upcomingTrainings.map((training, index) => (
+            {trainings.map((training, index) => (
               <div 
                 key={index} 
                 className="bg-white border border-gray-100 p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow"

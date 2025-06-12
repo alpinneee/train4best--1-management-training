@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { verify } from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
+import { format } from 'date-fns';
 
 // Fungsi untuk logging
 function logDebug(message: string, data?: any) {
@@ -48,180 +49,124 @@ const fallbackUpcomingTrainings = [
   },
 ];
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
-    logDebug('Dashboard API called');
+    // Get current date
+    const currentDate = new Date();
     
-    // Verifikasi autentikasi
-    const cookieStore = cookies();
-    const adminToken = cookieStore.get("admin_token")?.value;
-    const dashboardToken = cookieStore.get("dashboard_token")?.value;
-    const debugToken = cookieStore.get("debug_token")?.value;
-    const sessionToken = cookieStore.get("next-auth.session-token")?.value;
-    
-    logDebug(`Cookies: adminToken=${!!adminToken}, dashboardToken=${!!dashboardToken}, debugToken=${!!debugToken}, sessionToken=${!!sessionToken}`);
-    
-    // Coba verifikasi token
-    const secret = process.env.NEXTAUTH_SECRET || "RAHASIA_FALLBACK_YANG_AMAN_DAN_PANJANG_UNTUK_DEVELOPMENT";
-    let userData = null;
-    
-    // Cek semua token yang tersedia
-    const tokens = [adminToken, dashboardToken, debugToken, sessionToken].filter(Boolean);
-    
-    for (const token of tokens) {
-      try {
-        const decoded = verify(token as string, secret) as any;
-        if (decoded) {
-          logDebug("Token valid");
-          userData = {
-            id: decoded.id,
-            email: decoded.email,
-            name: decoded.name,
-            userType: decoded.userType || "User"
-          };
-          break;
-        }
-      } catch (error) {
-        logDebug(`Token invalid: ${(error as Error).message}`);
-      }
-    }
-    
-    // Jika tidak ada token valid, kembalikan error
-    if (!userData) {
-      logDebug("No valid token found");
-      return NextResponse.json({
-        success: false,
-        error: "Unauthorized"
-      }, { status: 401 });
-    }
-    
-    // Coba ambil data dari database
-    let trainingData = fallbackTrainingData;
-    let certificationTypeData = fallbackCertificationTypeData;
-    let upcomingTrainings = fallbackUpcomingTrainings;
-    
-    try {
-      // Ambil data training berdasarkan bulan
-      const currentYear = new Date().getFullYear();
-      const registrations = await prisma.registration.findMany({
-        where: {
-          createdAt: {
-            gte: new Date(`${currentYear}-01-01`),
-            lte: new Date(`${currentYear}-12-31`)
-          }
+    // Fetch upcoming classes with course information
+    const upcomingClasses = await prisma.class.findMany({
+      where: {
+        start_date: {
+          gte: currentDate,
         },
-        include: {
-          class: true
-        }
-      });
-      
-      // Hitung jumlah registrasi per bulan
-      const registrationsByMonth = Array(12).fill(0);
-      registrations.forEach(reg => {
-        const month = new Date(reg.createdAt).getMonth();
-        registrationsByMonth[month]++;
-      });
-      
-      // Format data untuk chart
-      trainingData = [
-        { name: "Jan", value: registrationsByMonth[0] || 0 },
-        { name: "Feb", value: registrationsByMonth[1] || 0 },
-        { name: "Mar", value: registrationsByMonth[2] || 0 },
-        { name: "Apr", value: registrationsByMonth[3] || 0 },
-        { name: "May", value: registrationsByMonth[4] || 0 },
-        { name: "Jun", value: registrationsByMonth[5] || 0 },
-        { name: "Jul", value: registrationsByMonth[6] || 0 },
-        { name: "Aug", value: registrationsByMonth[7] || 0 },
-        { name: "Sep", value: registrationsByMonth[8] || 0 },
-        { name: "Oct", value: registrationsByMonth[9] || 0 },
-        { name: "Nov", value: registrationsByMonth[10] || 0 },
-        { name: "Dec", value: registrationsByMonth[11] || 0 },
-      ];
-      
-      // Ambil data sertifikat berdasarkan tipe kursus
-      const certificates = await prisma.certificate.findMany({
-        include: {
-          registration: {
-            include: {
-              class: {
-                include: {
-                  course: true
-                }
-              }
-            }
-          }
-        }
-      });
-      
-      // Hitung sertifikat berdasarkan tipe kursus
-      const certByType: Record<string, number> = {};
-      certificates.forEach(cert => {
-        const courseType = cert.registration.class.course.course_type || "Unknown";
-        certByType[courseType] = (certByType[courseType] || 0) + 1;
-      });
-      
-      // Format data untuk chart
-      certificationTypeData = Object.entries(certByType).map(([name, value]) => ({
-        name,
-        value
-      }));
-      
-      // Jika tidak ada data, gunakan fallback
-      if (certificationTypeData.length === 0) {
-        certificationTypeData = fallbackCertificationTypeData;
-      }
-      
-      // Ambil kelas yang akan datang
-      const upcomingClasses = await prisma.class.findMany({
-        where: {
-          start_date: {
-            gte: new Date()
-          }
+        status: "Active",
+      },
+      include: {
+        course: true,
+        instructureclass: {
+          include: {
+            instructure: true,
+          },
         },
-        include: {
-          course: true,
-          instructure: true
-        },
-        orderBy: {
-          start_date: 'asc'
-        },
-        take: 5
-      });
+      },
+      orderBy: {
+        start_date: 'asc',
+      },
+      take: 10, // Limit to 10 upcoming classes
+    });
+
+    // Format the data for the calendar
+    const upcomingTrainings = upcomingClasses.map(classItem => {
+      // Get the instructor name if available
+      const instructor = classItem.instructureclass[0]?.instructure?.full_name || "Unassigned";
       
-      // Format data untuk tampilan
-      upcomingTrainings = upcomingClasses.map(cls => ({
-        title: cls.course.course_name,
-        date: cls.start_date.toISOString().split('T')[0],
-        trainer: cls.instructure?.name || "Unassigned"
-      }));
-      
-      // Jika tidak ada data, gunakan fallback
-      if (upcomingTrainings.length === 0) {
-        upcomingTrainings = fallbackUpcomingTrainings;
-      }
-      
-      logDebug("Data retrieved from database");
-    } catch (error) {
-      logDebug(`Error retrieving data from database: ${(error as Error).message}`);
-      // Gunakan data fallback jika terjadi error
-    }
+      return {
+        title: classItem.course.course_name,
+        date: format(classItem.start_date, 'yyyy-MM-dd'),
+        trainer: instructor,
+      };
+    });
+
+    // Get monthly training counts for the chart
+    const monthlyTrainingData = await getMonthlyTrainingData();
     
-    // Kembalikan data dashboard
+    // Get certification type data
+    const certificationTypeData = await getCertificationTypeData();
+
+    // Get current user info (placeholder - would normally come from session)
+    const user = {
+      id: '1',
+      name: 'Admin User',
+      userType: 'Admin'
+    };
+
     return NextResponse.json({
       success: true,
       data: {
-        trainingData,
-        certificationTypeData,
-        upcomingTrainings,
-        user: userData
+        trainingData: monthlyTrainingData,
+        certificationTypeData: certificationTypeData,
+        upcomingTrainings: upcomingTrainings,
+        user: user
       }
     });
   } catch (error) {
-    console.error("Dashboard API error:", error);
-    return NextResponse.json({
-      success: false,
-      error: "Failed to load dashboard data",
-      details: error instanceof Error ? error.message : "Unknown error"
-    }, { status: 500 });
+    console.error("Error fetching dashboard data:", error);
+    return NextResponse.json(
+      { success: false, error: "Failed to fetch dashboard data" },
+      { status: 500 }
+    );
   }
+}
+
+// Helper function to get monthly training data
+async function getMonthlyTrainingData() {
+  const currentYear = new Date().getFullYear();
+  const startOfYear = new Date(currentYear, 0, 1);
+  const endOfYear = new Date(currentYear, 11, 31);
+
+  // Get all classes for the current year
+  const classes = await prisma.class.findMany({
+    where: {
+      start_date: {
+        gte: startOfYear,
+        lte: endOfYear,
+      },
+    },
+  });
+
+  // Count classes per month
+  const monthlyData = Array(12).fill(0).map((_, index) => ({
+    name: format(new Date(currentYear, index, 1), 'MMM'),
+    value: 0
+  }));
+
+  classes.forEach(classItem => {
+    const month = classItem.start_date.getMonth();
+    monthlyData[month].value += 1;
+  });
+
+  return monthlyData;
+}
+
+// Helper function to get certification type data
+async function getCertificationTypeData() {
+  // Get course types with count of certificates
+  const courseTypes = await prisma.courseType.findMany({
+    include: {
+      course: {
+        include: {
+          certificates: true,
+        },
+      },
+    },
+  });
+
+  // Count certificates by course type
+  const certData = courseTypes.map(type => ({
+    name: type.course_type,
+    value: type.course.reduce((sum, course) => sum + course.certificates.length, 0)
+  }));
+
+  return certData;
 } 

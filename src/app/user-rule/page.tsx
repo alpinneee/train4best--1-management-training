@@ -313,7 +313,9 @@ export default function UserRulePage(): ReactElement {
   if (isLoading && userRules.length === 0) {
     return (
       <Layout>
-        <div className="p-2 text-center">Loading user rules...</div>
+            <div className="flex justify-center py-60">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
+          </div>
       </Layout>
     );
   }
@@ -351,7 +353,7 @@ export default function UserRulePage(): ReactElement {
             placeholder="Search..."
             value={searchTerm}
             onChange={handleSearchChange}
-            className="px-2 py-1 text-xs border rounded-lg w-full sm:w-auto"
+            className="px-2 py-1 text-xs border rounded-lg w-full sm:w-auto text-gray-700"
           />
         </div>
 
@@ -377,7 +379,7 @@ export default function UserRulePage(): ReactElement {
             <h2 className="text-base font-semibold mb-2 text-gray-700">
               Add New Rule
             </h2>
-            <form onSubmit={handleSubmit} className="space-y-2">
+            <form onSubmit={handleSubmit} className="space-y-2 text-gray-700">
               <div>
                 <label className="block text-xs text-gray-700 mb-1">Role Name</label>
                 <input
@@ -396,7 +398,7 @@ export default function UserRulePage(): ReactElement {
                   name="description"
                   value={newRule.description}
                   onChange={handleInputChange}
-                  className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-700"
                 />
               </div>
               <div>

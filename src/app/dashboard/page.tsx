@@ -164,12 +164,9 @@ export default function DashboardPage() {
   if (isLoading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading dashboard...</p>
+        <div className="flex justify-center py-60">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
           </div>
-        </div>
       </Layout>
     );
   }

@@ -15,8 +15,8 @@ export async function GET() {
       no: index + 1,
       id: rule.id,
       roleName: rule.usertype,
-      description: '',  // Default empty string since it's not in the database
-      status: 'Active', // Default status since it's not in the database
+      description: rule.description || '',  // Use actual description from database
+      status: rule.status || 'Active', // Use actual status from database
     }));
 
     return NextResponse.json(formattedRules);
@@ -59,14 +59,16 @@ export async function POST(request: Request) {
     const newRule = await prisma.userType.create({
       data: {
         usertype: roleName,
+        description: description || '',
+        status: status || 'Active',
       },
     });
 
     return NextResponse.json({
       id: newRule.id,
       roleName: newRule.usertype,
-      description: description || '',
-      status: status || 'Active',
+      description: newRule.description || '',
+      status: newRule.status || 'Active',
     }, { status: 201 });
   } catch (error) {
     console.error('Error creating user rule:', error);

@@ -28,8 +28,8 @@ export async function GET(request: Request, { params }: Params) {
     return NextResponse.json({
       id: rule.id,
       roleName: rule.usertype,
-      description: '',  // Default empty string since it's not in the database
-      status: 'Active', // Default status since it's not in the database
+      description: rule.description || '',  // Use actual description from database
+      status: rule.status || 'Active', // Use actual status from database
     });
   } catch (error) {
     console.error('Error fetching user rule:', error);
@@ -89,6 +89,8 @@ export async function PUT(request: Request, { params }: Params) {
     // Prepare update data with defaults for null/undefined values
     const updateData = {
       usertype: roleName,
+      description: description || '',
+      status: status || 'Active',
     };
 
     // Update rule
@@ -102,8 +104,8 @@ export async function PUT(request: Request, { params }: Params) {
     return NextResponse.json({
       id: updatedRule.id,
       roleName: updatedRule.usertype,
-      description: description || '',
-      status: status || 'Active',
+      description: updatedRule.description || '',
+      status: updatedRule.status || 'Active',
     });
   } catch (error) {
     console.error('Error updating user rule:', error);

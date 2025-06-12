@@ -57,9 +57,9 @@ const ParticipantDetail = () => {
         <Sidebar 
           isMobileOpen={isMobileOpen} 
           onMobileClose={handleMobileOpen} 
-          variant="participant" 
+          variant="admin" 
         />
-        <main className="flex-1 p-6 bg-green-50">
+        <main className="flex-1 p-6 bg-white">
           {isLoading ? (
             <div className="flex justify-center items-center h-64">
               <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
@@ -116,25 +116,25 @@ const ParticipantDetail = () => {
               {/* Navigation Tabs */}
               <div className="flex overflow-x-auto gap-6 border-b">
                 <Link
-                  href={`/participant/dashboard`}
+                  href={``}
                   className="pb-2 whitespace-nowrap text-gray-600 border-b-2 border-gray-600"
                 >
                   Dashboard
                 </Link>
                 <Link
-                  href={`/participant/my-course`}
+                  href={``}
                   className="pb-2 whitespace-nowrap text-gray-500 hover:text-gray-700"
                 >
                   My Courses
                 </Link>
                 <Link
-                  href={`/participant/my-certificate`}
+                  href={``}
                   className="pb-2 whitespace-nowrap text-gray-500 hover:text-gray-700"
                 >
                   Certificates
                 </Link>
                 <Link 
-                  href={`/participant/payment`} 
+                  href={``} 
                   className="pb-2 whitespace-nowrap text-gray-500 hover:text-gray-700"
                 >
                   Payments

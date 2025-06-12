@@ -161,19 +161,7 @@ export default function DashboardLayout({
     checkAuth();
   }, [router]);
 
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-t-4 border-b-4 border-blue-500 mx-auto"></div>
-          <p className="text-gray-600">Memuat...</p>
-          {debugInfo && (
-            <div className="mt-2 text-green-600 text-sm">{debugInfo}</div>
-          )}
-        </div>
-      </div>
-    );
-  }
+  
 
   return <>{children}</>;
 } 

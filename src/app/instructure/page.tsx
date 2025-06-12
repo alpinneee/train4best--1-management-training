@@ -17,6 +17,24 @@ interface Instructure {
   photo?: string | null;
 }
 
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
+interface HistoryItem {
+  id: string;
+  type: string;
+  description: string;
+  changedBy: string;
+  date: string | Date;
+  details?: {
+    [key: string]: any;
+  };
+}
+
 interface Column {
   header: string;
   accessor: keyof Instructure | ((data: Instructure) => React.ReactNode);
@@ -49,6 +67,19 @@ const InstructurePage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentInstructure, setCurrentInstructure] = useState<Instructure | null>(null);
+  
+  // State for history modal
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [selectedInstructure, setSelectedInstructure] = useState<Instructure | null>(null);
+  
+  // State for eligible users
+  const [eligibleUsers, setEligibleUsers] = useState<User[]>([]);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
+  
+  // State for history data
+  const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   
   const [formData, setFormData] = useState({
     fullName: "",
@@ -151,6 +182,8 @@ const InstructurePage = () => {
   // Open modal for adding
   const handleAddClick = () => {
     resetForm();
+    setIsEditMode(false);
+    fetchEligibleUsers(); // Fetch eligible users when opening the modal
     setIsModalOpen(true);
   };
 
@@ -198,7 +231,7 @@ const InstructurePage = () => {
       if (isEditMode && currentInstructure) {
         // Update existing instructure - only update instructure data, not user data
         const response = await fetch(`/api/instructure/${currentInstructure.id}`, {
-          method: 'PUT',
+          method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
           },
@@ -215,8 +248,13 @@ const InstructurePage = () => {
           throw new Error('Failed to update instructure');
         }
         
+        // Refresh data after update
+        fetchInstructures();
+        setIsModalOpen(false);
+        resetForm();
+        alert('Instructure updated successfully');
       } else {
-        // Create new instructure with user account
+        // Create new instructure
         const response = await fetch('/api/instructure', {
           method: 'POST',
           headers: {
@@ -226,19 +264,99 @@ const InstructurePage = () => {
         });
         
         if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || 'Failed to create instructure');
+          throw new Error('Failed to create instructure');
         }
+        
+        // Refresh data after creation
+        fetchInstructures();
+        setIsModalOpen(false);
+        resetForm();
+        alert('Instructure created successfully');
+      }
+    } catch (err) {
+      console.error('Error submitting form:', err);
+      alert(err instanceof Error ? err.message : 'An unknown error occurred');
+    }
+  };
+
+  // Function to fetch eligible users (users who are not instructors)
+  const fetchEligibleUsers = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/user?role=participant');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch eligible users');
       }
       
-      // Close modal and refresh data
-      setIsModalOpen(false);
-      resetForm();
+      const data = await response.json();
+      // Filter users who are not instructors
+      const filteredUsers = data.users.filter(
+        (user: User) => !user.role.toLowerCase().includes('instruct')
+      );
+      
+      setEligibleUsers(filteredUsers);
+    } catch (err) {
+      console.error('Error fetching eligible users:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load eligible users');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Function to promote a user to instructor
+  const promoteToInstructor = async (user: User) => {
+    setIsLoading(true);
+    try {
+      // Step 1: Update user role to Instructure
+      const userResponse = await fetch(`/api/user/${user.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jobTitle: 'Instructure',
+        }),
+      });
+      
+      if (!userResponse.ok) {
+        throw new Error('Failed to update user role');
+      }
+      
+      // Step 2: Create instructure record
+      const instructureResponse = await fetch('/api/instructure', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fullName: user.name,
+          email: user.email,
+          username: user.email.split('@')[0], // Create a username from email
+          password: 'defaultpassword123', // Set a default password
+          phoneNumber: '', // These fields will need to be filled in later
+          proficiency: '',
+          address: '',
+        }),
+      });
+      
+      if (!instructureResponse.ok) {
+        throw new Error('Failed to create instructure record');
+      }
+      
+      // Refresh data
       fetchInstructures();
       
+      // Remove the user from eligible users list
+      setEligibleUsers(prev => prev.filter(u => u.id !== user.id));
+      
+      // When promoting multiple users, don't close modal or show alert for each one
+      console.log(`${user.name} has been promoted to Instructor`);
     } catch (err) {
-      console.error('Error saving instructure:', err);
-      alert(err instanceof Error ? err.message : 'Failed to save instructure');
+      console.error('Error promoting user:', err);
+      setError(err instanceof Error ? err.message : 'Failed to promote user');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -308,6 +426,52 @@ const InstructurePage = () => {
     }
   };
 
+  // Function to fetch history data for an instructor
+  const fetchInstructureHistory = async (instructure: Instructure) => {
+    setIsLoadingHistory(true);
+    setHistoryItems([]);
+    
+    try {
+      const response = await fetch(`/api/instructure/${instructure.id}/history`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch history data');
+      }
+      
+      const data = await response.json();
+      
+      if (data && Array.isArray(data.history)) {
+        setHistoryItems(data.history);
+      } else {
+        // If API doesn't return history yet, set empty array
+        setHistoryItems([]);
+      }
+      
+      setSelectedInstructure(instructure);
+      setIsHistoryModalOpen(true);
+    } catch (error) {
+      console.error('Error fetching history:', error);
+      setHistoryItems([]);
+      setSelectedInstructure(instructure);
+      setIsHistoryModalOpen(true);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  // Helper function to format dates
+  const formatDate = (dateStr: string | Date): string => {
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return String(dateStr);
+      
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+      return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+    } catch (e) {
+      return String(dateStr);
+    }
+  };
+
   const columns: Column[] = [
     { 
       header: "NO", 
@@ -345,6 +509,7 @@ const InstructurePage = () => {
           <button
             className="p-1 border rounded hover:bg-gray-100"
             title="View History"
+            onClick={() => fetchInstructureHistory(data)}
           >
             <svg
               className="w-3 h-3"
@@ -412,7 +577,8 @@ const InstructurePage = () => {
         </h1>
 
         <div className="flex flex-col sm:flex-row sm:justify-between gap-2 mb-2">
-          <div>
+          <div className="flex gap-2">
+           
             <Button
               variant="primary"
               size="small"
@@ -453,9 +619,9 @@ const InstructurePage = () => {
 
         <div className="overflow-x-auto -mx-2 px-2">
           {isLoading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-            </div>
+               <div className="flex justify-center py-60">
+               <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
+             </div>
           ) : (
           <Table
             columns={columns}
@@ -470,14 +636,121 @@ const InstructurePage = () => {
         </div>
 
         {/* Add/Edit Instructure Modal */}
-        {isModalOpen && (
+        {isModalOpen && !isEditMode && (
+          <Modal onClose={() => {
+            setIsModalOpen(false);
+            resetForm();
+          }}>
+            <div className="w-full">
+              <h2 className="text-base mb-2 text-gray-700">
+                Select Users
+              </h2>
+              <div className="max-h-96 overflow-y-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Name
+                      </th>
+                      <th scope="col" className="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Email
+                      </th>
+                      <th scope="col" className="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Current Role
+                      </th>
+                      <th scope="col" className="px-2 py-1 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Select
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {eligibleUsers.map((user) => (
+                      <tr key={user.id}>
+                        <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-700">
+                          {user.name}
+                        </td>
+                        <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-700">
+                          {user.email}
+                        </td>
+                        <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-700">
+                          {user.role}
+                        </td>
+                        <td className="px-2 py-1 whitespace-nowrap">
+                          <input 
+                            type="checkbox" 
+                            className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedUsers(prev => [...prev, user]);
+                              } else {
+                                setSelectedUsers(prev => prev.filter(u => u.id !== user.id));
+                              }
+                            }}
+                            checked={selectedUsers.some(u => u.id === user.id)}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                    {eligibleUsers.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="px-2 py-4 text-center text-xs text-gray-500">
+                          No eligible users found
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex justify-end gap-2 pt-4">
+                <Button
+                  variant="gray"
+                  size="small"
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    resetForm();
+                  }}
+                  className="text-xs px-2 py-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  size="small"
+                  onClick={() => {
+                    if (selectedUsers.length > 0) {
+                      // Promote all selected users
+                      Promise.all(selectedUsers.map(user => promoteToInstructor(user)))
+                        .then(() => {
+                          alert(`Successfully promoted ${selectedUsers.length} user(s) to Instructor`);
+                          setSelectedUsers([]);
+                          setIsModalOpen(false);
+                        })
+                        .catch(err => {
+                          console.error("Error promoting users:", err);
+                          alert("An error occurred while promoting users");
+                        });
+                    } else {
+                      alert("Please select at least one user");
+                    }
+                  }}
+                  disabled={selectedUsers.length === 0 || isLoading}
+                  className="text-xs px-2 py-1"
+                >
+                  {isLoading ? "Processing..." : `Promote ${selectedUsers.length} Selected User(s)`}
+                </Button>
+              </div>
+            </div>
+          </Modal>
+        )}
+        
+        {isModalOpen && isEditMode && (
           <Modal onClose={() => {
             setIsModalOpen(false);
             resetForm();
           }}>
             <div className="w-full">
               <h2 className="text-base font-semibold mb-2 text-gray-700">
-                {isEditMode ? 'Edit Instructure' : 'Add New Instructure'}
+                Edit Instructure
               </h2>
               <form onSubmit={handleSubmit} className="space-y-2">
                 <div>
@@ -521,21 +794,6 @@ const InstructurePage = () => {
                     disabled={isEditMode}
                   />
                 </div>
-                {!isEditMode && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Password
-                    </label>
-                    <input
-                      type="password"
-                      name="password"
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    />
-                  </div>
-                )}
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     Phone Number
@@ -611,11 +869,76 @@ const InstructurePage = () => {
                     type="submit"
                     className="text-xs px-2 py-1"
                   >
-                    {isEditMode ? 'Update' : 'Add'} Instructure
+                    Update Instructure
                   </Button>
                 </div>
               </form>
             </div>
+          </Modal>
+        )}
+        
+        {/* History Modal */}
+        {isHistoryModalOpen && selectedInstructure && (
+          <Modal onClose={() => setIsHistoryModalOpen(false)}>
+            <h2 className="text-base font-semibold text-gray-700 mb-2">
+              History - {selectedInstructure.fullName}
+            </h2>
+            {isLoadingHistory ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+              </div>
+            ) : (
+              <div className="mt-2 space-y-2">
+                {historyItems.length > 0 ? (
+                  historyItems.map((item) => (
+                    <div key={item.id} className="border-b pb-2">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-sm font-medium text-gray-700">{item.type}</p>
+                          <p className="text-xs text-gray-600">{item.description}</p>
+                        </div>
+                        <span className="text-xs text-gray-500">
+                          {formatDate(item.date)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-1">Changed by: {item.changedBy}</p>
+                      
+                      {/* Display additional details if available */}
+                      {item.details && (
+                        <div className="mt-1 text-xs text-gray-500 bg-gray-50 p-1 rounded">
+                          {item.details.courseName && (
+                            <p>Course: <span className="font-medium">{item.details.courseName}</span></p>
+                          )}
+                          {item.details.location && (
+                            <p>Location: <span className="font-medium">{item.details.location}</span></p>
+                          )}
+                          {item.details.startDate && (
+                            <p>Start Date: <span className="font-medium">{formatDate(item.details.startDate)}</span></p>
+                          )}
+                          {item.details.endDate && (
+                            <p>End Date: <span className="font-medium">{formatDate(item.details.endDate)}</span></p>
+                          )}
+                          {item.details.value && (
+                            <p>Value: <span className="font-medium">{item.details.value}</span></p>
+                          )}
+                          {item.details.valueType && (
+                            <p>Type: <span className="font-medium">{item.details.valueType}</span></p>
+                          )}
+                          {item.details.participantName && (
+                            <p>Participant: <span className="font-medium">{item.details.participantName}</span></p>
+                          )}
+                          {item.details.remark && (
+                            <p>Remark: <span className="font-medium">{item.details.remark}</span></p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center text-gray-500 py-4">No history records found</p>
+                )}
+              </div>
+            )}
           </Modal>
         )}
       </div>

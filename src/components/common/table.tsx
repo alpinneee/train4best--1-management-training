@@ -31,7 +31,9 @@ export default function Table<T>({
     if (typeof column.accessor === "function") {
       return column.accessor(item, rowIndex);
     }
-    return String(item[column.accessor as keyof T]);
+    // Make sure we're properly displaying the value, even if it's an empty string
+    const value = item[column.accessor as keyof T];
+    return value === undefined || value === null ? "" : String(value);
   };
 
   return (

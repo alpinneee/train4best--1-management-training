@@ -323,10 +323,10 @@ const CourseSchedulePage = () => {
         )}
 
         {loading ? (
-          <div className="flex justify-center py-10">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
-          </div>
-        ) : (
+            <div className="flex justify-center py-60">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
+            </div>
+        ):  (
           <div className="overflow-x-auto -mx-2 px-2">
             <Table
               columns={columns}

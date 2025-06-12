@@ -16,7 +16,7 @@ interface Course {
   description: string | null;
   image: string | null;
   courseTypeId: string;
-  courseType: string;
+  courseType: string; 
 }
 
 interface CourseType {
@@ -265,10 +265,10 @@ export default function Courses() {
         )}
 
         {loading ? (
-          <div className="flex justify-center py-10">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
-          </div>
-        ) : (
+            <div className="flex justify-center py-60">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
+            </div>
+        ):  (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
             {courses.length > 0 ? (
               courses.map((course) => (

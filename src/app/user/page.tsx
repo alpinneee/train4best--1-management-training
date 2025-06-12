@@ -275,6 +275,45 @@ const UserPage = () => {
     }
   };
 
+  // Function to promote a user to instructor role
+  const promoteToInstructor = async (user: User) => {
+    setLoading(true);
+    setError("");
+    
+    try {
+      const response = await fetch(`/api/user/${user.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jobTitle: "Instructure", // Change role to Instructure
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to promote user to instructor");
+      }
+      
+      // Update user in state
+      setUsers(prev => 
+        prev.map(u => u.id === user.id ? {...u, role: "Instructure"} : u)
+      );
+      
+      setIsModalOpen(false);
+      setSelectedUser(null);
+      toast.success(`${user.name} has been promoted to Instructor`);
+    } catch (error: any) {
+      console.error("Promotion error:", error);
+      setError(error.message || "Failed to promote user");
+      toast.error(error.message || "Failed to promote user");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const columns: Column[] = [
     {
       header: "No",
@@ -322,7 +361,9 @@ const UserPage = () => {
   if (loading && users.length === 0) {
     return (
       <Layout>
-        <div className="p-2 text-center text-gray-700">Loading users...</div>
+          <div className="flex justify-center py-60">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
+          </div>
       </Layout>
     );
   }
@@ -333,7 +374,28 @@ const UserPage = () => {
         {/* Navigation Links */}
 
 
-        <h1 className="text-2xl font-bold mb-4 text-gray-700">User Management</h1>
+        <h1 className="text-2xl mb-4 text-gray-700">User Management</h1>
+
+        <div className="flex flex-col sm:flex-row gap-2 text-gray-700 w-full sm:w-auto mb-4 justify-end">
+            <select
+              value={selectedRole}
+              onChange={handleRoleChange}
+              className="px-2 py-1 text-xs border rounded-lg w-full sm:w-auto"
+            >
+              {roles.map((type) => (
+                <option key={type} value={type}>
+                  {type === "all" ? "All Roles" : type}
+                </option>
+              ))}
+            </select>
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              className="px-2 py-1 text-xs border rounded-lg w-full sm:w-auto"
+            />
+          </div>
 
         <div className="flex flex-col gap-2 p-2">
           {error && (
@@ -368,68 +430,92 @@ const UserPage = () => {
           {isModalOpen && (
             <Modal onClose={() => setIsModalOpen(false)}>
               <h2 className="text-base font-semibold mb-2 text-gray-700">
-                Add New User
+                Select Users to Become Instructors
               </h2>
-              <form onSubmit={handleSubmit} className="space-y-2">
-                <div>
-                  <label className="block mb-1 text-xs text-gray-700">Username</label>
-                  <input
-                    type="text"
-                    name="username"
-                    value={newUser.username}
-                    onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                    className="w-full px-2 py-1 text-xs rounded border border-gray-300 text-gray-700"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-700 mb-1">Role</label>
-                  <select
-                    name="jobTitle"
-                    value={newUser.jobTitle}
-                    onChange={(e) => setNewUser({ ...newUser, jobTitle: e.target.value })}
-                    className="w-full px-2 py-1 text-xs rounded border border-gray-300 text-gray-700"
-                    required
-                  >
-                    <option value="">Select Role</option>
-                    {userTypes.map((type) => (
-                      <option key={type.id} value={type.usertype}>
-                        {type.usertype}
-                      </option>
+              <div className="max-h-96 overflow-y-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Select
+                      </th>
+                      <th scope="col" className="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Name
+                      </th>
+                      <th scope="col" className="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Email
+                      </th>
+                      <th scope="col" className="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Current Role
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {users.filter(user => !user.role.toLowerCase().includes('instruct')).map((user) => (
+                      <tr key={user.id}>
+                        <td className="px-2 py-1 whitespace-nowrap">
+                          <input 
+                            type="checkbox" 
+                            className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                            onChange={(e) => {
+                              // Handle checkbox selection
+                              if (e.target.checked) {
+                                setSelectedUser(user);
+                              } else {
+                                setSelectedUser(null);
+                              }
+                            }}
+                            checked={selectedUser?.id === user.id}
+                          />
+                        </td>
+                        <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-700">
+                          {user.name}
+                        </td>
+                        <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-700">
+                          {user.email}
+                        </td>
+                        <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-700">
+                          {user.role}
+                        </td>
+                      </tr>
                     ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block mb-1 text-xs text-gray-700">Password</label>
-                  <input
-                    type="password"
-                    name="password"
-                    value={newUser.password}
-                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                    className="w-full px-2 py-1 text-xs rounded border border-gray-300 text-gray-700"
-                    required
-                  />
-                </div>
-                <div className="flex justify-end gap-2 pt-2">
-                  <Button
-                    variant="gray"
-                    size="small"
-                    onClick={() => setIsModalOpen(false)}
-                    className="text-xs px-2 py-1"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="primary"
-                    size="small"
-                    type="submit"
-                    disabled={loading}
-                    className="text-xs px-2 py-1"
-                  >
-                    {loading ? "Adding..." : "Add User"}
-                  </Button>
-                </div>
-              </form>
+                    {users.filter(user => !user.role.toLowerCase().includes('instruct')).length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="px-2 py-4 text-center text-xs text-gray-500">
+                          No eligible users found
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex justify-end gap-2 pt-4">
+                <Button
+                  variant="gray"
+                  size="small"
+                  onClick={() => setIsModalOpen(false)}
+                  className="text-xs px-2 py-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  size="small"
+                  onClick={() => {
+                    if (selectedUser) {
+                      // Handle promotion to instructor
+                      // You'll need to implement this function
+                      promoteToInstructor(selectedUser);
+                    } else {
+                      toast.error("Please select a user first");
+                    }
+                  }}
+                  disabled={!selectedUser || loading}
+                  className="text-xs px-2 py-1"
+                >
+                  {loading ? "Processing..." : "Promote to Instructor"}
+                </Button>
+              </div>
             </Modal>
           )}
 

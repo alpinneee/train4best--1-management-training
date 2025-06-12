@@ -32,6 +32,16 @@ interface ApiResponse {
   };
 }
 
+// Add this interface for history items
+interface HistoryItem {
+  id: string;
+  type: string;
+  description: string;
+  date: string | Date;
+  changedBy: string;
+  details?: any;
+}
+
 const ParticipantPage = () => {
   const router = useRouter();
   
@@ -63,6 +73,9 @@ const ParticipantPage = () => {
     company: '',
     photo: '',
   });
+
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   // Mendapatkan data participants dari API
   const fetchParticipants = async () => {
@@ -150,9 +163,26 @@ const ParticipantPage = () => {
   };
 
   // Menampilkan history participant
-  const handleHistoryClick = (participant: Participant) => {
+  const handleHistoryClick = async (participant: Participant) => {
     setSelectedParticipant(participant);
     setIsHistoryModalOpen(true);
+    setIsLoadingHistory(true);
+    
+    try {
+      const response = await fetch(`/api/participant/${participant.id}/history`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch participant history');
+      }
+      
+      const data = await response.json();
+      setHistory(data.history || []);
+    } catch (error) {
+      console.error('Error fetching history:', error);
+      // Set empty history if there's an error
+      setHistory([]);
+    } finally {
+      setIsLoadingHistory(false);
+    }
   };
 
   // Reset form
@@ -316,9 +346,9 @@ const ParticipantPage = () => {
         )}
 
         {loading ? (
-          <div className="flex justify-center py-10">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
-          </div>
+            <div className="flex justify-center py-60">
+             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
+           </div>
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -418,38 +448,45 @@ const ParticipantPage = () => {
             History - {selectedParticipant.name}
           </h2>
           <div className="mt-2 space-y-2">
-            <div className="border-b pb-2">
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Perubahan Status</p>
-                  <p className="text-xs text-gray-600">Aktif ke Tidak Aktif</p>
-                </div>
-                <span className="text-xs text-gray-500">20 Jan 2024</span>
+            {isLoadingHistory ? (
+              <div className="flex justify-center py-4">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900"></div>
               </div>
-              <p className="text-xs text-gray-600 mt-1">Diubah oleh: Admin</p>
-            </div>
-
-            <div className="border-b pb-2">
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Perubahan Data</p>
-                  <p className="text-xs text-gray-600">Pembaruan Peran</p>
+            ) : history.length > 0 ? (
+              history.map((item) => (
+                <div key={item.id} className="border-b pb-2">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">{item.type}</p>
+                      <p className="text-xs text-gray-600">{item.description}</p>
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {formatDate(item.date)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 mt-1">Diubah oleh: {item.changedBy}</p>
+                  
+                  {/* Display additional details if available */}
+                  {item.details && (
+                    <div className="mt-1 text-xs text-gray-500">
+                      {item.details.status && (
+                        <p>Status: <span className="font-medium">{item.details.status}</span></p>
+                      )}
+                      {item.details.courseName && (
+                        <p>Kursus: <span className="font-medium">{item.details.courseName}</span></p>
+                      )}
+                      {item.details.certificateNumber && (
+                        <p>No. Sertifikat: <span className="font-medium">{item.details.certificateNumber}</span></p>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <span className="text-xs text-gray-500">15 Jan 2024</span>
+              ))
+            ) : (
+              <div className="text-center py-4 text-gray-500 text-sm">
+                Tidak ada riwayat untuk ditampilkan
               </div>
-              <p className="text-xs text-gray-600 mt-1">Diubah oleh: Supervisor</p>
-            </div>
-
-            <div className="border-b pb-2">
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Pendaftaran</p>
-                  <p className="text-xs text-gray-600">Peserta baru ditambahkan</p>
-                </div>
-                <span className="text-xs text-gray-500">10 Jan 2024</span>
-              </div>
-              <p className="text-xs text-gray-600 mt-1">Dibuat oleh: Admin</p>
-            </div>
+            )}
           </div>
         </Modal>
       )}
