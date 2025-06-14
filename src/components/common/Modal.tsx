@@ -35,6 +35,11 @@ const Modal: React.FC<ModalProps> = ({ onClose, children }) => {
     };
   }, [onClose]);
 
+  // Fungsi untuk menghentikan propagasi event
+  const stopPropagation = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   return createPortal(
     <div 
       className="fixed inset-0 z-[9999] overflow-y-auto"
@@ -51,6 +56,7 @@ const Modal: React.FC<ModalProps> = ({ onClose, children }) => {
         <div 
           ref={modalRef}
           className="relative rounded w-full sm:w-[420px] mx-auto z-[10000] max-h-[85vh] overflow-y-auto bg-white shadow-xl"
+          onClick={stopPropagation} // Menghentikan propagasi event pada konten modal
         >
           <button 
             onClick={onClose} 

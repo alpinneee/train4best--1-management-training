@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Button from "@/components/common/button";
-import { FileText, Edit, Trash2, History, UserCheck } from "lucide-react";
+import { FileText, Edit, Trash2, History, UserCheck, Award, FileSignature, BarChart, Info } from "lucide-react";
 import Modal from "@/components/common/Modal";
 import Layout from "@/components/common/Layout";
 import Image from "next/image";
@@ -97,6 +97,89 @@ const CourseScheduleDetail = () => {
   const [isInstructorSelectionModalOpen, setIsInstructorSelectionModalOpen] = useState(false);
   const [selectedInstructorIds, setSelectedInstructorIds] = useState<string[]>([]);
   const [allInstructors, setAllInstructors] = useState<any[]>([]);
+
+  const [isCertificateModalOpen, setIsCertificateModalOpen] = useState(false);
+  const [selectedParticipantForCertificate, setSelectedParticipantForCertificate] = useState<Participant | null>(null);
+  const [certificateData, setCertificateData] = useState({
+    certificateNumber: '',
+    registrationDate: '',
+    issueDate: '',
+    pdfFile: null as File | null,
+    pdfUrl: ''
+  });
+  const [certificateLoading, setCertificateLoading] = useState(false);
+  const [certificateError, setCertificateError] = useState<string | null>(null);
+  const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
+  const [selectedParticipantForRegistration, setSelectedParticipantForRegistration] = useState<Participant | null>(null);
+  const [registrationData, setRegistrationData] = useState({
+    registrationDate: '',
+    paymentDate: '',
+    paymentMethod: '',
+    payment: '',
+    presentDay: '',
+    paymentDetail: '',
+    paymentEvidence: ''
+  });
+  const [registrationLoading, setRegistrationLoading] = useState(false);
+  const [registrationError, setRegistrationError] = useState<string | null>(null);
+  const [isValueModalOpen, setIsValueModalOpen] = useState(false);
+  const [selectedParticipantForValue, setSelectedParticipantForValue] = useState<Participant | null>(null);
+  const [valueData, setValueData] = useState<Array<{id: string, valueType: string, remark: string, value: string}>>([]);
+  const [newValue, setNewValue] = useState({
+    valueType: '',
+    remark: '',
+    value: ''
+  });
+  const [valuePage, setValuePage] = useState(1);
+  const [totalValuePages, setTotalValuePages] = useState(1);
+  const [valueLoading, setValueLoading] = useState(false);
+  const [valueError, setValueError] = useState<string | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedParticipantForDetail, setSelectedParticipantForDetail] = useState<Participant | null>(null);
+  const [detailData, setDetailData] = useState<{
+    personalInfo: {
+      id: string;
+      name: string;
+      email: string;
+      phone: string;
+      address: string;
+    };
+    courseInfo: {
+      presentDays: string;
+      totalDays: string;
+      paymentStatus: string;
+      regStatus: string;
+      joinedDate: string;
+      payment: {
+        amount: number;
+        total: number;
+        method: string;
+        date: string | null;
+      };
+    };
+    progressInfo: {
+      percentage: number;
+      days: {
+        present: number;
+        total: number;
+      };
+    };
+    certificateInfo: {
+      id: string;
+      number: string;
+      issueDate: string;
+      registrationDate: string;
+    } | null;
+    testResults: Array<{
+      id: string;
+      type: string;
+      remark: string;
+      value: number;
+      maxValue: number;
+    }>;
+  } | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   const searchParticipants = async (query: string) => {
     try {
@@ -406,6 +489,322 @@ const CourseScheduleDetail = () => {
     }
   };
 
+  const handleOpenCertificateModal = async (participant: Participant) => {
+    setSelectedParticipantForCertificate(participant);
+    setIsCertificateModalOpen(true);
+    setCertificateLoading(true);
+    setCertificateError(null);
+
+    try {
+      // Fetch existing certificate data if available
+      const response = await fetch(`/api/course-schedule/${scheduleId}/participant/certificate?participantId=${participant.participantId}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        setCertificateData({
+          certificateNumber: data.certificateNumber || '',
+          registrationDate: data.registrationDate ? new Date(data.registrationDate).toISOString().split('T')[0] : '',
+          issueDate: data.issueDate ? new Date(data.issueDate).toISOString().split('T')[0] : '',
+          pdfFile: null,
+          pdfUrl: data.pdfUrl || ''
+        });
+      } else {
+        // If no certificate exists yet, initialize with empty values
+        setCertificateData({
+          certificateNumber: '',
+          registrationDate: '',
+          issueDate: '',
+          pdfFile: null,
+          pdfUrl: ''
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching certificate data:', error);
+      setCertificateError('Failed to load certificate data');
+    } finally {
+      setCertificateLoading(false);
+    }
+  };
+
+  const handleCertificateInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setCertificateData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleCertificateFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setCertificateData(prev => ({
+        ...prev,
+        pdfFile: e.target.files![0]
+      }));
+    }
+  };
+
+  const handleCertificateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedParticipantForCertificate) return;
+    
+    setCertificateLoading(true);
+    setCertificateError(null);
+
+    try {
+      // TODO: In a real implementation, you would upload the PDF file to a storage service
+      // and get a URL back. For now, we'll just simulate this.
+      let pdfUrl = certificateData.pdfUrl;
+      if (certificateData.pdfFile) {
+        // Simulate file upload - in a real app, you'd upload to storage and get a URL
+        pdfUrl = URL.createObjectURL(certificateData.pdfFile);
+      }
+
+      const response = await fetch(`/api/course-schedule/${scheduleId}/participant/certificate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          participantId: selectedParticipantForCertificate.participantId,
+          certificateNumber: certificateData.certificateNumber,
+          registrationDate: certificateData.registrationDate,
+          issueDate: certificateData.issueDate,
+          pdfUrl: pdfUrl
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save certificate');
+      }
+
+      // Close modal and refresh data
+      setIsCertificateModalOpen(false);
+      setSelectedParticipantForCertificate(null);
+      fetchCourseSchedule(); // Refresh data
+    } catch (error) {
+      console.error('Error saving certificate:', error);
+      setCertificateError(error instanceof Error ? error.message : 'Failed to save certificate');
+    } finally {
+      setCertificateLoading(false);
+    }
+  };
+
+  const handleOpenRegistrationModal = async (participant: Participant) => {
+    setSelectedParticipantForRegistration(participant);
+    setIsRegistrationModalOpen(true);
+    setRegistrationLoading(true);
+    setRegistrationError(null);
+
+    try {
+      // Fetch existing registration data
+      const response = await fetch(`/api/course-schedule/${scheduleId}/participant/registration?participantId=${participant.participantId}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        setRegistrationData({
+          registrationDate: data.registrationDate ? new Date(data.registrationDate).toISOString().split('T')[0] : '',
+          paymentDate: data.paymentDate ? new Date(data.paymentDate).toISOString().split('T')[0] : '',
+          paymentMethod: data.paymentMethod || '',
+          payment: data.payment ? data.payment.toString() : '',
+          presentDay: data.presentDay ? data.presentDay.toString() : '',
+          paymentDetail: data.paymentDetail || '',
+          paymentEvidence: data.paymentEvidence || ''
+        });
+      } else {
+        // If error fetching data, initialize with empty values
+        setRegistrationData({
+          registrationDate: '',
+          paymentDate: '',
+          paymentMethod: '',
+          payment: '',
+          presentDay: '',
+          paymentDetail: '',
+          paymentEvidence: ''
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching registration data:', error);
+      setRegistrationError('Failed to load registration data');
+    } finally {
+      setRegistrationLoading(false);
+    }
+  };
+
+  const handleRegistrationInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setRegistrationData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleRegistrationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedParticipantForRegistration) return;
+    
+    setRegistrationLoading(true);
+    setRegistrationError(null);
+
+    try {
+      const response = await fetch(`/api/course-schedule/${scheduleId}/participant/registration`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          participantId: selectedParticipantForRegistration.participantId,
+          registrationDate: registrationData.registrationDate,
+          paymentDate: registrationData.paymentDate,
+          paymentMethod: registrationData.paymentMethod,
+          payment: registrationData.payment,
+          presentDay: registrationData.presentDay,
+          paymentDetail: registrationData.paymentDetail,
+          paymentEvidence: registrationData.paymentEvidence
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update registration');
+      }
+
+      // Close modal and refresh data
+      setIsRegistrationModalOpen(false);
+      setSelectedParticipantForRegistration(null);
+      fetchCourseSchedule(); // Refresh data
+    } catch (error) {
+      console.error('Error updating registration:', error);
+      setRegistrationError(error instanceof Error ? error.message : 'Failed to update registration');
+    } finally {
+      setRegistrationLoading(false);
+    }
+  };
+
+  const fetchParticipantValues = async (participantId: string, page: number) => {
+    setValueLoading(true);
+    setValueError(null);
+    
+    try {
+      const valueResponse = await fetch(`/api/course-schedule/${scheduleId}/participant/value?participantId=${participantId}&page=${page}`);
+      
+      if (!valueResponse.ok) {
+        throw new Error('Failed to fetch values');
+      }
+      
+      const data = await valueResponse.json();
+      // Update to match the actual API response structure
+      setValueData(data.values || []);
+      setTotalValuePages(data.totalPages || 1);
+      setValuePage(page);
+    } catch (error) {
+      console.error('Error fetching values:', error);
+      setValueError(error instanceof Error ? error.message : 'Failed to fetch values');
+    } finally {
+      setValueLoading(false);
+    }
+  };
+
+  const handleOpenValueModal = async (participant: Participant) => {
+    setSelectedParticipantForValue(participant);
+    setIsValueModalOpen(true);
+    setValueLoading(true);
+    setValueError(null);
+    
+    await fetchParticipantValues(participant.participantId, 1);
+  };
+
+  const handleValueInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setNewValue(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleAddValue = async () => {
+    if (!selectedParticipantForValue) return;
+    if (!newValue.valueType || !newValue.value) {
+      setValueError('Value type and value are required');
+      return;
+    }
+    
+    setValueLoading(true);
+    setValueError(null);
+    
+    try {
+      const response = await fetch(`/api/course-schedule/${scheduleId}/participant/value`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          participantId: selectedParticipantForValue.participantId,
+          valueType: newValue.valueType,
+          remark: newValue.remark,
+          value: newValue.value
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to add value');
+      }
+      
+      // Reset form and refresh values
+      setNewValue({
+        valueType: '',
+        remark: '',
+        value: ''
+      });
+      await fetchParticipantValues(selectedParticipantForValue.participantId, 1);
+    } catch (error) {
+      console.error('Error adding value:', error);
+      setValueError(error instanceof Error ? error.message : 'Failed to add value');
+    } finally {
+      setValueLoading(false);
+    }
+  };
+
+  const handleEditValue = async (valueId: string) => {
+    // Implementation for editing values would go here
+    console.log('Edit value:', valueId);
+  };
+
+  const handleChangePage = async (newPage: number) => {
+    if (!selectedParticipantForValue) return;
+    if (newPage < 1 || newPage > totalValuePages) return;
+    
+    await fetchParticipantValues(selectedParticipantForValue.participantId, newPage);
+  };
+
+  const handleOpenDetailModal = async (participant: Participant) => {
+    setSelectedParticipantForDetail(participant);
+    setIsDetailModalOpen(true);
+    setDetailLoading(true);
+    setDetailError(null);
+
+    try {
+      console.log(`Fetching details for participant: ${participant.participantId}`);
+      const response = await fetch(`/api/course-schedule/${scheduleId}/participant/detail?participantId=${participant.participantId}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('API error response:', errorData);
+        throw new Error(errorData.error || `Server responded with status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Detail data received:', data);
+      setDetailData(data);
+    } catch (error) {
+      console.error('Error fetching participant details:', error);
+      setDetailError(error instanceof Error ? error.message : 'Failed to fetch participant details');
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -593,6 +992,34 @@ const CourseScheduleDetail = () => {
                         </td>
                         <td className="p-2">
                           <div className="flex gap-1">
+                            <button
+                              className="p-1 border rounded hover:bg-gray-100"
+                              title="Certificate"
+                              onClick={() => handleOpenCertificateModal(participant)}
+                            >
+                              <Award size={14} className="text-blue-500" />
+                            </button>
+                            <button
+                              className="p-1 border rounded hover:bg-gray-100"
+                              title="Registration"
+                              onClick={() => handleOpenRegistrationModal(participant)}
+                            >
+                              <FileSignature size={14} className="text-green-500" />
+                            </button>
+                            <button
+                              className="p-1 border rounded hover:bg-gray-100"
+                              title="Value"
+                              onClick={() => handleOpenValueModal(participant)}
+                            >
+                              <BarChart size={14} className="text-purple-500" />
+                            </button>
+                            <button
+                              className="p-1 border rounded hover:bg-gray-100"
+                              title="Detail"
+                              onClick={() => handleOpenDetailModal(participant)}
+                            >
+                              <Info size={14} className="text-teal-500" />
+                            </button>
                             <button
                               className="p-1 border rounded hover:bg-gray-100"
                               title="Delete"
@@ -963,6 +1390,646 @@ const CourseScheduleDetail = () => {
                 Delete
               </Button>
             </div>
+          </Modal>
+        )}
+
+        {/* Certificate Modal */}
+        {isCertificateModalOpen && selectedParticipantForCertificate && (
+          <Modal onClose={() => {
+            setIsCertificateModalOpen(false);
+            setSelectedParticipantForCertificate(null);
+          }}>
+            <h2 className="text-xl font-semibold mb-4 text-gray-700">Certificate</h2>
+            {certificateLoading ? (
+              <div className="flex justify-center items-center h-40">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+              </div>
+            ) : (
+              <form className="space-y-4" onSubmit={handleCertificateSubmit}>
+                {certificateError && (
+                  <div className="bg-red-50 border border-red-400 text-red-700 px-4 py-2 rounded text-xs">
+                    {certificateError}
+                  </div>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-700 mb-1">Certificate Number</label>
+                    <input
+                      type="text"
+                      name="certificateNumber"
+                      placeholder="Train4best"
+                      value={certificateData.certificateNumber}
+                      onChange={handleCertificateInputChange}
+                      className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-700 mb-1">Registration Date</label>
+                    <input
+                      type="date"
+                      name="registrationDate"
+                      value={certificateData.registrationDate}
+                      onChange={handleCertificateInputChange}
+                      className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-700 mb-1">Issue Date</label>
+                    <input
+                      type="date"
+                      name="issueDate"
+                      value={certificateData.issueDate}
+                      onChange={handleCertificateInputChange}
+                      className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-700 mb-1 flex items-center gap-1">
+                    File PDF
+                    <span>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="inline w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
+                      </svg>
+                    </span>
+                  </label>
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    className="hidden"
+                    id="certificate-pdf-upload"
+                    onChange={handleCertificateFileChange}
+                  />
+                  <label htmlFor="certificate-pdf-upload" className="inline-block cursor-pointer px-3 py-1 border rounded text-xs bg-white hover:bg-gray-100">
+                    Upload PDF
+                  </label>
+                  {certificateData.pdfFile && (
+                    <span className="ml-2 text-xs text-gray-600">
+                      {certificateData.pdfFile.name}
+                    </span>
+                  )}
+                  {!certificateData.pdfFile && certificateData.pdfUrl && (
+                    <span className="ml-2 text-xs text-blue-600">
+                      <a href={certificateData.pdfUrl} target="_blank" rel="noopener noreferrer">
+                        View existing PDF
+                      </a>
+                    </span>
+                  )}
+                </div>
+                <div className="border rounded p-2 h-48 flex items-center justify-center bg-gray-50">
+                  <div className="text-center text-gray-500 text-xs">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p className="mt-1">PDF preview will appear here</p>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 mt-4">
+                  <Button
+                    variant="gray"
+                    size="small"
+                    type="button"
+                    onClick={() => {
+                      setIsCertificateModalOpen(false);
+                      setSelectedParticipantForCertificate(null);
+                    }}
+                    className="text-xs px-6 py-1"
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="small"
+                    type="submit"
+                    disabled={certificateLoading}
+                    className={`text-xs px-6 py-1 ${certificateLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {certificateLoading ? 'Saving...' : 'Create'}
+                  </Button>
+                </div>
+              </form>
+            )}
+          </Modal>
+        )}
+
+        {/* Registration Modal */}
+        {isRegistrationModalOpen && selectedParticipantForRegistration && (
+          <Modal onClose={() => {
+            setIsRegistrationModalOpen(false);
+            setSelectedParticipantForRegistration(null);
+          }}>
+            <h2 className="text-xl font-semibold mb-4 text-gray-700">Registration</h2>
+            {registrationLoading ? (
+              <div className="flex justify-center items-center h-40">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+              </div>
+            ) : (
+              <form className="space-y-4" onSubmit={handleRegistrationSubmit}>
+                {registrationError && (
+                  <div className="bg-red-50 border border-red-400 text-red-700 px-4 py-2 rounded text-xs">
+                    {registrationError}
+                  </div>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-700 mb-1">Registration Date</label>
+                    <input
+                      type="date"
+                      name="registrationDate"
+                      value={registrationData.registrationDate}
+                      onChange={handleRegistrationInputChange}
+                      className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-700 mb-1">Payment Date</label>
+                    <input
+                      type="date"
+                      name="paymentDate"
+                      value={registrationData.paymentDate}
+                      onChange={handleRegistrationInputChange}
+                      className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-700 mb-1">Payment Method</label>
+                    <select
+                      name="paymentMethod"
+                      value={registrationData.paymentMethod}
+                      onChange={handleRegistrationInputChange}
+                      className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="">Select Payment Method</option>
+                      <option value="Cash">Cash</option>
+                      <option value="Transfer">Transfer</option>
+                      <option value="Credit Card">Credit Card</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-700 mb-1">Payment</label>
+                    <input
+                      type="text"
+                      name="payment"
+                      placeholder="4XX.Rp"
+                      value={registrationData.payment}
+                      onChange={handleRegistrationInputChange}
+                      className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-700 mb-1">Present Day</label>
+                    <input
+                      type="text"
+                      name="presentDay"
+                      placeholder="Present Day"
+                      value={registrationData.presentDay}
+                      onChange={handleRegistrationInputChange}
+                      className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-700 mb-1">Payment Detail</label>
+                    <input
+                      type="text"
+                      name="paymentDetail"
+                      placeholder="Train4best"
+                      value={registrationData.paymentDetail}
+                      onChange={handleRegistrationInputChange}
+                      className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-700 mb-1">Payment Evidence</label>
+                  <input
+                    type="text"
+                    name="paymentEvidence"
+                    placeholder="Payment Evidence"
+                    value={registrationData.paymentEvidence}
+                    onChange={handleRegistrationInputChange}
+                    className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 mt-4">
+                  <Button
+                    variant="gray"
+                    size="small"
+                    type="button"
+                    onClick={() => {
+                      setIsRegistrationModalOpen(false);
+                      setSelectedParticipantForRegistration(null);
+                    }}
+                    className="text-xs px-6 py-1"
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="small"
+                    type="submit"
+                    disabled={registrationLoading}
+                    className={`text-xs px-6 py-1 ${registrationLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {registrationLoading ? 'Saving...' : 'Create'}
+                  </Button>
+                </div>
+              </form>
+            )}
+          </Modal>
+        )}
+
+        {/* Value Modal */}
+        {isValueModalOpen && selectedParticipantForValue && (
+          <Modal onClose={() => {
+            setIsValueModalOpen(false);
+            setSelectedParticipantForValue(null);
+          }}>
+            <div className="p-2">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-gray-700">Value</h2>
+                <div className="flex gap-2">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search..."
+                      className="px-3 py-1 text-xs border rounded-full pr-8 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <button className="absolute right-2 top-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              {valueError && (
+                <div className="bg-red-50 border border-red-400 text-red-700 px-4 py-2 rounded text-xs mb-4">
+                  {valueError}
+                </div>
+              )}
+              
+              {/* Add Value Form */}
+              <div className="bg-gray-50 p-3 rounded-lg mb-4">
+                <h3 className="text-sm font-medium mb-2">Add New Value</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div>
+                    <label className="block text-xs text-gray-700 mb-1">Value Type</label>
+                    <input
+                      type="text"
+                      name="valueType"
+                      placeholder="Pre-Test"
+                      value={newValue.valueType}
+                      onChange={handleValueInputChange}
+                      className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-700 mb-1">Remark</label>
+                    <input
+                      type="text"
+                      name="remark"
+                      placeholder="E-Learning"
+                      value={newValue.remark}
+                      onChange={handleValueInputChange}
+                      className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-700 mb-1">Value</label>
+                    <input
+                      type="text"
+                      name="value"
+                      placeholder="90"
+                      value={newValue.value}
+                      onChange={handleValueInputChange}
+                      className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <div className="mt-2 flex justify-end">
+                  <button 
+                    className="bg-indigo-600 text-white px-3 py-1 rounded text-xs flex items-center gap-1"
+                    onClick={handleAddValue}
+                    disabled={valueLoading}
+                  >
+                    {valueLoading ? 'Adding...' : 'Add Value'}
+                  </button>
+                </div>
+              </div>
+              
+              <div className="mb-4 flex justify-end">
+                <button 
+                  className="bg-green-600 text-white px-4 py-1 rounded text-xs flex items-center gap-1"
+                  onClick={() => selectedParticipantForValue && fetchParticipantValues(selectedParticipantForValue.participantId, valuePage)}
+                  disabled={valueLoading}
+                >
+                  Refresh
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
+              </div>
+
+              {valueLoading ? (
+                <div className="flex justify-center items-center h-40">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full bg-white rounded-lg shadow-sm">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left p-2 text-xs text-gray-700 w-16">NO</th>
+                          <th className="text-left p-2 text-xs text-gray-700">Value Type</th>
+                          <th className="text-left p-2 text-xs text-gray-700">Remark</th>
+                          <th className="text-left p-2 text-xs text-gray-700">Value</th>
+                          <th className="text-left p-2 text-xs text-gray-700 w-20">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {valueData.length > 0 ? (
+                          valueData.map((item, index) => (
+                            <tr key={item.id} className="border-b hover:bg-gray-50">
+                              <td className="p-2 text-xs text-gray-700">{index + 1}</td>
+                              <td className="p-2 text-xs text-gray-700">{item.valueType}</td>
+                              <td className="p-2 text-xs text-gray-700">{item.remark}</td>
+                              <td className="p-2 text-xs text-gray-700">{item.value}</td>
+                              <td className="p-2">
+                                <button 
+                                  className="flex items-center gap-1 text-xs text-gray-500"
+                                  onClick={() => handleEditValue(item.id)}
+                                >
+                                  <Edit size={14} /> Edit
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={5} className="p-4 text-center text-gray-500 text-xs">
+                              No values found
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="flex justify-between items-center mt-4">
+                    <div className="flex gap-1">
+                      <button 
+                        className="p-1 border rounded text-xs text-gray-500"
+                        onClick={() => handleChangePage(1)}
+                        disabled={valuePage === 1}
+                      >
+                        «
+                      </button>
+                      <button 
+                        className="p-1 border rounded text-xs text-gray-500"
+                        onClick={() => handleChangePage(valuePage - 1)}
+                        disabled={valuePage === 1}
+                      >
+                        ‹
+                      </button>
+                      
+                      {/* Page numbers */}
+                      {Array.from({ length: Math.min(5, totalValuePages) }, (_, i) => {
+                        const pageNum = i + 1;
+                        return (
+                          <button 
+                            key={pageNum}
+                            className={`p-1 border rounded text-xs ${valuePage === pageNum ? 'bg-gray-100' : 'text-gray-500'}`}
+                            onClick={() => handleChangePage(pageNum)}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                      
+                      <button 
+                        className="p-1 border rounded text-xs text-gray-500"
+                        onClick={() => handleChangePage(valuePage + 1)}
+                        disabled={valuePage === totalValuePages}
+                      >
+                        ›
+                      </button>
+                      <button 
+                        className="p-1 border rounded text-xs text-gray-500"
+                        onClick={() => handleChangePage(totalValuePages)}
+                        disabled={valuePage === totalValuePages}
+                      >
+                        »
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <button 
+                        className="border rounded px-4 py-1 text-xs bg-gray-50"
+                        onClick={() => {
+                          setIsValueModalOpen(false);
+                          setSelectedParticipantForValue(null);
+                        }}
+                      >
+                        Back
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </Modal>
+        )}
+
+        {/* Detail Modal */}
+        {isDetailModalOpen && selectedParticipantForDetail && (
+          <Modal onClose={() => {
+            setIsDetailModalOpen(false);
+            setSelectedParticipantForDetail(null);
+          }}>
+            <h2 className="text-xl font-semibold mb-4 text-gray-700">Participant Detail</h2>
+            
+            {detailLoading ? (
+              <div className="flex justify-center items-center h-40">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+              </div>
+            ) : detailError ? (
+              <div className="bg-red-50 border border-red-400 text-red-700 px-4 py-2 rounded text-xs">
+                {detailError}
+              </div>
+            ) : detailData ? (
+              <div className="space-y-6">
+                {/* Profile Section */}
+                <div className="flex items-center gap-4 border-b pb-4">
+                  <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
+                    <UserCheck size={24} className="text-gray-500" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium">{detailData?.personalInfo?.name}</h3>
+                    <p className="text-xs text-gray-500">{detailData?.personalInfo?.email}</p>
+                  </div>
+                </div>
+                
+                {/* Personal Information */}
+                <div>
+                  <h3 className="font-medium mb-2">Personal Information</h3>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p className="text-gray-500">Full Name</p>
+                      <p>{detailData?.personalInfo?.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Email</p>
+                      <p>{detailData?.personalInfo?.email}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Phone</p>
+                      <p>{detailData?.personalInfo?.phone}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Address</p>
+                      <p>{detailData?.personalInfo?.address}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Course Information */}
+                <div>
+                  <h3 className="font-medium mb-2">Course Information</h3>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p className="text-gray-500">Present Days</p>
+                      <p>{detailData?.courseInfo?.presentDays}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Total Days</p>
+                      <p>{detailData?.courseInfo?.totalDays}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Payment Status</p>
+                      <p className={`${
+                        detailData?.courseInfo?.paymentStatus === 'Paid' 
+                          ? 'text-green-600' 
+                          : detailData?.courseInfo?.paymentStatus === 'Partial' 
+                            ? 'text-yellow-600' 
+                            : 'text-red-600'
+                      }`}>
+                        {detailData?.courseInfo?.paymentStatus}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Registration Status</p>
+                      <p>{detailData?.courseInfo?.regStatus}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Joined Date</p>
+                      <p>{detailData?.courseInfo?.joinedDate ? new Date(detailData.courseInfo.joinedDate).toLocaleDateString() : ''}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Payment Information */}
+                <div>
+                  <h3 className="font-medium mb-2">Payment Information</h3>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p className="text-gray-500">Amount Paid</p>
+                      <p>{detailData?.courseInfo?.payment?.amount?.toLocaleString()} Rp</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Total Price</p>
+                      <p>{detailData?.courseInfo?.payment?.total?.toLocaleString()} Rp</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Payment Method</p>
+                      <p>{detailData?.courseInfo?.payment?.method}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Payment Date</p>
+                      <p>{detailData?.courseInfo?.payment?.date ? new Date(detailData.courseInfo.payment.date).toLocaleDateString() : 'Not paid yet'}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Progress */}
+                <div>
+                  <h3 className="font-medium mb-2">Progress</h3>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5 mb-1">
+                    <div 
+                      className="bg-blue-600 h-2.5 rounded-full" 
+                      style={{ width: `${detailData?.progressInfo?.percentage || 0}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    {detailData?.progressInfo?.days.present} of {detailData?.progressInfo?.days.total} days ({detailData?.progressInfo?.percentage || 0}%)
+                  </p>
+                </div>
+                
+                {/* Certificate */}
+                <div>
+                  <h3 className="font-medium mb-2">Certificate</h3>
+                  {detailData?.certificateInfo ? (
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <p className="text-gray-500">Certificate Number</p>
+                        <p>{detailData.certificateInfo.number}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Issue Date</p>
+                        <p>{new Date(detailData.certificateInfo.issueDate).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500">No certificate issued yet</p>
+                  )}
+                </div>
+                
+                {/* Test Results */}
+                <div>
+                  <h3 className="font-medium mb-2">Test Results</h3>
+                  {detailData?.testResults && detailData.testResults.length > 0 ? (
+                    <div className="space-y-2">
+                      {detailData.testResults.map(test => (
+                        <div key={test.id} className="text-xs">
+                          <div className="flex justify-between mb-1">
+                            <span>{test.type} {test.remark ? `(${test.remark})` : ''}</span>
+                            <span className="font-medium">{test.value} / {test.maxValue}</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-1.5">
+                            <div 
+                              className="bg-green-600 h-1.5 rounded-full" 
+                              style={{ width: `${(test.value / test.maxValue) * 100}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500">No test results available</p>
+                  )}
+                </div>
+                
+                <div className="flex justify-end pt-4 border-t">
+                  <Button
+                    variant="gray"
+                    size="small"
+                    type="button"
+                    onClick={() => {
+                      setIsDetailModalOpen(false);
+                      setSelectedParticipantForDetail(null);
+                    }}
+                    className="text-xs px-6 py-1"
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            ) : null}
           </Modal>
         )}
       </div>
