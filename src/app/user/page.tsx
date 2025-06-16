@@ -50,6 +50,14 @@ const UserPage = () => {
   useEffect(() => {
     fetchUsers();
     fetchUserTypes();
+    
+    // Set up periodic refresh of user data
+    const refreshInterval = setInterval(() => {
+      fetchUsers();
+    }, 5000); // Refresh every 5 seconds
+    
+    // Clean up interval on unmount
+    return () => clearInterval(refreshInterval);
   }, []);
 
   const fetchUserTypes = async () => {

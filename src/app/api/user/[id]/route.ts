@@ -283,45 +283,55 @@ export async function PATCH(request: Request, { params }: Params) {
       let instructureId = existingUser.instructureId;
       
       if (isChangingToInstructure && !instructureId) {
-        // Create a basic instructure record
-        const newInstructureId = uuidv4();
-        
-        const instructure = await tx.instructure.create({
-          data: {
-            id: newInstructureId,
-            full_name: username, // Use username as initial full name
-            phone_number: "",
-            address: "",
-            profiency: "", // Empty proficiency to be filled later
-          },
-        });
-        
-        instructureId = instructure.id;
-        updateData.instructureId = instructureId;
+        try {
+          // Create a basic instructure record
+          const newInstructureId = uuidv4();
+          
+          const instructure = await tx.instructure.create({
+            data: {
+              id: newInstructureId,
+              full_name: username, // Use username as initial full name
+              phone_number: "", // Allow empty phone number
+              address: "", // Allow empty address
+              profiency: "", // Allow empty proficiency
+            },
+          });
+          
+          instructureId = instructure.id;
+          updateData.instructureId = instructureId;
+        } catch (error) {
+          console.error("Error creating instructure record:", error);
+          // Continue with the user role update even if instructure creation fails
+        }
       }
       
       // Handle participant creation if changing to Participant
       if (isChangingToParticipant) {
-        // Check if participant already exists for this user
-        const existingParticipant = await tx.participant.findFirst({
-          where: { userId: id }
-        });
-        
-        if (!existingParticipant) {
-          // Create a new participant record
-          await tx.participant.create({
-            data: {
-              id: uuidv4(),
-              full_name: username,
-              address: "",
-              phone_number: "",
-              birth_date: new Date(), // Default to current date
-              gender: "Other", // Default gender
-              userId: id,
-            },
+        try {
+          // Check if participant already exists for this user
+          const existingParticipant = await tx.participant.findFirst({
+            where: { userId: id }
           });
           
-          console.log(`Created new participant record for user ${id}`);
+          if (!existingParticipant) {
+            // Create a new participant record
+            await tx.participant.create({
+              data: {
+                id: uuidv4(),
+                full_name: username,
+                address: "", // Allow empty address
+                phone_number: "", // Allow empty phone number
+                birth_date: new Date(), // Default to current date
+                gender: "Other", // Default gender
+                userId: id,
+              },
+            });
+            
+            console.log(`Created new participant record for user ${id}`);
+          }
+        } catch (error) {
+          console.error("Error creating participant record:", error);
+          // Continue with the user role update even if participant creation fails
         }
       }
       
@@ -408,7 +418,7 @@ export async function PATCH(request: Request, { params }: Params) {
   } catch (error) {
     console.error("Error updating user:", error);
     return NextResponse.json(
-      { error: "Failed to update user" },
+      { error: `Failed to update user: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     );
   }

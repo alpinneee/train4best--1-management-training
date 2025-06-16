@@ -70,9 +70,9 @@ export async function POST(request: Request) {
   try {
     const { fullName, phoneNumber, proficiency, address, photo } = await request.json();
 
-    if (!fullName || !phoneNumber || !proficiency || !address) {
+    if (!fullName) {
       return NextResponse.json(
-        { error: 'Full name, phone number, proficiency, and address are required' },
+        { error: 'Full name is required' },
         { status: 400 }
       );
     }
@@ -82,9 +82,9 @@ export async function POST(request: Request) {
       data: {
         id: Date.now().toString(), // Generate ID sederhana
         full_name: fullName,
-        phone_number: phoneNumber,
-        profiency: proficiency,
-        address: address,
+        phone_number: phoneNumber || "", // Boleh kosong, akan diisi nanti oleh instruktur
+        profiency: proficiency || "", // Boleh kosong, akan diisi nanti oleh instruktur
+        address: address || "", // Boleh kosong, akan diisi nanti oleh instruktur
         photo: photo || null,
       },
     });

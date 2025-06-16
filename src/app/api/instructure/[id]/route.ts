@@ -125,6 +125,8 @@ export async function DELETE(request: Request, { params }: Params) {
 
     console.log(`Found instructure: ${existingInstructure.full_name}`);
 
+    console.log(`Force delete option: ${force}`);
+    
     // Jika tidak force delete, periksa relasi
     if (!force) {
       // Cek relasi user
@@ -137,8 +139,8 @@ export async function DELETE(request: Request, { params }: Params) {
           console.log(`Cannot delete: ${usersCount} users associated with this instructure`);
           return NextResponse.json(
             { 
-              error: 'Cannot delete instructure that is associated with users', 
-              hint: 'Add ?force=true to URL to force deletion' 
+              error: 'Cannot delete instructure that is associated with users. If you delete this instructure, associated users will be changed to unassigned role.', 
+              hint: 'Add ?force=true to URL to force deletion and change users to unassigned role' 
             },
             { status: 400 }
           );
@@ -168,31 +170,179 @@ export async function DELETE(request: Request, { params }: Params) {
       }
     }
 
-    // Hapus instruktur
-    console.log(`Proceeding with deletion of instructure ID: ${id}`);
+    // Find users associated with this instructure
+    const associatedUsers = await prisma.user.findMany({
+      where: { instructureId: id },
+      include: { userType: true }
+    });
     
-    await prisma.instructure.delete({
-      where: { id },
+    console.log(`Found ${associatedUsers.length} users associated with instructure ID: ${id}`);
+    
+    // Find all possible Instructure role variations
+    const possibleRoles = ['Instructure', 'instructure', 'INSTRUCTURE'];
+    const instructureRoles = await Promise.all(
+      possibleRoles.map(async (roleName) => {
+        const role = await prisma.userType.findFirst({
+          where: { usertype: roleName }
+        });
+        if (role) {
+          console.log(`Found role with name ${roleName}, id: ${role.id}`);
+        }
+        return role;
+      })
+    );
+    
+    // Filter out null values
+    const validInstructureRoles = instructureRoles.filter(Boolean);
+    console.log(`Found ${validInstructureRoles.length} valid instructure roles`);
+
+    // Get the role IDs
+    const instructureRoleIds = validInstructureRoles.map(role => role!.id);
+    console.log("Instructure role IDs:", instructureRoleIds);
+    
+    // Check if any of these users have the Instructure role (using role IDs we found)
+    const usersWithInstructureRole = associatedUsers
+      .filter(user => instructureRoleIds.includes(user.userTypeId))
+      .map(user => user.id);
+    
+    console.log(`${usersWithInstructureRole.length} of these users have the Instructure role`);
+    
+    // Log all user roles for debugging
+    console.log("User roles found:", associatedUsers.map(user => user.userType.usertype));
+    
+    // Find the Instructure role to get its exact case
+    const instructureRole = await prisma.userType.findFirst({
+      where: {
+        usertype: 'Instructure'
+      }
+    });
+    
+    // If not found with exact case, try lowercase
+    if (!instructureRole) {
+      const instructureRoleLower = await prisma.userType.findFirst({
+        where: {
+          usertype: 'instructure'
+        }
+      });
+      console.log("Lowercase instructure role:", instructureRoleLower);
+    }
+    
+    console.log("Instructure role in database:", instructureRole);
+    
+    // Get unassigned role
+    const unassignedRole = await prisma.userType.findFirst({
+      where: { usertype: 'unassigned' }
+    });
+    
+    console.log("Unassigned role:", unassignedRole);
+    
+    // Get all user types for debugging
+    const allUserTypes = await prisma.userType.findMany();
+    console.log("All user types:", allUserTypes.map(ut => ({ id: ut.id, usertype: ut.usertype })));
+    
+    // Create unassigned role if it doesn't exist
+    let roleToUse = unassignedRole;
+    if (!unassignedRole) {
+      console.log("Creating unassigned role as it doesn't exist");
+      roleToUse = await prisma.userType.create({
+        data: {
+          id: 'utype_unassigned',
+          usertype: 'unassigned',
+          description: 'Default role for new users'
+        }
+      });
+      console.log("Created unassigned role:", roleToUse);
+    }
+    
+    // Define updateResult outside the transaction to make it available in the response
+    let updateResult = { count: 0 };
+    
+    // Use transaction to ensure all operations succeed or fail together
+    await prisma.$transaction(async (tx) => {
+      // Update all associated users to unassigned role
+      if (associatedUsers.length > 0) {
+        // Use the role we found or created earlier
+        if (!roleToUse) {
+          throw new Error("Could not find or create unassigned role");
+        }
+        
+        // Log each user being updated
+        for (const user of associatedUsers) {
+          console.log(`Updating user ${user.id} from role ${user.userType.usertype} to unassigned`);
+        }
+        
+        // Only update users that have the Instructure role (using role IDs we found)
+        // This ensures we don't change roles for users who are already not instructors
+        const instructureUserIds = associatedUsers
+          .filter(user => instructureRoleIds.includes(user.userTypeId))
+          .map(user => user.id);
+        
+        console.log(`Found ${instructureUserIds.length} users with Instructure role to update`);
+        
+        if (instructureUserIds.length > 0) {
+          // Update users to unassigned role and remove instructureId
+          updateResult = await tx.user.updateMany({
+            where: { 
+              id: { in: instructureUserIds },
+              instructureId: id 
+            },
+            data: { 
+              userTypeId: roleToUse.id,
+              instructureId: null
+            }
+          });
+          
+          console.log(`Updated ${updateResult.count} users to unassigned role with ID ${roleToUse.id}`);
+          
+          // Double-check the update worked by fetching the users again
+          const updatedUsers = await tx.user.findMany({
+            where: { id: { in: associatedUsers.map(u => u.id) } },
+            include: { userType: true }
+          });
+          
+          for (const user of updatedUsers) {
+            console.log(`User ${user.id} now has role: ${user.userType.usertype}`);
+          }
+        } else {
+          console.log("No users with Instructure role to update");
+        }
+      }
+      
+      // Delete the instructure
+      await tx.instructure.delete({
+        where: { id },
+      });
     });
 
     console.log(`Successfully deleted instructure ID: ${id}`);
     
     return NextResponse.json(
-      { message: 'Instructure deleted successfully' },
+      { 
+        message: 'Instructure deleted successfully', 
+        timestamp: new Date().getTime(),
+        usersUpdated: updateResult ? updateResult.count : 0,
+        unassignedRoleId: roleToUse ? roleToUse.id : null
+      },
       { status: 200 }
     );
   } catch (error) {
     console.error('Error deleting instructure:', error);
     
+    // Log detailed error information
+    console.error('Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+    
     if (error instanceof Error) {
       return NextResponse.json(
-        { error: `Failed to delete instructure: ${error.message}` },
+        { 
+          error: `Failed to delete instructure: ${error.message}`,
+          stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        },
         { status: 500 }
       );
     }
     
     return NextResponse.json(
-      { error: 'Failed to delete instructure' },
+      { error: 'Failed to delete instructure: Unknown error' },
       { status: 500 }
     );
   }

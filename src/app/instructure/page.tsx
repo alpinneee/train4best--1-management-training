@@ -308,6 +308,8 @@ const InstructurePage = () => {
   const promoteToInstructor = async (user: User) => {
     setIsLoading(true);
     try {
+      console.log('Promoting user to instructor:', user);
+      
       // Step 1: Update user role to Instructure
       const userResponse = await fetch(`/api/user/${user.id}`, {
         method: 'PATCH',
@@ -316,32 +318,45 @@ const InstructurePage = () => {
         },
         body: JSON.stringify({
           jobTitle: 'Instructure',
+          username: user.name, // Make sure username is passed
         }),
       });
+      
+      const userResult = await userResponse.json();
+      console.log('User role update response:', userResult);
       
       if (!userResponse.ok) {
-        throw new Error('Failed to update user role');
+        throw new Error(`Failed to update user role: ${userResult.error || 'Unknown error'}`);
       }
       
-      // Step 2: Create instructure record
-      const instructureResponse = await fetch('/api/instructure', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      // Check if the user already has an instructure ID after role update
+      if (!userResult.instructureId) {
+        // Only create instructure record if one wasn't created during role update
+        console.log('No instructureId found, creating new instructure record');
+        
+        // Step 2: Create instructure record
+        const instructureData = {
           fullName: user.name,
-          email: user.email,
-          username: user.email.split('@')[0], // Create a username from email
-          password: 'defaultpassword123', // Set a default password
-          phoneNumber: '', // These fields will need to be filled in later
-          proficiency: '',
-          address: '',
-        }),
-      });
-      
-      if (!instructureResponse.ok) {
-        throw new Error('Failed to create instructure record');
+          // Tidak perlu mengisi nilai placeholder, biarkan instruktur mengisi sendiri nanti
+        };
+        console.log('Creating instructure with data:', instructureData);
+        
+        const instructureResponse = await fetch('/api/instructure', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(instructureData),
+        });
+        
+        const instructureResult = await instructureResponse.json();
+        console.log('Instructure creation response:', instructureResult);
+        
+        if (!instructureResponse.ok) {
+          throw new Error(`Failed to create instructure record: ${instructureResult.error || 'Unknown error'}`);
+        }
+      } else {
+        console.log('User already has instructureId:', userResult.instructureId);
       }
       
       // Refresh data
@@ -403,7 +418,12 @@ const InstructurePage = () => {
       }
       
       console.log('Delete success:', data);
-      alert('Instructure deleted successfully');
+      
+      if (data.usersUpdated && data.usersUpdated.length > 0) {
+        alert(`Instructure deleted successfully. ${data.usersUpdated.length} user(s) have been changed to ${data.newRole || 'default'} role.`);
+      } else {
+        alert('Instructure deleted successfully');
+      }
       
       // Refresh data after deletion
       fetchInstructures();
