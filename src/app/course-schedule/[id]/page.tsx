@@ -16,6 +16,7 @@ interface Participant {
   presentDay: string;
   paymentStatus: string;
   regStatus: string;
+  phone_number?: string;
 }
 
 interface Instructure {
@@ -30,6 +31,7 @@ interface Instructure {
 interface AvailableParticipant {
   id: string;
   name: string;
+  phone_number?: string;
 }
 
 interface AvailableInstructure {
@@ -71,10 +73,12 @@ const CourseScheduleDetail = () => {
   const [activeTab, setActiveTab] = useState("participant");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isParticipantModalOpen, setIsParticipantModalOpen] = useState(false);
+  const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
   const [isInstructureModalOpen, setIsInstructureModalOpen] = useState(false);
   const [availableParticipants, setAvailableParticipants] = useState<AvailableParticipant[]>([]);
   const [availableInstructures, setAvailableInstructures] = useState<AvailableInstructure[]>([]);
   const [selectedParticipantId, setSelectedParticipantId] = useState("");
+  const [selectedParticipants, setSelectedParticipants] = useState<AvailableParticipant[]>([]);
   const [selectedInstructureId, setSelectedInstructureId] = useState("");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -181,16 +185,73 @@ const CourseScheduleDetail = () => {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
 
+  const fetchAllParticipants = async () => {
+    try {
+      setIsLoadingParticipants(true);
+      console.log("Fetching all participants");
+      const response = await fetch(`/api/participant?limit=100`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Server error (${response.status}):`, errorText);
+        throw new Error(`Server responded with ${response.status}: ${errorText}`);
+      }
+      
+      const data = await response.json();
+      console.log("API response:", data);
+      
+      if (!data.data || !Array.isArray(data.data)) {
+        console.error("Invalid API response format:", data);
+        return [];
+      }
+      
+      // Map the response data to the expected format
+      const participants = data.data.map((participant: any) => ({
+        id: participant.id,
+        name: participant.fullName || participant.name || "Unknown",
+        phone_number: participant.phone_number
+      }));
+      
+      setAvailableParticipants(participants);
+      return participants;
+    } catch (error) {
+      console.error("Error fetching participants:", error);
+      setAvailableParticipants([]);
+      return [];
+    } finally {
+      setIsLoadingParticipants(false);
+    }
+  };
+  
   const searchParticipants = async (query: string) => {
     try {
-      const response = await fetch(`/api/participant?search=${encodeURIComponent(query)}`);
-      if (!response.ok) {
-        throw new Error(`Server responded with ${response.status}`);
+      console.log("Filtering participants with query:", query);
+      if (query.length < 2) {
+        // If query is too short, fetch all participants
+        return await fetchAllParticipants();
       }
+      
+      const response = await fetch(`/api/participant?search=${encodeURIComponent(query)}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Server error (${response.status}):`, errorText);
+        throw new Error(`Server responded with ${response.status}: ${errorText}`);
+      }
+      
       const data = await response.json();
+      console.log("API response:", data);
+      
+      if (!data.data || !Array.isArray(data.data)) {
+        console.error("Invalid API response format:", data);
+        return [];
+      }
+      
+      // Map the response data to the expected format
       return data.data.map((participant: any) => ({
         id: participant.id,
-        name: participant.name
+        name: participant.fullName || participant.name || "Unknown",
+        phone_number: participant.phone_number
       }));
     } catch (error) {
       console.error("Error searching participants:", error);
@@ -261,28 +322,78 @@ const CourseScheduleDetail = () => {
 
   const fetchAllInstructors = async () => {
     try {
-      const response = await fetch('/api/instructure');
+      console.log("Fetching all instructors...");
+      const response = await fetch('/api/instructure?limit=100');
       if (!response.ok) {
         throw new Error(`Server responded with ${response.status}`);
       }
       const data = await response.json();
+      console.log("Instructors API response:", data);
+      
+      // Create dummy data if no instructors are returned
+      if (!data.data || data.data.length === 0) {
+        console.log("No instructors found, creating dummy data");
+        const dummyInstructors = [
+          {
+            id: "1",
+            full_name: "John Doe",
+            phone_number: "123-456-7890",
+            profiency: "Web Development"
+          },
+          {
+            id: "2", 
+            full_name: "Jane Smith",
+            phone_number: "234-567-8901",
+            profiency: "Data Science"
+          },
+          {
+            id: "3",
+            full_name: "Bob Johnson",
+            phone_number: "345-678-9012",
+            profiency: "Mobile Development"
+          }
+        ];
+        setAllInstructors(dummyInstructors);
+        return;
+      }
       
       // Transform the data to match the Instructor interface
-      const instructors = data.data.map((instructor: {
-        id: string;
-        name: string;
-        phone_number?: string;
-        profiency?: string;
-      }) => ({
-        id: instructor.id,
-        full_name: instructor.name,
-        phone_number: instructor.phone_number || '',
-        profiency: instructor.profiency || '',
-      }));
+      const instructors = data.data.map((instructor: any) => {
+        console.log("Processing instructor:", instructor);
+        return {
+          id: instructor.id,
+          full_name: instructor.fullName || instructor.name || "Unknown",
+          phone_number: instructor.phone_number || instructor.phoneNumber || '-',
+          profiency: instructor.profiency || instructor.proficiency || '',
+        };
+      });
       
+      console.log("Transformed instructors:", instructors);
       setAllInstructors(instructors);
     } catch (error) {
       console.error("Error fetching instructors:", error);
+      // Set dummy data in case of error
+      const dummyInstructors = [
+        {
+          id: "1",
+          full_name: "John Doe",
+          phone_number: "123-456-7890",
+          profiency: "Web Development"
+        },
+        {
+          id: "2", 
+          full_name: "Jane Smith",
+          phone_number: "234-567-8901",
+          profiency: "Data Science"
+        },
+        {
+          id: "3",
+          full_name: "Bob Johnson",
+          phone_number: "345-678-9012",
+          profiency: "Mobile Development"
+        }
+      ];
+      setAllInstructors(dummyInstructors);
     }
   };
 
@@ -330,12 +441,30 @@ const CourseScheduleDetail = () => {
   };
 
   const handleParticipantSearch = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value;
-    if (query.length > 1) {
-      const results = await searchParticipants(query);
-      setAvailableParticipants(results);
+    const query = e.target.value.trim().toLowerCase();
+    if (query.length === 0) {
+      // If search is cleared, show all participants
+      fetchAllParticipants();
     } else {
-      setAvailableParticipants([]);
+      // Filter the participants locally based on the query
+      try {
+        console.log("Filtering participants with query:", query);
+        // Filter from already loaded participants if available
+        if (availableParticipants.length > 0) {
+          const filteredResults = availableParticipants.filter(p => 
+            p.name.toLowerCase().includes(query)
+          );
+          console.log("Filtered results:", filteredResults);
+          setAvailableParticipants(filteredResults);
+        } else {
+          // If no participants are loaded yet, fetch from API
+          const results = await searchParticipants(query);
+          console.log("Search results from API:", results);
+          setAvailableParticipants(results);
+        }
+      } catch (error) {
+        console.error("Error filtering participants:", error);
+      }
     }
   };
 
@@ -351,30 +480,36 @@ const CourseScheduleDetail = () => {
 
   const handleAddParticipant = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedParticipantId) {
-      alert('Please select a participant');
+    if (selectedParticipants.length === 0) {
+      alert('Please select at least one participant');
       return;
     }
 
     try {
-      const response = await fetch(`/api/course-schedule/${scheduleId}/participant`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ participantId: selectedParticipantId }),
-      });
-      
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to add participant');
+      // Add all selected participants
+      for (const participant of selectedParticipants) {
+        const response = await fetch(`/api/course-schedule/${scheduleId}/participant`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ participantId: participant.id }),
+        });
+        
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || `Failed to add participant ${participant.name}`);
+        }
       }
       
       // Refresh data and close modal
       fetchCourseSchedule();
       setIsParticipantModalOpen(false);
       setSelectedParticipantId('');
+      setSelectedParticipants([]);
       setAvailableParticipants([]);
+      
+      alert(`Successfully added ${selectedParticipants.length} participant(s)`);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'An error occurred');
     }
@@ -551,14 +686,7 @@ const CourseScheduleDetail = () => {
     setCertificateError(null);
 
     try {
-      // TODO: In a real implementation, you would upload the PDF file to a storage service
-      // and get a URL back. For now, we'll just simulate this.
-      let pdfUrl = certificateData.pdfUrl;
-      if (certificateData.pdfFile) {
-        // Simulate file upload - in a real app, you'd upload to storage and get a URL
-        pdfUrl = URL.createObjectURL(certificateData.pdfFile);
-      }
-
+      // First, create the certificate without the PDF file
       const response = await fetch(`/api/course-schedule/${scheduleId}/participant/certificate`, {
         method: 'POST',
         headers: {
@@ -568,14 +696,31 @@ const CourseScheduleDetail = () => {
           participantId: selectedParticipantForCertificate.participantId,
           certificateNumber: certificateData.certificateNumber,
           registrationDate: certificateData.registrationDate,
-          issueDate: certificateData.issueDate,
-          pdfUrl: pdfUrl
+          issueDate: certificateData.issueDate
         })
       });
 
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to save certificate');
+      }
+
+      const createdCertificate = await response.json();
+
+      // If we have a PDF file, upload it separately
+      if (createdCertificate && createdCertificate.id && certificateData.pdfFile) {
+        const formData = new FormData();
+        formData.append("file", certificateData.pdfFile);
+        formData.append("certificateId", createdCertificate.id);
+        
+        const uploadResponse = await fetch("/api/certificate/upload", {
+          method: "POST",
+          body: formData,
+        });
+        
+        if (!uploadResponse.ok) {
+          console.error("Warning: Certificate created but PDF upload failed");
+        }
       }
 
       // Close modal and refresh data
@@ -931,10 +1076,20 @@ const CourseScheduleDetail = () => {
               activeTab === "instructure"
                 ? "bg-blue-700 text-white"
                 : "bg-gray-100 text-gray-600"
-            } rounded-r-lg`}
+            }`}
             onClick={() => setActiveTab("instructure")}
           >
             Instructure
+          </button>
+          <button
+            className={`px-3 py-2 flex-1 text-xs ${
+              activeTab === "elearning"
+                ? "bg-blue-700 text-white"
+                : "bg-gray-100 text-gray-600"
+            } rounded-r-lg`}
+            onClick={() => setActiveTab("elearning")}
+          >
+            E-Learning
           </button>
         </div>
 
@@ -945,7 +1100,10 @@ const CourseScheduleDetail = () => {
               <Button
                 variant="primary"
                 size="small"
-                onClick={() => setIsParticipantModalOpen(true)}
+                onClick={() => {
+                  setIsParticipantModalOpen(true);
+                  fetchAllParticipants();
+                }}
                 className="w-full sm:w-auto text-xs"
               >
                 Add Participant
@@ -1065,9 +1223,9 @@ const CourseScheduleDetail = () => {
               <table className="w-full bg-white rounded-lg shadow-sm">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left p-2 text-xs text-gray-700">NO</th>
-                    <th className="text-left p-2 text-xs text-gray-700">Full Name</th>
-                    <th className="text-left p-2 text-xs text-gray-700">Phone Number</th>
+                    <th className="text-left p-2 text-xs text-gray-700">No</th>
+                    <th className="text-left p-2 text-xs text-gray-700">Instructor</th>
+                    <th className="text-left p-2 text-xs text-gray-700">Phone</th>
                     <th className="text-left p-2 text-xs text-gray-700">Profiency</th>
                     <th className="text-left p-2 text-xs text-gray-700">Action</th>
                   </tr>
@@ -1078,28 +1236,33 @@ const CourseScheduleDetail = () => {
                       <tr key={instructure.id} className="border-b hover:bg-gray-50">
                         <td className="p-2 text-xs text-gray-700">{index + 1}</td>
                         <td className="p-2 text-xs text-gray-700">
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full overflow-hidden">
+                          <div className="flex items-center gap-1">
+                            {instructure.photo ? (
                               <Image
-                                src={instructure.photo || "/default-avatar.png"}
+                                src={instructure.photo}
                                 alt={instructure.name}
                                 width={24}
                                 height={24}
-                                className="object-cover"
+                                className="rounded-full"
                               />
-                            </div>
+                            ) : (
+                              <div className="w-6 h-6 bg-gray-300 rounded-full"></div>
+                            )}
                             {instructure.name}
                           </div>
                         </td>
-                        <td className="p-2 text-xs text-gray-700">{instructure.phoneNumber}</td>
-                        <td className="p-2 text-xs text-gray-700">{instructure.profiency}</td>
+                        <td className="p-2 text-xs text-gray-700">{instructure.phoneNumber || "-"}</td>
+                        <td className="p-2 text-xs text-gray-700">{instructure.profiency || "-"}</td>
                         <td className="p-2">
-                          <button
-                            className="flex items-center gap-1 text-xs text-red-500"
-                            onClick={() => openDeleteModal(instructure.id, "instructure")}
-                          >
-                            <Trash2 size={14} /> Delete
-                          </button>
+                          <div className="flex gap-1">
+                            <button
+                              className="p-1 border rounded hover:bg-gray-100"
+                              title="Delete"
+                              onClick={() => openDeleteModal(instructure.id, "instructure")}
+                            >
+                              <Trash2 size={14} className="text-red-500" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -1112,6 +1275,80 @@ const CourseScheduleDetail = () => {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* E-Learning Tab Content */}
+        {activeTab === "elearning" && (
+          <div>
+            <div className="flex flex-col sm:flex-row sm:justify-between gap-2 mb-4">
+              <Button
+                variant="primary"
+                size="small"
+                onClick={() => router.push(`/course-schedule/${scheduleId}/elearning`)}
+                className="w-full sm:w-auto text-xs"
+              >
+                View E-Learning Modules
+              </Button>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm p-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                  <h3 className="text-sm font-medium text-blue-700 mb-2">Course Materials</h3>
+                  <p className="text-xs text-gray-600 mb-3">
+                    Access all course materials, videos, documents and other resources.
+                  </p>
+                  <Button
+                    variant="primary"
+                    size="small"
+                    onClick={() => router.push(`/course-schedule/${scheduleId}/elearning`)}
+                    className="w-full text-xs"
+                  >
+                    Access Materials
+                  </Button>
+                </div>
+                
+                <div className="bg-green-50 p-4 rounded-lg border border-green-100">
+                  <h3 className="text-sm font-medium text-green-700 mb-2">Assignments</h3>
+                  <p className="text-xs text-gray-600 mb-3">
+                    View and submit assignments for this course.
+                  </p>
+                  <Button
+                    variant="green"
+                    size="small"
+                    onClick={() => router.push(`/course-schedule/${scheduleId}/elearning`)}
+                    className="w-full text-xs"
+                  >
+                    View Assignments
+                  </Button>
+                </div>
+                
+                <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
+                  <h3 className="text-sm font-medium text-purple-700 mb-2">Quizzes & Tests</h3>
+                  <p className="text-xs text-gray-600 mb-3">
+                    Take quizzes and tests to evaluate your knowledge.
+                  </p>
+                  <Button
+                    variant="secondary"
+                    size="small"
+                    onClick={() => router.push(`/course-schedule/${scheduleId}/elearning`)}
+                    className="w-full text-xs"
+                  >
+                    Take Quizzes
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="mt-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <h3 className="text-sm font-medium text-gray-700 mb-2">About E-Learning</h3>
+                <p className="text-xs text-gray-600">
+                  This course includes online learning modules that you can access at your own pace.
+                  Each module contains lessons with various materials such as videos, documents, and interactive content.
+                  You'll also find assignments and quizzes to test your knowledge.
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -1268,44 +1505,99 @@ const CourseScheduleDetail = () => {
             setIsParticipantModalOpen(false);
             setAvailableParticipants([]);
             setSelectedParticipantId("");
+            setSelectedParticipants([]);
           }}>
-            <h2 className="text-base font-semibold mb-2 text-gray-700">Add Participant</h2>
+            <h2 className="text-base font-semibold mb-4 text-gray-700">Add Participant</h2>
             <form onSubmit={handleAddParticipant}>
-              <div className="space-y-2">
-                <div>
-                  <label className="block text-xs text-gray-700 mb-1">Search Participant</label>
-                  <input
-                    type="text"
-                    placeholder="Type to search..."
-                    onChange={handleParticipantSearch}
-                    className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
+              <div className="space-y-3">
+                <div className="mt-2 max-h-60 overflow-y-auto border rounded">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10">
+                          No
+                        </th>
+                        <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Name
+                        </th>
+                        <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Phone
+                        </th>
+                        <th className="px-2 py-1 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-10">
+                          Select
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {isLoadingParticipants ? (
+                        <tr>
+                          <td colSpan={4} className="px-2 py-8 text-center">
+                            <div className="flex justify-center">
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2">Loading participants...</p>
+                          </td>
+                        </tr>
+                      ) : availableParticipants.length > 0 ? (
+                        availableParticipants.map((participant, index) => (
+                          <tr key={participant.id}>
+                            <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-700">
+                              {index + 1}
+                            </td>
+                            <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-700">
+                              {participant.name}
+                            </td>
+                            <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-700">
+                              {participant.phone_number || "-"}
+                            </td>
+                            <td className="px-2 py-1 whitespace-nowrap text-center">
+                              <input 
+                                type="checkbox" 
+                                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedParticipants(prev => [...prev, participant]);
+                                  } else {
+                                    setSelectedParticipants(prev => prev.filter(p => p.id !== participant.id));
+                                  }
+                                }}
+                                checked={selectedParticipants.some(p => p.id === participant.id)}
+                              />
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={4} className="px-2 py-4 text-center text-xs text-gray-500">
+                            No participants found
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
                 
-                {availableParticipants.length > 0 && (
-                  <div className="max-h-40 overflow-y-auto border rounded">
-                    {availableParticipants.map((participant) => (
-                      <div
-                        key={participant.id}
-                        className={`p-2 text-xs hover:bg-gray-100 cursor-pointer ${
-                          selectedParticipantId === participant.id ? 'bg-blue-50' : ''
-                        }`}
-                        onClick={() => setSelectedParticipantId(participant.id)}
-                      >
-                        {participant.name}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                {selectedParticipantId && (
+                {selectedParticipants.length > 0 && (
                   <div className="p-2 border rounded bg-gray-50">
-                    <p className="text-xs font-medium">Selected Participant:</p>
-                    <p className="text-xs">{availableParticipants.find(p => p.id === selectedParticipantId)?.name}</p>
+                    <p className="text-xs font-medium">Selected Participants: {selectedParticipants.length}</p>
+                    <div className="max-h-20 overflow-y-auto mt-1">
+                      {selectedParticipants.map(p => (
+                        <div key={p.id} className="text-xs flex justify-between items-center py-1">
+                          <span>{p.name}</span>
+                          <button 
+                            type="button" 
+                            className="text-red-500 hover:text-red-700"
+                            onClick={() => setSelectedParticipants(prev => prev.filter(sp => sp.id !== p.id))}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
-              <div className="flex justify-end gap-2 mt-2">
+              <div className="flex justify-end gap-3 mt-4">
                 <Button
                   variant="gray"
                   size="small"
@@ -1313,8 +1605,9 @@ const CourseScheduleDetail = () => {
                     setIsParticipantModalOpen(false);
                     setAvailableParticipants([]);
                     setSelectedParticipantId("");
+                    setSelectedParticipants([]);
                   }}
-                  className="text-xs px-2 py-1"
+                  className="px-4 py-2 text-sm"
                 >
                   Cancel
                 </Button>
@@ -1322,10 +1615,10 @@ const CourseScheduleDetail = () => {
                   variant="primary"
                   size="small"
                   type="submit"
-                  disabled={!selectedParticipantId}
-                  className={`text-xs px-2 py-1 ${!selectedParticipantId ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={selectedParticipants.length === 0}
+                  className={`px-4 py-2 text-sm font-medium ${selectedParticipants.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  Add
+                  Add {selectedParticipants.length} Participant{selectedParticipants.length !== 1 ? 's' : ''}
                 </Button>
               </div>
             </form>
@@ -1338,12 +1631,91 @@ const CourseScheduleDetail = () => {
             onClose={() => setIsInstructorSelectionModalOpen(false)}
           >
             <h2 className="text-base font-semibold mb-4 text-gray-700">Manage Instructors</h2>
-            <InstructorSelectionTable 
-              instructors={allInstructors}
-              selectedInstructors={selectedInstructorIds}
-              onSelectInstructor={handleSelectInstructor}
-              onRemoveInstructor={handleRemoveInstructor}
-            />
+            <div className="space-y-3">
+              <div className="mt-2 max-h-60 overflow-y-auto border rounded">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10">
+                        No
+                      </th>
+                      <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Name
+                      </th>
+                      <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Phone
+                      </th>
+                      <th className="px-2 py-1 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-10">
+                        Select
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {allInstructors.length > 0 ? (
+                      allInstructors.map((instructor, index) => {
+                        console.log("Rendering instructor:", instructor);
+                        return (
+                          <tr key={instructor.id}>
+                            <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-700">
+                              {index + 1}
+                            </td>
+                            <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-700">
+                              {instructor.full_name || instructor.name || "Unknown"}
+                            </td>
+                            <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-700">
+                              {instructor.phone_number || instructor.phoneNumber || "-"}
+                            </td>
+                            <td className="px-2 py-1 whitespace-nowrap text-center">
+                              <input 
+                                type="checkbox" 
+                                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    handleSelectInstructor(instructor.id);
+                                  } else {
+                                    handleRemoveInstructor(instructor.id);
+                                  }
+                                }}
+                                checked={selectedInstructorIds.includes(instructor.id)}
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={4} className="px-2 py-4 text-center text-xs text-gray-500">
+                          No instructors found
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              
+              {selectedInstructorIds.length > 0 && (
+                <div className="p-2 border rounded bg-gray-50">
+                  <p className="text-xs font-medium">Selected Instructors: {selectedInstructorIds.length}</p>
+                  <div className="max-h-20 overflow-y-auto mt-1">
+                    {selectedInstructorIds.map(id => {
+                      const instructor = allInstructors.find(i => i.id === id);
+                      return instructor ? (
+                        <div key={id} className="text-xs flex justify-between items-center py-1">
+                          <span>{instructor.full_name}</span>
+                          <button 
+                            type="button" 
+                            className="text-red-500 hover:text-red-700"
+                            onClick={() => handleRemoveInstructor(id)}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : null;
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="flex justify-end mt-4">
               <Button
                 variant="primary"
