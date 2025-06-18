@@ -94,8 +94,7 @@ export async function POST(req: Request) {
         email: user.email,
         fullName: `${firstName} ${lastName}`,
         isNewUser: true
-      },
-      redirectUrl: "/profile"
+      }
     });
     
   } catch (error) {
