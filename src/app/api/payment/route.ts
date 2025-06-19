@@ -2,202 +2,161 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 // GET /api/payment - Get all payments
-export async function GET(req: Request) {
+export async function GET(request: Request) {
   try {
-    const url = new URL(req.url);
-    const email = url.searchParams.get('email');
-    const limit = Number(url.searchParams.get('limit')) || 10;
-    const page = Number(url.searchParams.get('page')) || 1;
-    const search = url.searchParams.get('search') || '';
-    const status = url.searchParams.get('status');
-    const method = url.searchParams.get('method');
-    const skip = (page - 1) * limit;
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status');
+    const search = searchParams.get('search');
+    const paymentMethod = searchParams.get('paymentMethod');
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 50;
     
-    // Filter untuk mencari pembayaran
+    // Build where clause based on filters
     let whereClause: any = {};
     
-    // Filter by user email
-    if (email) {
-      whereClause.registration = {
-        participant: {
-          user: { email }
-        }
-      };
-    }
-    
-    // Filter by search (nama or nomor referensi)
-    if (search) {
-      whereClause.OR = [
-        { 
-          referenceNumber: { contains: search } 
-        },
-        {
-          registration: {
-            participant: {
-              full_name: { contains: search }
-            }
-          }
-        }
-      ];
-    }
-    
-    // Filter by status
-    if (status) {
+    if (status && status !== 'All') {
       whereClause.status = status;
     }
     
-    // Filter by payment method
-    if (method) {
-      whereClause.paymentMethod = method;
+    if (paymentMethod) {
+      whereClause.paymentMethod = paymentMethod;
     }
     
-    try {
-      // Cari pembayaran
-      const payments = await prisma.payment.findMany({
-        where: whereClause,
-        include: {
+    if (startDate || endDate) {
+      whereClause.paymentDate = {};
+      
+      if (startDate) {
+        whereClause.paymentDate.gte = new Date(startDate);
+      }
+      
+      if (endDate) {
+        // Set to end of day for the end date
+        const endDateTime = new Date(endDate);
+        endDateTime.setHours(23, 59, 59, 999);
+        whereClause.paymentDate.lte = endDateTime;
+      }
+    }
+    
+    // Add search filter if provided
+    if (search) {
+      whereClause.OR = [
+        {
           registration: {
-            include: {
-              participant: {
-                include: {
-                  user: true
-                }
-              },
-              class: {
-                include: {
-                  course: true
-                }
+            participant: {
+              full_name: {
+                contains: search,
+                mode: 'insensitive'
               }
             }
           }
         },
-        skip,
-        take: limit,
-        orderBy: {
-          paymentDate: 'desc'
-        }
-      });
-      
-      // Format respons
-      const formattedPayments = payments.map(payment => {
-        const participantName = payment.registration.participant.full_name;
-        
-        return {
-          id: payment.id,
-          nama: participantName,
-          tanggal: payment.paymentDate.toISOString().split('T')[0],
-          paymentMethod: payment.paymentMethod,
-          nomorReferensi: payment.referenceNumber,
-          jumlah: payment.amount,
-          status: payment.status,
-          courseName: payment.registration.class.course.course_name,
-          courseId: payment.registration.class.course.id,
-          registrationId: payment.registration.id
-        };
-      });
-      
-      // Jika tidak ada data tersedia, kembalikan data dummy untuk testing
-      if (formattedPayments.length === 0) {
-        const dummyPayments = [
-          {
-            id: "dummy_1",
-            nama: "Demo User",
-            tanggal: new Date().toISOString().split('T')[0],
-            paymentMethod: "Transfer Bank",
-            nomorReferensi: "TRF-20240108-001",
-            jumlah: 1000000,
-            status: "Paid",
-            courseName: "AIoT (Artificial Intelligence of Things)",
-            courseId: "course_1",
-            registrationId: "reg_1"
-          },
-          {
-            id: "dummy_2",
-            nama: "Demo User",
-            tanggal: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            paymentMethod: "E-Wallet",
-            nomorReferensi: "EWL-20240110-001",
-            jumlah: 1200000,
-            status: "Paid",
-            courseName: "Full Stack Web Development",
-            courseId: "course_2",
-            registrationId: "reg_2"
-          }
-        ];
-        
-        return NextResponse.json({
-          data: dummyPayments,
-          meta: {
-            total: dummyPayments.length,
-            page,
-            limit,
-            totalPages: 1,
-            message: "Menampilkan data dummy karena tidak ada pembayaran yang ditemukan"
-          }
-        });
-      }
-      
-      // Hitung total pembayaran untuk pagination
-      const totalCount = await prisma.payment.count({
-        where: whereClause
-      });
-      
-      return NextResponse.json({
-        data: formattedPayments,
-        meta: {
-          total: totalCount,
-          page,
-          limit,
-          totalPages: Math.ceil(totalCount / limit)
-        }
-      });
-    } catch (dbError) {
-      console.error("Database error:", dbError);
-      
-      // Jika terjadi error database, kembalikan data dummy
-      const dummyPayments = [
         {
-          id: "dummy_1",
-          nama: "Demo User",
-          tanggal: new Date().toISOString().split('T')[0],
-          paymentMethod: "Transfer Bank",
-          nomorReferensi: "TRF-20240108-001",
-          jumlah: 1000000,
-          status: "Paid",
-          courseName: "AIoT (Artificial Intelligence of Things)",
-          courseId: "course_1",
-          registrationId: "reg_1"
-        },
-        {
-          id: "dummy_2",
-          nama: "Demo User",
-          tanggal: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          paymentMethod: "E-Wallet",
-          nomorReferensi: "EWL-20240110-001",
-          jumlah: 1200000,
-          status: "Paid",
-          courseName: "Full Stack Web Development",
-          courseId: "course_2",
-          registrationId: "reg_2"
+          referenceNumber: {
+            contains: search,
+            mode: 'insensitive'
+          }
         }
       ];
-      
-      return NextResponse.json({
-        data: dummyPayments,
-        meta: {
-          total: dummyPayments.length,
-          page,
-          limit,
-          totalPages: 1,
-          error: "Database error, menggunakan data dummy",
-          details: dbError instanceof Error ? dbError.message : "Unknown error"
-        }
-      });
     }
+    
+    console.log("Payment query where clause:", JSON.stringify(whereClause, null, 2));
+    
+    // Get payments with filter
+    const payments = await prisma.payment.findMany({
+      where: whereClause,
+      orderBy: { paymentDate: 'desc' },
+      take: limit,
+      include: {
+        registration: {
+          include: {
+            participant: {
+              include: {
+                user: true
+              }
+            },
+            class: {
+              include: {
+                course: true
+              }
+            }
+          }
+        }
+      }
+    });
+    
+    console.log(`Found ${payments.length} payments`);
+    
+    // Format payments for response
+    const formattedPayments = payments.map((payment, index) => ({
+      id: payment.id,
+      no: index + 1,
+      nama: payment.registration?.participant?.full_name || 'Unknown',
+      tanggal: payment.paymentDate.toISOString().split('T')[0],
+      paymentMethod: payment.paymentMethod,
+      nomorReferensi: payment.referenceNumber,
+      jumlah: new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0
+      }).format(payment.amount),
+      amount: payment.amount,
+      status: payment.status,
+      registrationId: payment.registrationId,
+      paymentProof: (payment as any).paymentProof || null,
+      courseName: payment.registration?.class?.course?.course_name || 'Unknown Course',
+      className: `${payment.registration?.class?.location || 'Unknown'} - ${new Date(payment.registration?.class?.start_date || new Date()).toLocaleDateString()}`
+    }));
+    
+    // If no payments found and in development, return mock data
+    if (formattedPayments.length === 0 && process.env.NODE_ENV === 'development') {
+      // Check if any filter is applied
+      const hasFilters = search || paymentMethod || startDate || endDate || (status && status !== 'All');
+      
+      if (!hasFilters) {
+        // Only return mock data if no filters are applied
+        console.log("No payments found and no filters applied, returning mock data");
+        return NextResponse.json(getMockPayments());
+      } else {
+        console.log("No payments found with applied filters, returning empty result");
+      }
+    }
+    
+    return NextResponse.json({
+      data: formattedPayments,
+      total: formattedPayments.length
+    });
+    
   } catch (error) {
-    console.error("Fatal error fetching payments:", error);
+    console.error("Error fetching payments:", error);
+    
+    // If in development, return mock data on error
+    if (process.env.NODE_ENV === 'development') {
+      // Check if any filter is applied
+      const url = new URL(request.url);
+      const searchParams = url.searchParams;
+      const search = searchParams.get('search');
+      const paymentMethod = searchParams.get('paymentMethod');
+      const startDate = searchParams.get('startDate');
+      const endDate = searchParams.get('endDate');
+      const status = searchParams.get('status');
+      
+      const hasFilters = search || paymentMethod || startDate || endDate || (status && status !== 'All');
+      
+      if (!hasFilters) {
+        console.log("Error occurred with no filters, returning mock data");
+        return NextResponse.json(getMockPayments());
+      } else {
+        console.log("Error occurred with filters, returning empty result");
+        return NextResponse.json({
+          data: [],
+          total: 0
+        });
+      }
+    }
+    
     return NextResponse.json(
-      { error: "Failed to fetch payments", details: error instanceof Error ? error.message : "Unknown error" },
+      { error: "Failed to fetch payments" },
       { status: 500 }
     );
   }
@@ -272,7 +231,7 @@ export async function POST(request: Request) {
 
 // Mock data for development
 function getMockPayments() {
-  return [
+  const mockData = [
     {
       id: "mock-1",
       no: 1,
@@ -283,7 +242,8 @@ function getMockPayments() {
       jumlah: "Rp 1.000.000",
       amount: 1000000,
       status: "Paid",
-      registrationId: "mock-reg-1"
+      registrationId: "mock-reg-1",
+      paymentProof: "/uploads/payment-proofs/sample-receipt.jpg"
     },
     {
       id: "mock-2",
@@ -295,7 +255,8 @@ function getMockPayments() {
       jumlah: "Rp 1.000.000",
       amount: 1000000,
       status: "Unpaid",
-      registrationId: "mock-reg-2"
+      registrationId: "mock-reg-2",
+      paymentProof: null
     },
     {
       id: "mock-3",
@@ -306,8 +267,9 @@ function getMockPayments() {
       nomorReferensi: "CC-20240105-002",
       jumlah: "Rp 1.500.000",
       amount: 1500000,
-      status: "Unpaid",
-      registrationId: "mock-reg-3"
+      status: "Pending",
+      registrationId: "mock-reg-3",
+      paymentProof: "/uploads/payment-proofs/sample-receipt-2.jpg"
     },
     {
       id: "mock-4",
@@ -319,7 +281,8 @@ function getMockPayments() {
       jumlah: "Rp 2.000.000",
       amount: 2000000,
       status: "Paid",
-      registrationId: "mock-reg-4"
+      registrationId: "mock-reg-4",
+      paymentProof: "/uploads/payment-proofs/sample-receipt-3.jpg"
     },
     {
       id: "mock-5",
@@ -331,7 +294,13 @@ function getMockPayments() {
       jumlah: "Rp 2.000.000",
       amount: 2000000,
       status: "Paid",
-      registrationId: "mock-reg-5"
+      registrationId: "mock-reg-5",
+      paymentProof: "/uploads/payment-proofs/sample-receipt-4.jpg"
     }
   ];
+  
+  return {
+    data: mockData,
+    total: mockData.length
+  };
 } 

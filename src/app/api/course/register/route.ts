@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { decode } from "next-auth/jwt";
 import jwt from "jsonwebtoken";
+import { getBankAccounts } from "@/app/api/bank-accounts/route";
 
 // Function untuk mendapatkan user langsung dari database
 async function getCurrentUser(emailParam?: string) {
@@ -440,19 +441,17 @@ export async function POST(req: Request) {
     }
     
     // Check if user already registered for this class
-    if (userId) {
+    if (participantId) {
       const existingRegistration = await prisma.courseRegistration.findFirst({
         where: {
           classId,
-          participant: {
-            userId
-          }
+          participantId
         }
       });
       
       if (existingRegistration) {
         return NextResponse.json(
-          { error: "Anda sudah terdaftar di kelas ini" },
+          { error: "Anda sudah terdaftar di kelas ini. Silakan periksa halaman 'My Courses' untuk melihat status pembayaran dan mengunggah bukti pembayaran jika belum." },
           { status: 400 }
         );
       }
@@ -473,7 +472,7 @@ export async function POST(req: Request) {
       data: {
         id: registrationId,
         reg_date: new Date(),
-        reg_status: "Registered",
+        reg_status: "Pending",
         payment: classData.price,
         payment_status: "Unpaid",
         payment_method: paymentMethod || "Transfer Bank",
@@ -499,6 +498,9 @@ export async function POST(req: Request) {
       }
     });
     
+    // Get bank accounts from database or default
+    const bankAccounts = await getBankAccounts();
+    
     return NextResponse.json({
       success: true,
       message: "Course registration successful",
@@ -514,7 +516,8 @@ export async function POST(req: Request) {
           email: currentUser.email,
           username: currentUser.username,
           fullName: currentUser.participant?.[0]?.full_name || userName
-        } : null
+        } : null,
+        bankAccounts
       }
     });
   } catch (error) {

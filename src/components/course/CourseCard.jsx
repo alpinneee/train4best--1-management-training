@@ -13,7 +13,9 @@ const CourseCard = ({
   location, 
   room, 
   quota, 
-  onRegister 
+  onRegister,
+  isPendingRegistration = false,
+  registrationId = null
 }) => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -33,8 +35,12 @@ const CourseCard = ({
     return new Date(dateString).toLocaleDateString('id-ID', options);
   };
   
-  const handleRegisterClick = async () => {
-    if (onRegister) {
+  const handleButtonClick = async () => {
+    if (isPendingRegistration && registrationId) {
+      // Panggil fungsi onRegister dengan parameter tambahan untuk menunjukkan ini adalah lanjutan pembayaran
+      onRegister(id, title, className, registrationId);
+    } else if (onRegister) {
+      // Jika belum terdaftar, panggil fungsi pendaftaran biasa
       onRegister(id, title, className);
     }
   };
@@ -96,11 +102,11 @@ const CourseCard = ({
         </div>
         
         <button
-          onClick={handleRegisterClick}
+          onClick={handleButtonClick}
           disabled={loading}
-          className="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-1.5 text-sm rounded transition-colors duration-300 disabled:bg-gray-400"
+          className={`w-full ${isPendingRegistration ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-500 hover:bg-green-600'} text-white font-medium py-1.5 text-sm rounded transition-colors duration-300 disabled:bg-gray-400`}
         >
-          {loading ? 'Memproses...' : 'Daftar'}
+          {loading ? 'Memproses...' : isPendingRegistration ? 'Lanjutkan Pembayaran' : 'Daftar'}
         </button>
       </div>
     </div>

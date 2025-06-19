@@ -112,6 +112,8 @@ export async function DELETE(request: Request, { params }: Params) {
     const { searchParams } = new URL(request.url);
     const registrationId = searchParams.get('registrationId');
 
+    console.log(`DELETE request received - classId: ${classId}, registrationId: ${registrationId}`);
+
     if (!registrationId) {
       return NextResponse.json(
         { error: 'Registration ID is required as a query parameter' },
@@ -119,58 +121,56 @@ export async function DELETE(request: Request, { params }: Params) {
       );
     }
 
-    // Check if registration exists
-    const registration = await prisma.courseRegistration.findFirst({
-      where: {
-        id: registrationId,
-        classId
-      }
+    // Check if the registration exists
+    console.log(`Looking for registration with id: ${registrationId}`);
+    
+    const registration = await prisma.courseRegistration.findUnique({
+      where: { id: registrationId },
     });
 
     if (!registration) {
+      console.log(`Registration not found with id: ${registrationId}`);
       return NextResponse.json(
         { error: 'Registration not found' },
         { status: 404 }
       );
     }
 
-    // Check if there are certifications linked to this registration
-    const hasCertifications = await prisma.certification.count({
-      where: {
-        registrationId
-      }
-    }) > 0;
+    console.log(`Registration found with id: ${registration.id}, preparing to delete related records`);
 
-    if (hasCertifications) {
-      return NextResponse.json(
-        { 
-          error: 'Cannot delete registration with issued certificates',
-          hint: 'Delete the certificates first'
-        },
-        { status: 400 }
-      );
-    }
+    // Gunakan Prisma client standar untuk menghapus data
+    await prisma.$transaction(async (tx) => {
+      // 1. Hapus payments
+      console.log('Deleting payments...');
+      await tx.payment.deleteMany({
+        where: { registrationId: registration.id }
+      });
+      
+      // 2. Hapus value reports
+      console.log('Deleting value reports...');
+      await tx.valueReport.deleteMany({
+        where: { registrationId: registration.id }
+      });
+      
+      // 3. Hapus certifications
+      console.log('Deleting certifications...');
+      await tx.certification.deleteMany({
+        where: { registrationId: registration.id }
+      });
 
-    // Delete value reports first
-    await prisma.valueReport.deleteMany({
-      where: {
-        registrationId
-      }
+      // 4. Hapus registrasi
+      console.log('Deleting course registration...');
+      await tx.courseRegistration.delete({
+        where: { id: registration.id }
+      });
     });
 
-    // Delete registration
-    await prisma.courseRegistration.delete({
-      where: {
-        id: registrationId
-      }
-    });
-
-    return NextResponse.json(
-      { message: 'Participant removed from course successfully' },
-      { status: 200 }
-    );
+    console.log(`Successfully removed participant from course`);
+    return NextResponse.json({
+      message: 'Participant removed from course successfully'
+    }, { status: 200 });
   } catch (error) {
-    console.error('Error removing participant from course schedule:', error);
+    console.error('Error removing participant from course:', error);
     if (error instanceof Error) {
       return NextResponse.json(
         { error: `Failed to remove participant: ${error.message}` },

@@ -194,7 +194,8 @@ model Payment {
   amount          Float
   paymentMethod   String // "Transfer Bank", "E-Wallet", "Kartu Kredit" 
   referenceNumber String             @unique
-  status          String // "Paid", "Unpaid"
+  status          String // "Paid", "Unpaid", "Pending"
+  paymentProof    String?            // Path to payment proof file
   registrationId  String
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
@@ -202,4 +203,26 @@ model Payment {
 
   @@index([registrationId], map: "Payment_registrationId_fkey")
   @@map("payment")
+}
+
+model BankAccount {
+  id            String   @id @default(uuid())
+  bankName      String
+  accountNumber String
+  accountName   String
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("bankaccount")
+}
+
+model SystemSetting {
+  id         String   @id @default(uuid())
+  settingKey String   @unique
+  value      String   @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("systemsetting")
 }

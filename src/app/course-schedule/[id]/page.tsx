@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Button from "@/components/common/button";
-import { FileText, Edit, Trash2, History, UserCheck, Award, FileSignature, BarChart, Info } from "lucide-react";
+import { FileText, Edit, Trash2, History, UserCheck, Award, FileSignature, BarChart, Info, XCircle } from "lucide-react";
 import Modal from "@/components/common/Modal";
 import Layout from "@/components/common/Layout";
 import Image from "next/image";
@@ -1178,12 +1178,14 @@ const CourseScheduleDetail = () => {
                             >
                               <Info size={14} className="text-teal-500" />
                             </button>
+                            {/* Delete Participant button */}
                             <button
-                              className="p-1 border rounded hover:bg-gray-100"
-                              title="Delete"
+                              type="button"
+                              className="p-1 text-red-500 hover:text-red-700 transition-colors"
+                              title="Remove Participant"
                               onClick={() => openDeleteModal(participant.id, "participant")}
                             >
-                              <Trash2 size={14} className="text-red-500" />
+                              <XCircle className="w-5 h-5" />
                             </button>
                           </div>
                         </td>

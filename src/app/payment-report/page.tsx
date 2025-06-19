@@ -2,10 +2,13 @@
 
 import { useState, useEffect } from "react";
 import Table from "@/components/common/table";
+import CompactTable from "@/components/common/CompactTable";
 import Layout from "@/components/common/Layout";
-import { Edit, Printer, AlertCircle, Plus } from "lucide-react";
+import { Edit, Printer, AlertCircle, Plus, Eye, Save, X, Trash } from "lucide-react";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
+import Modal from "@/components/common/Modal";
+import Image from "next/image";
 
 interface Payment {
   id: string;
@@ -16,8 +19,9 @@ interface Payment {
   nomorReferensi: string;
   jumlah: string;
   amount: number;
-  status: "Paid" | "Unpaid";
+  status: "Paid" | "Unpaid" | "Pending" | "Rejected";
   registrationId: string;
+  paymentProof?: string;
 }
 
 interface Column<T> {
@@ -25,6 +29,385 @@ interface Column<T> {
   accessor: keyof T | ((data: T, index?: number) => React.ReactNode);
   className?: string;
 }
+
+// Tambahkan komponen BankAccountModal
+const BankAccountModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+  const [bankAccounts, setBankAccounts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedAccount, setSelectedAccount] = useState<any | null>(null);
+  const [formData, setFormData] = useState({
+    bankName: "",
+    accountNumber: "",
+    accountName: ""
+  });
+  const [processing, setProcessing] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchBankAccounts();
+    }
+  }, [isOpen]);
+
+  const fetchBankAccounts = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch("/api/bank-accounts");
+      const data = await response.json();
+
+      if (response.ok) {
+        setBankAccounts(data.data || []);
+      } else {
+        toast.error(data.error || "Failed to fetch bank accounts");
+      }
+    } catch (error) {
+      console.error("Error fetching bank accounts:", error);
+      toast.error("An error occurred while fetching bank accounts");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleAddAccount = async () => {
+    setProcessing(true);
+    try {
+      const response = await fetch("/api/bank-accounts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(formData)
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success("Bank account added successfully");
+        setShowAddModal(false);
+        fetchBankAccounts();
+        setFormData({
+          bankName: "",
+          accountNumber: "",
+          accountName: ""
+        });
+      } else {
+        toast.error(data.error || "Failed to add bank account");
+      }
+    } catch (error) {
+      console.error("Error adding bank account:", error);
+      toast.error("An error occurred while adding bank account");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleEditAccount = async () => {
+    if (!selectedAccount) return;
+    
+    setProcessing(true);
+    try {
+      const response = await fetch(`/api/bank-accounts/${selectedAccount.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(formData)
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success("Bank account updated successfully");
+        setShowEditModal(false);
+        fetchBankAccounts();
+      } else {
+        toast.error(data.error || "Failed to update bank account");
+      }
+    } catch (error) {
+      console.error("Error updating bank account:", error);
+      toast.error("An error occurred while updating bank account");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleDeleteAccount = async (id: string) => {
+    setProcessing(true);
+    try {
+      const response = await fetch(`/api/bank-accounts/${id}`, {
+        method: "DELETE"
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success("Bank account removed successfully");
+        fetchBankAccounts();
+      } else {
+        toast.error(data.error || "Failed to remove bank account");
+      }
+    } catch (error) {
+      console.error("Error removing bank account:", error);
+      toast.error("An error occurred while removing bank account");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const openEditModal = (account: any) => {
+    setSelectedAccount(account);
+    setFormData({
+      bankName: account.bankName,
+      accountNumber: account.accountNumber,
+      accountName: account.accountName
+    });
+    setShowEditModal(true);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="p-4 border-b flex justify-between items-center">
+          <h2 className="text-lg font-semibold">Bank Account Management</h2>
+          <button onClick={onClose} className="text-gray-600 hover:text-gray-800">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-4 flex-grow overflow-y-auto">
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={() => {
+                setFormData({
+                  bankName: "",
+                  accountNumber: "",
+                  accountName: ""
+                });
+                setShowAddModal(true);
+              }}
+              className="flex items-center gap-1 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+            >
+              <Plus size={16} />
+              Add Bank Account
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center items-center p-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-800"></div>
+            </div>
+          ) : bankAccounts.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bank Name</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account Number</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account Name</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {bankAccounts.map((account) => (
+                    <tr key={account.id}>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{account.bankName}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{account.accountNumber}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{account.accountName}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          account.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {account.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">
+                        <button
+                          onClick={() => openEditModal(account)}
+                          className="text-blue-600 hover:text-blue-900 mr-3"
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteAccount(account.id)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          <Trash size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              No bank accounts found. Add one to get started.
+            </div>
+          )}
+        </div>
+
+        <div className="p-4 border-t flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+
+      {/* Add Bank Account Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full">
+            <h2 className="text-lg font-semibold mb-4">Add Bank Account</h2>
+            <form onSubmit={(e) => { e.preventDefault(); handleAddAccount(); }} className="space-y-4">
+              <div>
+                <label htmlFor="bankName" className="block text-sm font-medium text-gray-700 mb-1">
+                  Bank Name
+                </label>
+                <input
+                  type="text"
+                  id="bankName"
+                  name="bankName"
+                  value={formData.bankName}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="e.g. Bank BCA"
+                />
+              </div>
+              <div>
+                <label htmlFor="accountNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                  Account Number
+                </label>
+                <input
+                  type="text"
+                  id="accountNumber"
+                  name="accountNumber"
+                  value={formData.accountNumber}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="e.g. 1234567890"
+                />
+              </div>
+              <div>
+                <label htmlFor="accountName" className="block text-sm font-medium text-gray-700 mb-1">
+                  Account Name
+                </label>
+                <input
+                  type="text"
+                  id="accountName"
+                  name="accountName"
+                  value={formData.accountName}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="e.g. Train4Best Indonesia"
+                />
+              </div>
+              <div className="flex justify-end pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md mr-2 hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={processing}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-green-400"
+                >
+                  {processing ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Bank Account Modal */}
+      {showEditModal && selectedAccount && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full">
+            <h2 className="text-lg font-semibold mb-4">Edit Bank Account</h2>
+            <form onSubmit={(e) => { e.preventDefault(); handleEditAccount(); }} className="space-y-4">
+              <div>
+                <label htmlFor="bankName" className="block text-sm font-medium text-gray-700 mb-1">
+                  Bank Name
+                </label>
+                <input
+                  type="text"
+                  id="bankName"
+                  name="bankName"
+                  value={formData.bankName}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label htmlFor="accountNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                  Account Number
+                </label>
+                <input
+                  type="text"
+                  id="accountNumber"
+                  name="accountNumber"
+                  value={formData.accountNumber}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label htmlFor="accountName" className="block text-sm font-medium text-gray-700 mb-1">
+                  Account Name
+                </label>
+                <input
+                  type="text"
+                  id="accountName"
+                  name="accountName"
+                  value={formData.accountName}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex justify-end pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md mr-2 hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={processing}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400"
+                >
+                  {processing ? 'Updating...' : 'Update'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default function PaymentReport() {
   const [currentPage, setCurrentPage] = useState(1);
@@ -36,6 +419,22 @@ export default function PaymentReport() {
   const [endDate, setEndDate] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState<string | null>(null);
+  const [showProofModal, setShowProofModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
+  const [processing, setProcessing] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    paymentDate: '',
+    paymentMethod: '',
+    referenceNumber: '',
+    amount: '',
+    status: ''
+  });
+  const [saving, setSaving] = useState(false);
+  const [fetchingDetails, setFetchingDetails] = useState(false);
+  const [isBankAccountModalOpen, setIsBankAccountModalOpen] = useState(false);
+
+  const ITEMS_PER_PAGE = 10;
 
   // Fetch payments
   const fetchPayments = async () => {
@@ -60,6 +459,12 @@ export default function PaymentReport() {
         params.append('endDate', endDate);
       }
       
+      // Add status=All to ensure we get all payment statuses including approved ones
+      params.append('status', 'All');
+      
+      // Add a timestamp to prevent caching
+      params.append('_t', Date.now().toString());
+      
       // Append params to URL if any exist
       let url = "/api/payment";
       const queryString = params.toString();
@@ -68,7 +473,14 @@ export default function PaymentReport() {
       }
       
       console.log("Fetching payments from URL:", url);
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
       
       if (!response.ok) {
         // Try to get more detailed error information
@@ -77,8 +489,9 @@ export default function PaymentReport() {
       }
       
       const responseData = await response.json();
+      console.log("Response data:", responseData);
       
-      // Check if data is in the expected format (with data property)
+      // Check if data is in the expected format
       if (responseData.data && Array.isArray(responseData.data)) {
         console.log("Payments data received:", responseData.data);
         setPayments(responseData.data);
@@ -86,6 +499,27 @@ export default function PaymentReport() {
         if (responseData.data.length === 0) {
           console.log("No payments returned from API");
         }
+      } else if (responseData.payments && Array.isArray(responseData.payments)) {
+        // Format for /api/payment/pending endpoint
+        console.log("Payments data received from pending endpoint:", responseData.payments);
+        const formattedPayments = responseData.payments.map((payment: any, index: number) => ({
+          id: payment.id,
+          no: index + 1,
+          nama: payment.participantName,
+          tanggal: payment.paymentDate ? new Date(payment.paymentDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          paymentMethod: payment.paymentMethod || "Transfer Bank",
+          nomorReferensi: payment.paymentDetails?.referenceNumber || `REF-${Date.now()}`,
+          jumlah: new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            minimumFractionDigits: 0
+          }).format(payment.amount || 0),
+          amount: payment.amount || 0,
+          status: (payment.status || "Pending") as "Paid" | "Unpaid" | "Pending" | "Rejected",
+          registrationId: payment.registrationId,
+          paymentProof: payment.paymentEvidence
+        }));
+        setPayments(formattedPayments);
       } else if (Array.isArray(responseData)) {
         // Fallback if API returns direct array
         console.log("Payments data received as direct array");
@@ -96,8 +530,14 @@ export default function PaymentReport() {
         }
       } else {
         console.error("Invalid response format:", responseData);
-        setPayments([]);
-        toast.error("Invalid data format received");
+        // Use mock data in development
+        if (process.env.NODE_ENV === 'development') {
+          console.log("Using mock data due to invalid response format");
+          setPayments(getMockPayments());
+        } else {
+          setPayments([]);
+          toast.error("Invalid data format received");
+        }
       }
     } catch (error) {
       console.error("Failed to fetch payments:", error);
@@ -106,25 +546,49 @@ export default function PaymentReport() {
       
       // If we're in development, add some demo data
       if (process.env.NODE_ENV === 'development') {
-        console.log("Adding fallback demo data for development");
-        setPayments([
-          {
-            id: "demo-1",
-            no: 1,
-            nama: "Demo User",
-            tanggal: new Date().toISOString().split('T')[0],
-            paymentMethod: "Transfer Bank",
-            nomorReferensi: "TRF-DEMO-001",
-            jumlah: "Rp 1.000.000",
-            amount: 1000000,
-            status: "Paid",
-            registrationId: "demo-reg-1"
-          }
-        ]);
+        // Only add demo data if no filters are applied
+        if (!searchQuery && !paymentMethod && !startDate && !endDate) {
+          console.log("Adding fallback demo data for development (no filters applied)");
+          setPayments(getMockPayments());
+        } else {
+          console.log("No fallback data added because filters are applied");
+        }
       }
     } finally {
       setLoading(false);
     }
+  };
+
+  // Mock data for development
+  const getMockPayments = () => {
+    return [
+      {
+        id: "demo-1",
+        no: 1,
+        nama: "Demo User",
+        tanggal: new Date().toISOString().split('T')[0],
+        paymentMethod: "Transfer Bank",
+        nomorReferensi: "TRF-DEMO-001",
+        jumlah: "Rp 1.000.000",
+        amount: 1000000,
+        status: "Paid" as "Paid" | "Unpaid" | "Pending" | "Rejected",
+        registrationId: "demo-reg-1",
+        paymentProof: "/uploads/payment-proofs/sample-receipt.jpg"
+      },
+      {
+        id: "demo-2",
+        no: 2,
+        nama: "Demo User 2",
+        tanggal: new Date().toISOString().split('T')[0],
+        paymentMethod: "E-Wallet",
+        nomorReferensi: "EWL-DEMO-002",
+        jumlah: "Rp 1.500.000",
+        amount: 1500000,
+        status: "Pending" as "Paid" | "Unpaid" | "Pending" | "Rejected",
+        registrationId: "demo-reg-2",
+        paymentProof: "/uploads/payment-proofs/sample-receipt-2.jpg"
+      }
+    ];
   };
 
   // Delete payment
@@ -160,10 +624,207 @@ export default function PaymentReport() {
     setPaymentMethod(e.target.value);
   };
 
+  // Handle verify payment
+  const handleVerifyPayment = async (paymentId: string, isApproved: boolean) => {
+    try {
+      console.log(`Verifying payment ${paymentId}, isApproved: ${isApproved}`);
+      
+      // Show processing state
+      setProcessing(true);
+      
+      // Use the fix-status endpoint since it works reliably
+      const status = isApproved ? "Paid" : "Rejected";
+      const response = await fetch(`/api/payment/fix-status?paymentId=${paymentId}&status=${status}`);
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        // Update the payment in the local state
+        setPayments(prevPayments => 
+          prevPayments.map(payment => 
+            payment.id === paymentId 
+              ? { ...payment, status: status }
+              : payment
+          )
+        );
+        
+        // Update the selected payment status in the UI
+        if (selectedPayment) {
+          setSelectedPayment({
+            ...selectedPayment,
+            status: status
+          });
+        }
+        
+        toast.success(isApproved ? "Payment approved successfully" : "Payment rejected");
+        
+        // Close the modal after a short delay to show the updated status
+        setTimeout(() => {
+          setShowProofModal(false);
+          
+          // Force a complete refresh of the data
+          fetchPayments();
+        }, 1000);
+      } else {
+        throw new Error(result.error || "Failed to update payment status");
+      }
+    } catch (error) {
+      console.error("Payment verification error:", error);
+      toast.error(`Failed to ${isApproved ? "approve" : "reject"} payment: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Handle opening edit modal and fetching latest payment details
+  const handleOpenEditModal = async (payment: Payment) => {
+    setSelectedPayment(payment);
+    setFetchingDetails(true);
+    
+    console.log("Opening edit modal for payment:", {
+      id: payment.id,
+      name: payment.nama,
+      status: payment.status
+    });
+    
+    try {
+      // Get fresh payment data from API
+      console.log(`Fetching payment details from API for ID: ${payment.id}`);
+      const response = await fetch(`/api/payment/${payment.id}`, {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+      
+      console.log("API response status:", response.status);
+      
+      if (!response.ok) {
+        const responseText = await response.text();
+        console.error("Error response from API:", responseText);
+        
+        try {
+          const errorData = JSON.parse(responseText);
+          throw new Error(errorData.error || `Error: ${response.status}`);
+        } catch (parseError) {
+          throw new Error(`Error ${response.status}: ${responseText || "Unknown error"}`);
+        }
+      }
+      
+      const responseText = await response.text();
+      console.log("API response body:", responseText);
+      
+      let paymentData;
+      try {
+        paymentData = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Failed to parse API response as JSON:", parseError);
+        throw new Error("Server returned invalid JSON response");
+      }
+      
+      console.log("Parsed payment data:", paymentData);
+      
+      // Format the data properly
+      const formattedData = {
+        paymentDate: paymentData.paymentDate ? new Date(paymentData.paymentDate).toISOString().split('T')[0] : '',
+        paymentMethod: paymentData.paymentMethod || 'Transfer Bank',
+        referenceNumber: paymentData.referenceNumber || '',
+        amount: paymentData.amount?.toString() || '0',
+        status: paymentData.status || 'Pending'
+      };
+      
+      console.log("Formatted edit form data:", formattedData);
+      setEditFormData(formattedData);
+      
+      setShowEditModal(true);
+    } catch (error) {
+      console.error("Failed to fetch payment details:", error);
+      toast.error(`Failed to fetch payment details: ${error instanceof Error ? error.message : String(error)}`);
+      
+      // Fallback to using the data from the table
+      console.log("Using fallback data from table");
+      setEditFormData({
+        paymentDate: payment.tanggal || new Date().toISOString().split('T')[0],
+        paymentMethod: payment.paymentMethod || 'Transfer Bank',
+        referenceNumber: payment.nomorReferensi || '',
+        amount: payment.amount?.toString() || '0',
+        status: payment.status || 'Pending'
+      });
+      setShowEditModal(true);
+    } finally {
+      setFetchingDetails(false);
+    }
+  };
+
+  // Handle edit payment
+  const handleEditPayment = async () => {
+    if (!selectedPayment) return;
+    
+    setSaving(true);
+    console.log("Updating payment with data:", {
+      id: selectedPayment.id,
+      ...editFormData
+    });
+    
+    try {
+      const response = await fetch(`/api/payment/${selectedPayment.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        },
+        body: JSON.stringify({
+          paymentDate: editFormData.paymentDate,
+          paymentMethod: editFormData.paymentMethod,
+          referenceNumber: editFormData.referenceNumber,
+          amount: parseFloat(editFormData.amount),
+          status: editFormData.status
+        }),
+      });
+      
+      const responseText = await response.text();
+      console.log("Response from server:", responseText);
+      
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (err) {
+        console.error("Failed to parse response as JSON:", err);
+        throw new Error("Server returned invalid JSON response");
+      }
+      
+      if (!response.ok) {
+        throw new Error(responseData.error || `Error: ${response.status}`);
+      }
+      
+      toast.success("Payment updated successfully");
+      setShowEditModal(false);
+      
+      // Add small delay before refresh to ensure server has processed the update
+      setTimeout(() => {
+        fetchPayments();
+      }, 500);
+    } catch (error) {
+      console.error("Failed to update payment:", error);
+      toast.error(`Failed to update payment: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Init
   useEffect(() => {
     fetchPayments();
   }, []);
+
+  // Add effect to refresh payments when a payment status changes
+  useEffect(() => {
+    if (selectedPayment) {
+      fetchPayments();
+    }
+  }, [selectedPayment?.status]);
 
   const columns: Column<Payment>[] = [
     { 
@@ -171,30 +832,30 @@ export default function PaymentReport() {
       accessor: (_payment, index) => {
         return typeof index === 'number' ? (currentPage - 1) * ITEMS_PER_PAGE + index + 1 : '-';
       },
-      className: "w-12 text-center"
+      className: "w-8 text-center"
     },
     { 
       header: "Nama", 
       accessor: "nama",
-      className: "min-w-[120px]"
+      className: "min-w-[100px]"
     },
     { 
       header: "Tanggal", 
       accessor: "tanggal",
+      className: "min-w-[80px]"
+    },
+    { 
+      header: "Metode", 
+      accessor: "paymentMethod",
       className: "min-w-[100px]"
     },
     { 
-      header: "Payment Method", 
-      accessor: "paymentMethod",
+      header: "No. Ref", 
+      accessor: "nomorReferensi",
       className: "min-w-[120px]"
     },
     { 
-      header: "Nomor Referensi", 
-      accessor: "nomorReferensi",
-      className: "min-w-[140px]"
-    },
-    { 
-      header: "Jumlah (idr)", 
+      header: "Jumlah", 
       accessor: (payment) => {
         // Format jumlah as currency if it's a number
         if (typeof payment.amount === 'number') {
@@ -207,7 +868,7 @@ export default function PaymentReport() {
         // If jumlah is already formatted or amount is not available
         return payment.jumlah || '-';
       },
-      className: "min-w-[100px]"
+      className: "min-w-[80px]"
     },
     {
       header: "Status",
@@ -216,44 +877,68 @@ export default function PaymentReport() {
           className={`px-1 py-0.5 text-xs font-medium rounded-full ${
             payment.status === "Paid"
               ? "bg-green-100 text-green-800"
-              : "bg-red-100 text-red-800"
+              : payment.status === "Unpaid"
+                ? "bg-red-100 text-red-800"
+                : payment.status === "Pending"
+                  ? "bg-yellow-100 text-yellow-800"
+                  : "bg-gray-100 text-gray-800"
           }`}
         >
           {payment.status}
         </span>
       ),
-      className: "min-w-[80px]"
+      className: "min-w-[70px]"
     },
     {
-      header: "Action",
+      header: "Aksi",
       accessor: (payment) => (
-        <div className="flex gap-1">
-          <Link 
-            href={`/payment/${payment.id}/edit`} 
-            className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs p-1"
+        <div className="flex gap-0.5">
+          <button
+            onClick={() => {
+              setSelectedPayment(payment);
+              setShowProofModal(true);
+            }}
+            className="flex items-center gap-0.5 text-green-600 hover:text-green-800 text-xs p-0.5"
+            title="View Payment Proof"
           >
-            <Edit size={14} />
-            Edit
-          </Link>
+            <Eye size={12} />
+            View
+          </button>
+          <button
+            onClick={() => handleOpenEditModal(payment)}
+            className="flex items-center gap-0.5 text-blue-600 hover:text-blue-800 text-xs p-0.5"
+            disabled={fetchingDetails}
+          >
+            {fetchingDetails ? (
+              <>
+                <span className="h-3 w-3 animate-spin rounded-full border border-solid border-current border-r-transparent"></span>
+                <span>Loading</span>
+              </>
+            ) : (
+              <>
+                <Edit size={12} />
+                Edit
+              </>
+            )}
+          </button>
           <button 
             onClick={() => {
               setPaymentToDelete(payment.id);
               setShowDeleteModal(true);
             }}
-            className="flex items-center gap-1 text-red-600 hover:text-red-800 text-xs p-1"
+            className="flex items-center gap-0.5 text-red-600 hover:text-red-800 text-xs p-0.5"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24">
               <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM8 9h8v10H8V9zm7.5-5l-1-1h-5l-1 1H5v2h14V4h-3.5z"/>
             </svg>
-            Delete
+            Del
           </button>
         </div>
       ),
-      className: "min-w-[120px]"
+      className: "min-w-[100px]"
     },
   ];
 
-  const ITEMS_PER_PAGE = 5;
   const totalPages = Math.ceil(payments.length / ITEMS_PER_PAGE);
 
   const getCurrentPageItems = () => {
@@ -290,111 +975,326 @@ export default function PaymentReport() {
   );
 
   return (
-    <Layout>
-      <div className="p-2">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-lg md:text-xl text-gray-700">Payment Report</h1>
-          
-          {/* <Link 
-            href="/payment/new" 
-            className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700"
-          >
-            <Plus size={16} />
-            New Payment
-          </Link> */}
-        </div>
-
-        <form onSubmit={handleSearch} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            {/* <select 
-              className="w-full sm:w-auto px-2 py-1 text-xs border rounded"
-              value={paymentMethod}
-              onChange={handlePaymentMethodChange}
-            >
-              <option value="">All Payment Methods</option>
-              <option value="Transfer Bank">Transfer Bank</option>
-              <option value="E-Wallet">E-Wallet</option>
-              <option value="Kartu Kredit">Kartu Kredit</option>
-            </select> */}
-
-            <input
-              type="date"
-              className="w-full sm:w-auto px-2 py-1 text-xs border rounded text-gray-700"
-              placeholder="Start Date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-            <input
-              type="date"
-              className="w-full sm:w-auto px-2 py-1 text-xs border rounded"
-              placeholder="End Date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <button 
-              type="button"
+    <Layout variant="admin">
+      <div className="p-3">
+        <div className="flex justify-between items-center mb-3">
+          <h1 className="text-lg font-bold text-gray-700">Payment Report</h1>
+          <div className="flex items-center gap-1">
+            <button
               onClick={() => window.print()}
-              className="w-full sm:w-auto flex items-center justify-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs hover:bg-gray-200"
+              className="flex items-center gap-1 px-2 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
             >
               <Printer size={14} />
-              Print Report
+              Print
             </button>
-            <div className="relative w-full sm:w-auto flex">
+            <button
+              onClick={() => setIsBankAccountModalOpen(true)}
+              className="flex items-center gap-1 px-2 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="5" width="20" height="14" rx="2" />
+                <line x1="2" y1="10" x2="22" y2="10" />
+              </svg>
+              Bank Accounts
+            </button>
+            <Link
+              href="/payment/add"
+              className="flex items-center gap-1 px-2 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+            >
+              <Plus size={14} />
+              Add
+            </Link>
+          </div>
+        </div>
+
+        {/* Filter Form - Redesigned to be more compact */}
+        <form onSubmit={handleSearch} className="mb-4 p-2 bg-gray-50 rounded-md">
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="flex-1 min-w-[180px]">
+              <label className="block text-xs font-medium text-gray-700 mb-1">Search</label>
               <input
                 type="text"
-                placeholder="Search..."
-                className="w-full px-2 py-1 pl-7 text-xs border rounded"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Name or Reference No."
+                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-700"
               />
-              <svg 
-                className="absolute left-2 top-1/2 -translate-y-1/2" 
-                xmlns="http://www.w3.org/2000/svg" 
-                width="14" 
-                height="14" 
-                viewBox="0 0 24 24"
-              >
-                <path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5A6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5S14 7.01 14 9.5S11.99 14 9.5 14z"/>
-              </svg>
-              <button 
-                type="submit"
-                className="ml-2 px-3 py-1 bg-blue-600 text-white rounded-md text-xs hover:bg-blue-700"
-              >
-                Search
-              </button>
             </div>
+            
+            
+            <div className="w-[140px]">
+              <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-700"
+              />
+            </div>
+            
+            <div className="w-[140px]">
+              <label className="block text-xs font-medium text-gray-700 mb-1">End Date</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-700"
+              />
+            </div>
+            
+            <button
+              type="submit"
+              className="px-4 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 h-[30px] self-end"
+            >
+              Filter
+            </button>
           </div>
         </form>
 
-        {loading ? (
-          <div className="flex justify-center py-60">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
-          </div>
-        ) : (
-          <div className="overflow-x-auto -mx-2 px-2">
-            {payments.length > 0 ? (
-              <Table
-                columns={columns}
-                data={getCurrentPageItems()}
-                currentPage={currentPage}
-                totalPages={totalPages}
-                itemsPerPage={ITEMS_PER_PAGE}
-                totalItems={payments.length}
-                onPageChange={setCurrentPage}
-              />
-            ) : (
-              <div className="text-center p-6 bg-gray-50 rounded-md">
-                <p className="text-gray-500">No payments found</p>
+        {/* Payment Table */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          {loading ? (
+            <div className="flex justify-center items-center py-10">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+            </div>
+          ) : payments.length > 0 ? (
+            <CompactTable
+              columns={columns}
+              data={getCurrentPageItems()}
+              currentPage={currentPage}
+              totalPages={Math.ceil(payments.length / ITEMS_PER_PAGE)}
+              onPageChange={setCurrentPage}
+              itemsPerPage={ITEMS_PER_PAGE}
+              totalItems={payments.length}
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center py-10 text-gray-500">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 14h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-base">No payment records found</p>
+              {(searchQuery || paymentMethod || startDate || endDate) && (
+                <p className="text-sm mt-1">Try adjusting your search filters</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Pagination info */}
+        <div className="mt-2 text-xs text-gray-500">
+          Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, payments.length)} of {payments.length} results
+        </div>
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && <DeleteModal />}
+        
+        {/* Payment Proof Modal */}
+        {showProofModal && selectedPayment && (
+          <Modal onClose={() => setShowProofModal(false)}>
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold text-gray-800">Payment Proof</h2>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-500">Participant</p>
+                  <p className="font-medium">{selectedPayment.nama}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Payment Date</p>
+                  <p className="font-medium">{selectedPayment.tanggal}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Amount</p>
+                  <p className="font-medium">{selectedPayment.jumlah}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Status</p>
+                  <p className={`font-medium ${
+                    selectedPayment.status === 'Paid' ? 'text-green-600' : 
+                    selectedPayment.status === 'Unpaid' ? 'text-red-600' : 
+                    selectedPayment.status === 'Pending' ? 'text-yellow-600' : 
+                    'text-gray-600'}`}>
+                    {selectedPayment.status}
+                  </p>
+                </div>
               </div>
-            )}
-          </div>
+              
+              <div>
+                <p className="text-sm text-gray-500 mb-2">Payment Proof</p>
+                <div className="border rounded-md overflow-hidden">
+                  {selectedPayment.paymentProof ? (
+                    selectedPayment.paymentProof.endsWith('.pdf') ? (
+                      <div className="bg-gray-100 p-4 text-center">
+                        <p className="text-sm text-gray-700">PDF Document</p>
+                        <a 
+                          href={selectedPayment.paymentProof} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline text-sm"
+                        >
+                          View PDF
+                        </a>
+                      </div>
+                    ) : (
+                      <div className="relative h-64">
+                        <img
+                          src={selectedPayment.paymentProof}
+                          alt="Payment proof"
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    )
+                  ) : (
+                    <div className="bg-gray-100 p-4 text-center">
+                      <p className="text-sm text-gray-700">No payment proof available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {selectedPayment.status === 'Pending' ? (
+                <div className="flex justify-end space-x-2 pt-2">
+                  <button
+                    onClick={() => handleVerifyPayment(selectedPayment.id, false)}
+                    className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed flex items-center"
+                    disabled={processing}
+                  >
+                    {processing && <span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent"></span>}
+                    Reject
+                  </button>
+                  <button
+                    onClick={() => handleVerifyPayment(selectedPayment.id, true)}
+                    className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed flex items-center"
+                    disabled={processing}
+                  >
+                    {processing && <span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent"></span>}
+                    Approve
+                  </button>
+                </div>
+              ) : (
+                <div className="flex justify-end space-x-2 pt-2">
+                  <button
+                    onClick={() => setShowProofModal(false)}
+                    className="px-3 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                  >
+                    Close
+                  </button>
+                </div>
+              )}
+            </div>
+          </Modal>
+        )}
+        
+        {/* Edit Payment Modal */}
+        {showEditModal && selectedPayment && (
+          <Modal onClose={() => setShowEditModal(false)}>
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold text-gray-800">Edit Payment</h2>
+              
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Participant
+                  </label>
+                  <p className="text-sm text-gray-500">{selectedPayment.nama}</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Payment Date
+                  </label>
+                  <input
+                    type="date"
+                    value={editFormData.paymentDate}
+                    onChange={(e) => setEditFormData({...editFormData, paymentDate: e.target.value})}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-700"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Payment Method
+                  </label>
+                  <select
+                    value={editFormData.paymentMethod}
+                    onChange={(e) => setEditFormData({...editFormData, paymentMethod: e.target.value})}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-700"
+                  >
+                    <option value="Transfer Bank">Transfer Bank</option>
+                    <option value="E-Wallet">E-Wallet</option>
+                    <option value="Kartu Kredit">Kartu Kredit</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Reference Number
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.referenceNumber}
+                    onChange={(e) => setEditFormData({...editFormData, referenceNumber: e.target.value})}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-700"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Amount
+                  </label>
+                  <input
+                    type="number"
+                    value={editFormData.amount}
+                    onChange={(e) => setEditFormData({...editFormData, amount: e.target.value})}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-700"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Status
+                  </label>
+                  <select
+                    value={editFormData.status}
+                    onChange={(e) => setEditFormData({...editFormData, status: e.target.value as "Paid" | "Unpaid" | "Pending" | "Rejected"})}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-700"
+                  >
+                    <option value="Paid">Paid</option>
+                    <option value="Unpaid">Unpaid</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Rejected">Rejected</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-2 pt-2">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="px-3 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 flex items-center"
+                >
+                  <X className="w-4 h-4 mr-1" />
+                  Cancel
+                </button>
+                <button
+                  onClick={handleEditPayment}
+                  disabled={saving}
+                  className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed flex items-center"
+                >
+                  {saving ? (
+                    <span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent"></span>
+                  ) : (
+                    <Save className="w-4 h-4 mr-1" />
+                  )}
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </Modal>
         )}
       </div>
-
-      {showDeleteModal && <DeleteModal />}
+      
+      {/* Bank Account Modal */}
+      <BankAccountModal isOpen={isBankAccountModalOpen} onClose={() => setIsBankAccountModalOpen(false)} />
     </Layout>
   );
 }

@@ -12,85 +12,173 @@ export async function GET(request: Request, { params }: Params) {
   try {
     const { id } = params;
     
-    // For mock IDs in development mode, return mock data
-    if (id.startsWith('mock-') && process.env.NODE_ENV !== 'production') {
-      console.log(`Returning mock data for ID: ${id}`);
-      return NextResponse.json(getMockPaymentById(id));
+    if (!id) {
+      return NextResponse.json(
+        { error: "Payment ID is required" },
+        { status: 400 }
+      );
     }
 
-    const payment = await prisma.payment.findUnique({
+    // Handle mock IDs for development
+    if ((id.startsWith('mock-') || id.startsWith('demo-')) && process.env.NODE_ENV !== 'production') {
+      console.log(`Returning mock data for payment ID: ${id}`);
+      
+      // Generate mock data based on the ID
+      const mockNumber = parseInt(id.replace(/\D/g, '') || '1');
+      const mockData = {
+        id: id,
+        paymentDate: new Date().toISOString(),
+        amount: 1000000 + (mockNumber * 500000),
+        paymentMethod: ["Transfer Bank", "E-Wallet", "Kartu Kredit"][mockNumber % 3],
+        referenceNumber: `REF-MOCK-${mockNumber.toString().padStart(4, '0')}`,
+        status: ["Paid", "Unpaid", "Pending"][mockNumber % 3],
+        registrationId: `mock-reg-${mockNumber}`,
+        participantName: ["John Doe", "Jane Smith", "Bob Johnson"][mockNumber % 3],
+        courseName: ["Leadership Training", "Digital Marketing", "Project Management"][mockNumber % 3],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      
+      return NextResponse.json(mockData);
+    }
+    
+    console.log(`Fetching payment with ID: ${id}`);
+
+    // First try to find by payment ID
+    let payment = await prisma.payment.findUnique({
       where: { id },
       include: {
         registration: {
           include: {
-            participant: {
-              select: {
-                id: true,
-                full_name: true,
-                company: true,
-                job_title: true,
-              },
-            },
+            participant: true,
             class: {
               include: {
                 course: true
               }
             }
-          },
-        },
-      },
+          }
+        }
+      }
     });
-
+    
+    // If payment not found by direct ID, try to find by registration ID
+    // This handles cases where the course registration ID is passed instead of a payment ID
     if (!payment) {
-      // If payment not found but we're in development, return mock data
-      if (process.env.NODE_ENV !== 'production') {
-        console.log(`Payment not found, returning mock data for ID: ${id}`);
-        return NextResponse.json(getMockPaymentById(id));
+      console.log(`Payment not found with ID ${id}, checking if it's a registration ID`);
+      
+      // Find payment by registration ID
+      const paymentsByRegistration = await prisma.payment.findMany({
+        where: { registrationId: id },
+        include: {
+          registration: {
+            include: {
+              participant: true,
+              class: {
+                include: {
+                  course: true
+                }
+              }
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 1
+      });
+      
+      if (paymentsByRegistration.length > 0) {
+        payment = paymentsByRegistration[0];
+        console.log(`Found payment by registration ID: ${payment.id}`);
+      }
+    }
+    
+    // If still no payment found, try to get the course registration directly
+    if (!payment) {
+      console.log(`No payment found, checking for course registration with ID ${id}`);
+      
+      const registration = await prisma.courseRegistration.findUnique({
+        where: { id },
+        include: {
+          participant: {
+            include: {
+              user: true
+            }
+          },
+          class: {
+            include: {
+              course: true
+            }
+          }
+        }
+      });
+      
+      if (registration) {
+        console.log(`Found course registration. Creating payment response format`);
+        
+        // Format registration data to match payment response format
+        const formattedRegistration = {
+          id: `payment_placeholder_${id}`,
+          registrationId: registration.id,
+          paymentDate: registration.reg_date?.toISOString(),
+          amount: registration.payment,
+          paymentAmount: registration.payment,
+          paymentMethod: registration.payment_method || "Transfer Bank",
+          referenceNumber: `REF-${Date.now()}`,
+          status: registration.payment_status,
+          paymentStatus: registration.payment_status,
+          courseName: registration.class?.course?.course_name || "",
+          className: `${registration.class?.location || ''} - ${new Date(registration.class?.start_date).toLocaleDateString() || ''}`,
+          courseScheduleId: registration.classId,
+          userInfo: registration.participant?.user ? {
+            email: registration.participant.user.email,
+            username: registration.participant.user.username,
+            fullName: registration.participant.full_name
+          } : null,
+          participantName: registration.participant?.full_name || "",
+          createdAt: registration.reg_date?.toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        
+        console.log('Returning formatted registration as payment:', formattedRegistration);
+        return NextResponse.json(formattedRegistration);
       }
       
+      // If we get here, no payment or registration was found
       return NextResponse.json(
-        { error: "Payment not found" },
+        { error: "Payment or registration not found" },
         { status: 404 }
       );
     }
-
-    // Format the response
+    
+    // Format the response to ensure it has all needed fields
     const formattedPayment = {
       id: payment.id,
-      paymentDate: payment.paymentDate.toISOString().split('T')[0],
+      paymentDate: payment.paymentDate?.toISOString(),
       amount: payment.amount,
-      formattedAmount: new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR'
-      }).format(payment.amount),
+      paymentAmount: payment.amount, // Adding this field for consistency with registration format
       paymentMethod: payment.paymentMethod,
       referenceNumber: payment.referenceNumber,
       status: payment.status,
+      paymentStatus: payment.status, // Adding this field for consistency
       registrationId: payment.registrationId,
-      participant: payment.registration?.participant ? {
-        id: payment.registration.participant.id,
-        name: payment.registration.participant.full_name,
-        company: payment.registration.participant.company,
-        jobTitle: payment.registration.participant.job_title,
+      participantName: payment.registration?.participant?.full_name || "",
+      courseName: payment.registration?.class?.course?.course_name || "",
+      className: payment.registration?.class 
+        ? `${payment.registration.class.location || ''} - ${new Date(payment.registration.class.start_date).toLocaleDateString() || ''}` 
+        : "",
+      courseScheduleId: payment.registration?.classId || "",
+      userInfo: payment.registration?.participant?.user ? {
+        email: payment.registration.participant.user.email,
+        username: payment.registration.participant.user.username,
+        fullName: payment.registration.participant.full_name
       } : null,
-      course: payment.registration?.class?.course ? {
-        id: payment.registration.class.course.id,
-        name: payment.registration.class.course.course_name,
-      } : null,
-      createdAt: payment.createdAt.toISOString(),
-      updatedAt: payment.updatedAt.toISOString(),
+      createdAt: payment.createdAt?.toISOString(),
+      updatedAt: payment.updatedAt?.toISOString(),
     };
-
+    
+    console.log('Returning formatted payment:', formattedPayment);
     return NextResponse.json(formattedPayment);
   } catch (error) {
     console.error("Error fetching payment:", error);
-    
-    // If in development, provide mock data
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`Returning mock data due to error for ID: ${params.id}`);
-      return NextResponse.json(getMockPaymentById(params.id));
-    }
-    
     return NextResponse.json(
       { error: "Failed to fetch payment" },
       { status: 500 }
@@ -98,104 +186,114 @@ export async function GET(request: Request, { params }: Params) {
   }
 }
 
-// Mock data for development
-function getMockPaymentById(id: string) {
-  // If the ID is a specific mock ID, return matching data
-  const mockId = id.startsWith('mock-') ? id : `mock-${id}`;
-  const mockNumber = parseInt(mockId.split('-')[1] || '1');
-  
-  return {
-    id: mockId,
-    paymentDate: "2024-03-01",
-    amount: 1000000 + (mockNumber * 500000),
-    formattedAmount: `Rp ${(1000000 + (mockNumber * 500000)).toLocaleString('id-ID')}`,
-    paymentMethod: ["Transfer Bank", "E-Wallet", "Kartu Kredit"][mockNumber % 3],
-    referenceNumber: `REF-DEV-${mockNumber.toString().padStart(3, '0')}`,
-    status: mockNumber % 2 === 0 ? "Paid" : "Unpaid",
-    registrationId: `reg-${mockNumber}`,
-    participant: {
-      id: `participant-${mockNumber}`,
-      name: ["Ilham Ramadhan", "Risky Febriana", "Affine Makarizo", "Cyntia Febiola", "Saska Khairani"][mockNumber % 5],
-      company: "Train4Best Company",
-      jobTitle: "Trainee",
-    },
-    course: {
-      id: `course-${mockNumber}`,
-      name: ["Web Development", "Digital Marketing", "Leadership", "Management", "Data Science"][mockNumber % 5],
-    },
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-}
-
 // PUT /api/payment/[id] - Update a payment
 export async function PUT(request: Request, { params }: Params) {
   try {
     const { id } = params;
     const body = await request.json();
+    
     const { 
       paymentDate, 
-      amount, 
       paymentMethod, 
       referenceNumber, 
-      status, 
-      registrationId 
+      amount, 
+      status 
     } = body;
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: "Payment ID is required" },
+        { status: 400 }
+      );
+    }
 
+    console.log(`Processing PUT request for payment ID: ${id}`, body);
+    
+    // Handle mock IDs for development
+    if ((id.startsWith('mock-') || id.startsWith('demo-')) && process.env.NODE_ENV !== 'production') {
+      console.log(`Processing mock payment update for ID: ${id}`);
+      
+      // Return success response for mock data
+      const mockData = {
+        id: id,
+        paymentDate: paymentDate ? new Date(paymentDate).toISOString() : new Date().toISOString(),
+        amount: amount !== undefined ? parseFloat(amount.toString()) : 1000000,
+        paymentMethod: paymentMethod || "Transfer Bank",
+        referenceNumber: referenceNumber || `REF-MOCK-UPDATED`,
+        status: status || "Paid",
+        registrationId: `mock-reg-1`,
+        updatedAt: new Date().toISOString(),
+      };
+      
+      return NextResponse.json({
+        success: true,
+        message: "Mock payment updated successfully",
+        payment: mockData
+      });
+    }
+    
     // Check if payment exists
-    const existingPayment = await prisma.payment.findUnique({
+    const payment = await prisma.payment.findUnique({
       where: { id },
+      include: {
+        registration: true
+      }
     });
-
-    if (!existingPayment) {
+    
+    if (!payment) {
       return NextResponse.json(
         { error: "Payment not found" },
         { status: 404 }
       );
     }
-
-    // Check if reference number is being changed and if it already exists
-    if (referenceNumber && referenceNumber !== existingPayment.referenceNumber) {
-      const paymentWithSameReference = await prisma.payment.findUnique({
+    
+    // Check if reference number already exists (if it's changed)
+    if (referenceNumber && referenceNumber !== payment.referenceNumber) {
+      const existingPayment = await prisma.payment.findUnique({
         where: { referenceNumber },
       });
-
-      if (paymentWithSameReference && paymentWithSameReference.id !== id) {
+      
+      if (existingPayment && existingPayment.id !== id) {
         return NextResponse.json(
           { error: "Reference number already exists" },
           { status: 409 }
         );
       }
     }
-
-    // Check if registration exists
-    if (registrationId && registrationId !== existingPayment.registrationId) {
-      const registration = await prisma.courseRegistration.findUnique({
-        where: { id: registrationId },
-      });
-
-      if (!registration) {
-        return NextResponse.json(
-          { error: "Registration not found" },
-          { status: 404 }
-        );
-      }
-    }
-
+    
+    // Prepare update data
+    const updateData: any = {};
+    
+    if (paymentDate) updateData.paymentDate = new Date(paymentDate);
+    if (paymentMethod) updateData.paymentMethod = paymentMethod;
+    if (referenceNumber) updateData.referenceNumber = referenceNumber;
+    if (amount !== undefined) updateData.amount = parseFloat(amount.toString());
+    if (status) updateData.status = status;
+    
     // Update payment
     const updatedPayment = await prisma.payment.update({
       where: { id },
-      data: {
-        paymentDate: paymentDate ? new Date(paymentDate) : undefined,
-        amount: amount ? parseFloat(amount.toString()) : undefined,
-        paymentMethod: paymentMethod || undefined,
-        referenceNumber: referenceNumber || undefined,
-        status: status || undefined,
-        registrationId: registrationId || undefined,
-      },
+      data: updateData
     });
-
-    return NextResponse.json(updatedPayment);
+    
+    // If status is changed, also update the registration status
+    if (status && status !== payment.status && payment.registration) {
+      const regStatus = status === "Paid" ? "Registered" : status;
+      
+      await prisma.courseRegistration.update({
+        where: { id: payment.registrationId },
+        data: {
+          payment_status: status,
+          reg_status: regStatus
+        }
+      });
+    }
+    
+    return NextResponse.json({
+      success: true,
+      message: "Payment updated successfully",
+      payment: updatedPayment
+    });
   } catch (error) {
     console.error("Error updating payment:", error);
     return NextResponse.json(
@@ -209,28 +307,35 @@ export async function PUT(request: Request, { params }: Params) {
 export async function DELETE(request: Request, { params }: Params) {
   try {
     const { id } = params;
-
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: "Payment ID is required" },
+        { status: 400 }
+      );
+    }
+    
     // Check if payment exists
-    const existingPayment = await prisma.payment.findUnique({
-      where: { id },
+    const payment = await prisma.payment.findUnique({
+      where: { id }
     });
-
-    if (!existingPayment) {
+    
+    if (!payment) {
       return NextResponse.json(
         { error: "Payment not found" },
         { status: 404 }
       );
     }
-
+    
     // Delete payment
     await prisma.payment.delete({
-      where: { id },
+      where: { id }
     });
-
-    return NextResponse.json(
-      { message: "Payment deleted successfully" },
-      { status: 200 }
-    );
+    
+    return NextResponse.json({
+      success: true,
+      message: "Payment deleted successfully"
+    });
   } catch (error) {
     console.error("Error deleting payment:", error);
     return NextResponse.json(

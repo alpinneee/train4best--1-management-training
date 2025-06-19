@@ -140,44 +140,8 @@ const MyCertificatePage = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {filteredCertificates.map((cert) => (
-              <div
-                key={cert.id}
-                className="bg-white rounded shadow overflow-hidden hover:shadow-md transition-duration-300 border border-gray-200"
-              >
-                <div className="h-28 w-full relative">
-                  <div className="absolute inset-0 flex items-center justify-center bg-blue-50">
-                    <span className="text-2xl font-bold text-blue-500">{cert.courseName.charAt(0)}</span>
-                  </div>
-                </div>
-                <div className="p-2.5 bg-gray-50">
-                  <div className="mb-1.5">
-                    <div className="font-medium text-sm">
-                      Kursus: {cert.courseName}
-                    </div>
-                    <div className="text-xs text-gray-600">
-                      Tipe: {cert.courseType}
-                    </div>
-                    <div className="text-xs text-gray-600">
-                      No. Sertifikat: {cert.certificateNumber}
-                    </div>
-                    <div className="text-xs mt-1">
-                      <span className="font-medium">Deskripsi:</span>
-                      <ul className="list-disc ml-4 text-gray-600">
-                        {cert.description.map((desc, idx) => (
-                          <li key={idx} className="text-xs leading-4 mt-0.5">{desc}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center mt-auto pt-1 border-t border-gray-200">
-                    <button className="text-blue-600 text-xs px-2 py-1 hover:bg-blue-50 rounded transition-colors">
-                      Lihat Detail
-                    </button>
-                    <button className="text-green-600 text-xs px-2 py-1 hover:bg-green-50 rounded transition-colors">
-                      Unduh PDF
-                    </button>
-                  </div>
-                </div>
+              <div key={cert.id}>
+               
               </div>
             ))}
           </div>
