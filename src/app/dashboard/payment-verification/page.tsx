@@ -94,12 +94,11 @@ export default function PaymentVerificationPage() {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(amount);
+  const formatCurrency = (amount: number | undefined) => {
+    if (amount === undefined || isNaN(amount)) {
+      return 'Rp0';
+    }
+    return `Rp${amount.toLocaleString('id-ID')}`;
   };
 
   const formatDate = (dateString: string) => {

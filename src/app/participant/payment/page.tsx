@@ -10,11 +10,13 @@ interface Payment {
   tanggal: string;
   paymentMethod: string;
   nomorReferensi: string;
-  jumlah: number;
+  jumlah: number | string;
+  amount?: number;
   status: string;
   courseName?: string;
   courseId?: string;
   registrationId?: string;
+  payment?: number;
 }
 
 interface Column<T> {
@@ -166,7 +168,7 @@ export default function PaymentReport() {
 
   const columns: Column<Payment>[] = [
     { 
-      header: "No", 
+      header: "NO", 
       accessor: (payment) => {
         // Buat properti nomor urut untuk setiap payment
         const index = payments.findIndex(p => p.id === payment.id);
@@ -175,36 +177,41 @@ export default function PaymentReport() {
       className: "w-12 text-center"
     },
     { 
-      header: "Nama", 
+      header: "NAMA", 
       accessor: "nama",
       className: "min-w-[120px]"
     },
     { 
-      header: "Tanggal", 
+      header: "TANGGAL", 
       accessor: "tanggal",
       className: "min-w-[100px]"
     },
     { 
-      header: "Payment Method", 
+      header: "PAYMENT METHOD", 
       accessor: "paymentMethod",
       className: "min-w-[120px]"
     },
     { 
-      header: "Nomor Referensi", 
+      header: "NOMOR REFERENSI", 
       accessor: "nomorReferensi",
       className: "min-w-[140px]"
     },
     { 
-      header: "Jumlah (IDR)", 
-      accessor: (payment) => new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        minimumFractionDigits: 0
-      }).format(payment.jumlah),
+      header: "JUMLAH (IDR)", 
+      accessor: (payment) => {
+        // Gunakan data asli dari database
+        if (typeof payment.jumlah === 'number' && !isNaN(payment.jumlah)) {
+          return `Rp${payment.jumlah.toLocaleString('id-ID')}`;
+        } else if (typeof payment.amount === 'number' && !isNaN(payment.amount)) {
+          return `Rp${payment.amount.toLocaleString('id-ID')}`;
+        }
+        // Default fallback
+        return `Rp${(typeof payment.payment === 'number' ? payment.payment : 0).toLocaleString('id-ID')}`;
+      },
       className: "min-w-[100px]"
     },
     {
-      header: "Status",
+      header: "STATUS",
       accessor: (payment: Payment) => (
         <span
           className={`px-1 py-0.5 text-xs font-medium rounded-full ${
@@ -217,29 +224,7 @@ export default function PaymentReport() {
         </span>
       ),
       className: "min-w-[80px]"
-    },
-    {
-      header: "Action",
-      accessor: (payment: Payment) => (
-        <div className="flex space-x-1 justify-center">
-          {payment.status === "Unpaid" ? (
-            <a 
-              href={`/participant/payment/${payment.id}`}
-              className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 inline-flex items-center"
-            >
-              Bayar
-            </a>
-          ) : (
-            <button className="text-blue-600 hover:text-blue-900 p-1">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24">
-                <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-              </svg>
-            </button>
-          )}
-        </div>
-      ),
-      className: "w-20 text-center"
-    },
+    }
   ];
 
   const ITEMS_PER_PAGE = 5;
@@ -272,46 +257,9 @@ export default function PaymentReport() {
     <Layout variant="participant">
       <div className="p-2">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2">
-          <h1 className="text-lg md:text-xl text-gray-700">My Payment Report</h1>
+          <h1 className="text-lg md:text-xl text-gray-700">My Payment</h1>
+        
           
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <select 
-              className="w-full sm:w-auto px-2 py-1 text-xs border rounded"
-              value={paymentMethod}
-              onChange={handleMethodChange}
-            >
-              <option value="">Semua Metode</option>
-              <option value="Transfer Bank">Transfer Bank</option>
-              <option value="E-Wallet">E-Wallet</option>
-              <option value="Kartu Kredit">Kartu Kredit</option>
-            </select>
-
-            <button className="w-full sm:w-auto border px-2 py-1 rounded flex items-center justify-center gap-1 text-xs text-gray-700">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24">
-                <path fill="currentColor" d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83l1.41 1.41L19 6.41V10h2V3h-7z"/>
-              </svg>
-              Print File
-            </button>
-
-            <div className="relative w-full sm:w-auto">
-              <input 
-                type="text"
-                placeholder="Search..."
-                value={searchTerm}
-                onChange={handleSearch}
-                className="w-full px-2 py-1 pl-7 text-xs border rounded"
-              />
-              <svg 
-                className="absolute left-2 top-1/2 -translate-y-1/2" 
-                xmlns="http://www.w3.org/2000/svg" 
-                width="14" 
-                height="14" 
-                viewBox="0 0 24 24"
-              >
-                <path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5A6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5S14 7.01 14 9.5S11.99 14 9.5 14z"/>
-              </svg>
-            </div>
-          </div>
         </div>
 
         <div className="overflow-x-auto -mx-2 px-2">

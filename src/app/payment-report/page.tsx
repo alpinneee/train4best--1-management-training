@@ -509,12 +509,13 @@ export default function PaymentReport() {
           tanggal: payment.paymentDate ? new Date(payment.paymentDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
           paymentMethod: payment.paymentMethod || "Transfer Bank",
           nomorReferensi: payment.paymentDetails?.referenceNumber || `REF-${Date.now()}`,
-          jumlah: new Intl.NumberFormat('id-ID', {
-            style: 'currency',
-            currency: 'IDR',
-            minimumFractionDigits: 0
-          }).format(payment.amount || 0),
-          amount: payment.amount || 0,
+          jumlah: payment.amount !== undefined && !isNaN(payment.amount) ? 
+            new Intl.NumberFormat('id-ID', {
+              style: 'currency',
+              currency: 'IDR',
+              minimumFractionDigits: 0
+            }).format(payment.amount) : 'Rp 0',
+          amount: payment.amount !== undefined && !isNaN(payment.amount) ? Number(payment.amount) : 0,
           status: (payment.status || "Pending") as "Paid" | "Unpaid" | "Pending" | "Rejected",
           registrationId: payment.registrationId,
           paymentProof: payment.paymentEvidence
@@ -561,6 +562,10 @@ export default function PaymentReport() {
 
   // Mock data for development
   const getMockPayments = () => {
+    // Using fixed amounts for demonstration
+    const amount1 = 1000000;
+    const amount2 = 1500000;
+    
     return [
       {
         id: "demo-1",
@@ -569,8 +574,9 @@ export default function PaymentReport() {
         tanggal: new Date().toISOString().split('T')[0],
         paymentMethod: "Transfer Bank",
         nomorReferensi: "TRF-DEMO-001",
-        jumlah: "Rp 1.000.000",
-        amount: 1000000,
+        // Format with correct Indonesian currency format
+        jumlah: "Rp1.000.000",
+        amount: amount1,
         status: "Paid" as "Paid" | "Unpaid" | "Pending" | "Rejected",
         registrationId: "demo-reg-1",
         paymentProof: "/uploads/payment-proofs/sample-receipt.jpg"
@@ -582,8 +588,9 @@ export default function PaymentReport() {
         tanggal: new Date().toISOString().split('T')[0],
         paymentMethod: "E-Wallet",
         nomorReferensi: "EWL-DEMO-002",
-        jumlah: "Rp 1.500.000",
-        amount: 1500000,
+        // Format with correct Indonesian currency format
+        jumlah: "Rp1.500.000",
+        amount: amount2,
         status: "Pending" as "Paid" | "Unpaid" | "Pending" | "Rejected",
         registrationId: "demo-reg-2",
         paymentProof: "/uploads/payment-proofs/sample-receipt-2.jpg"
@@ -855,18 +862,22 @@ export default function PaymentReport() {
       className: "min-w-[120px]"
     },
     { 
-      header: "Jumlah", 
+      header: "JUMLAH (IDR)", 
       accessor: (payment) => {
-        // Format jumlah as currency if it's a number
-        if (typeof payment.amount === 'number') {
-          return new Intl.NumberFormat('id-ID', {
-            style: 'currency',
-            currency: 'IDR',
-            minimumFractionDigits: 0
-          }).format(payment.amount);
+        // Menggunakan data asli dari API
+        
+        // First check if jumlah is already formatted correctly
+        if (payment.jumlah && typeof payment.jumlah === 'string' && !payment.jumlah.includes('NaN')) {
+          return payment.jumlah;
         }
-        // If jumlah is already formatted or amount is not available
-        return payment.jumlah || '-';
+        
+        // Format amount as currency if it's a valid number
+        if (typeof payment.amount === 'number' && !isNaN(payment.amount)) {
+          return `Rp${payment.amount.toLocaleString('id-ID')}`;
+        }
+        
+        // Default fallback
+        return 'Rp0';
       },
       className: "min-w-[80px]"
     },

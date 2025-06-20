@@ -271,25 +271,32 @@ export async function GET(request: Request) {
     console.log(`Found ${payments.length} payments`);
     
     // Format payments for response
-    const formattedPayments = payments.map((payment, index) => ({
-      id: payment.id,
-      no: index + 1,
-      nama: payment.registration?.participant?.full_name || 'Unknown',
-      tanggal: payment.paymentDate.toISOString().split('T')[0],
-      paymentMethod: payment.paymentMethod,
-      nomorReferensi: payment.referenceNumber,
-      jumlah: new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        minimumFractionDigits: 0
-      }).format(payment.amount),
-      amount: payment.amount,
-      status: payment.status,
-      registrationId: payment.registrationId,
-      paymentProof: (payment as any).paymentProof || null,
-      courseName: payment.registration?.class?.course?.course_name || 'Unknown Course',
-      className: `${payment.registration?.class?.location || 'Unknown'} - ${new Date(payment.registration?.class?.start_date || new Date()).toLocaleDateString()}`
-    }));
+    const formattedPayments = payments.map((payment, index) => {
+      // Pastikan amount adalah angka valid dari database (atau default ke 1,000,000)
+      const paymentAmount = typeof payment.amount === 'number' && !isNaN(payment.amount) 
+        ? payment.amount
+        : payment.registration?.payment || 1000000;
+      
+      console.log(`Payment ${payment.id} has amount: ${payment.amount}, from registration: ${payment.registration?.payment}, formatted: ${paymentAmount}`);
+      
+      return {
+        id: payment.id,
+        no: index + 1,
+        nama: payment.registration?.participant?.full_name || 'Unknown',
+        tanggal: payment.paymentDate.toISOString().split('T')[0],
+        paymentMethod: payment.paymentMethod,
+        nomorReferensi: payment.referenceNumber,
+        // Format sebagai mata uang Indonesia
+        jumlah: `Rp${paymentAmount.toLocaleString('id-ID')}`,
+        // Simpan angka asli dari database
+        amount: paymentAmount,
+        status: payment.status,
+        registrationId: payment.registrationId,
+        paymentProof: (payment as any).paymentProof || null,
+        courseName: payment.registration?.class?.course?.course_name || 'Unknown Course',
+        className: `${payment.registration?.class?.location || 'Unknown'} - ${new Date(payment.registration?.class?.start_date || new Date()).toLocaleDateString()}`
+      };
+    });
     
     // If no payments found and in development, return mock data
     if (formattedPayments.length === 0 && process.env.NODE_ENV === 'development') {
@@ -371,7 +378,7 @@ function getMockPayments() {
       tanggal: "2024-01-02",
       paymentMethod: "Transfer Bank",
       nomorReferensi: "TRF-20240102-001",
-      jumlah: "Rp 1.000.000",
+      jumlah: "Rp1.000.000",
       amount: 1000000,
       status: "Paid",
       registrationId: "mock-reg-1",

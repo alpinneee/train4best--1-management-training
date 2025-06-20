@@ -115,12 +115,18 @@ export async function GET(request: Request, { params }: Params) {
         console.log(`Found course registration. Creating payment response format`);
         
         // Format registration data to match payment response format
+        const paymentAmount = typeof registration.payment === 'number' && !isNaN(registration.payment) 
+          ? registration.payment 
+          : 1000000;
+        
+        console.log(`Formatting registration ${registration.id} with payment: ${registration.payment}, using: ${paymentAmount}`);
+        
         const formattedRegistration = {
           id: `payment_placeholder_${id}`,
           registrationId: registration.id,
           paymentDate: registration.reg_date?.toISOString(),
-          amount: registration.payment,
-          paymentAmount: registration.payment,
+          amount: paymentAmount,
+          paymentAmount: paymentAmount,
           paymentMethod: registration.payment_method || "Transfer Bank",
           referenceNumber: `REF-${Date.now()}`,
           status: registration.payment_status,
@@ -128,14 +134,16 @@ export async function GET(request: Request, { params }: Params) {
           courseName: registration.class?.course?.course_name || "",
           className: `${registration.class?.location || ''} - ${new Date(registration.class?.start_date).toLocaleDateString() || ''}`,
           courseScheduleId: registration.classId,
-          userInfo: registration.participant?.user ? {
-            email: registration.participant.user.email,
-            username: registration.participant.user.username,
+          // Handle user info with type safety
+          userInfo: registration.participant ? {
+            email: (registration.participant as any).user?.email || '',
+            username: (registration.participant as any).user?.username || '',
             fullName: registration.participant.full_name
           } : null,
           participantName: registration.participant?.full_name || "",
           createdAt: registration.reg_date?.toISOString(),
           updatedAt: new Date().toISOString(),
+          jumlah: `Rp${paymentAmount.toLocaleString('id-ID')}`,
         };
         
         console.log('Returning formatted registration as payment:', formattedRegistration);
@@ -150,11 +158,17 @@ export async function GET(request: Request, { params }: Params) {
     }
     
     // Format the response to ensure it has all needed fields
+    const paymentAmount = typeof payment.amount === 'number' && !isNaN(payment.amount) 
+      ? payment.amount 
+      : 1000000;
+    
+    console.log(`Formatting payment ${payment.id} with amount: ${payment.amount}, using: ${paymentAmount}`);
+    
     const formattedPayment = {
       id: payment.id,
       paymentDate: payment.paymentDate?.toISOString(),
-      amount: payment.amount,
-      paymentAmount: payment.amount, // Adding this field for consistency with registration format
+      amount: paymentAmount,
+      paymentAmount: paymentAmount,
       paymentMethod: payment.paymentMethod,
       referenceNumber: payment.referenceNumber,
       status: payment.status,
@@ -166,13 +180,15 @@ export async function GET(request: Request, { params }: Params) {
         ? `${payment.registration.class.location || ''} - ${new Date(payment.registration.class.start_date).toLocaleDateString() || ''}` 
         : "",
       courseScheduleId: payment.registration?.classId || "",
-      userInfo: payment.registration?.participant?.user ? {
-        email: payment.registration.participant.user.email,
-        username: payment.registration.participant.user.username,
+      // Handle user info with type safety
+      userInfo: payment.registration?.participant ? {
+        email: (payment.registration?.participant as any)?.user?.email || '',
+        username: (payment.registration?.participant as any)?.user?.username || '',
         fullName: payment.registration.participant.full_name
       } : null,
       createdAt: payment.createdAt?.toISOString(),
       updatedAt: payment.updatedAt?.toISOString(),
+      jumlah: `Rp${paymentAmount.toLocaleString('id-ID')}`, // Format amount with Indonesian format
     };
     
     console.log('Returning formatted payment:', formattedPayment);

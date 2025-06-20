@@ -206,11 +206,10 @@ export default function PaymentPage() {
             <div className="flex flex-col sm:flex-row sm:justify-between">
               <span className="text-gray-600">Payment Amount:</span>
               <span className="font-medium text-gray-800">
-                {new Intl.NumberFormat('id-ID', {
-                  style: 'currency',
-                  currency: 'IDR',
-                  minimumFractionDigits: 0
-                }).format(paymentDetails.amount || paymentDetails.paymentAmount || 0)}
+                {typeof paymentDetails.amount === 'number' && !isNaN(paymentDetails.amount) ? 
+                  `Rp${paymentDetails.amount.toLocaleString('id-ID')}` : 
+                  typeof paymentDetails.paymentAmount === 'number' && !isNaN(paymentDetails.paymentAmount) ?
+                    `Rp${paymentDetails.paymentAmount.toLocaleString('id-ID')}` : 'Rp0'}
               </span>
             </div>
             
