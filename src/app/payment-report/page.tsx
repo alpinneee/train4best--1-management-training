@@ -462,9 +462,6 @@ export default function PaymentReport() {
       // Add status=All to ensure we get all payment statuses including approved ones
       params.append('status', 'All');
       
-      // Add filterByUser=true to only get payments for the current user
-      params.append('filterByUser', 'true');
-      
       // Add a timestamp to prevent caching
       params.append('_t', Date.now().toString());
       
@@ -978,10 +975,10 @@ export default function PaymentReport() {
   );
 
   return (
-    <Layout variant="participant">
+    <Layout variant="admin">
       <div className="p-3">
         <div className="flex justify-between items-center mb-3">
-          <h1 className="text-lg font-bold text-gray-700">My Payment Report</h1>
+          <h1 className="text-lg font-bold text-gray-700">Payment Report</h1>
           <div className="flex items-center gap-1">
             <button
               onClick={() => window.print()}
