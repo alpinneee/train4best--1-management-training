@@ -140,8 +140,52 @@ const MyCertificatePage = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {filteredCertificates.map((cert) => (
-              <div key={cert.id}>
-               
+              <div key={cert.id} className="border rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow">
+                <div className="bg-blue-50 p-3">
+                  <h2 className="font-medium text-blue-800 truncate">{cert.courseName}</h2>
+                  <p className="text-xs text-gray-600">{cert.courseType}</p>
+                </div>
+                
+                <div className="p-3 space-y-2">
+                  <div>
+                    <p className="text-xs text-gray-500">Nomor Sertifikat</p>
+                    <p className="text-sm font-medium">{cert.certificateNumber}</p>
+                  </div>
+                  
+                  <div>
+                    <p className="text-xs text-gray-500">Tanggal Terbit</p>
+                    <p className="text-sm">
+                      {new Date(cert.issueDate).toLocaleDateString('id-ID', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric'
+                      })}
+                    </p>
+                  </div>
+                  
+                  <div className="flex justify-between items-center pt-2">
+                    <a
+                      href={`/certificate/${cert.id}/print`}
+                      target="_blank"
+                      className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2z" />
+                      </svg>
+                      Cetak
+                    </a>
+                    <a
+                      href={`/participant/certificate/${cert.id}`}
+                      className="text-gray-600 hover:text-gray-800 text-xs flex items-center gap-1"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      Detail
+                    </a>
+                  </div>
+                </div>
               </div>
             ))}
           </div>

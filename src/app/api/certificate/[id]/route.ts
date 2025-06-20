@@ -45,6 +45,7 @@ export async function GET(request: Request, { params }: Params) {
       issueDate: certificate.issueDate.toISOString().split('T')[0],
       expiryDate: certificate.expiryDate.toISOString().split('T')[0],
       status: certificate.status,
+      pdfUrl: certificate.pdfUrl || null,
       participant: certificate.participant ? {
         id: certificate.participantId,
         name: certificate.participant.full_name,

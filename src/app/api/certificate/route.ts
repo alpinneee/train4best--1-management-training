@@ -10,7 +10,7 @@ export async function GET(req: Request) {
     const page = Number(url.searchParams.get('page')) || 1;
     const skip = (page - 1) * limit;
     
-    // Filter untuk mencari sertifikat
+    // Filter to find certificates by email
     const whereClause = email ? { 
       participant: { 
         user: { email } 
@@ -18,52 +18,42 @@ export async function GET(req: Request) {
     } : {};
     
     try {
-      // Cari sertifikat yang telah diterbitkan untuk user
+      // Find certificates for the user
       const certificates = await prisma.certificate.findMany({
         where: whereClause,
         include: {
-          class: {
-            include: {
-              course: {
-                include: {
-                  courseType: true
-                }
-              }
-            }
-          },
-          participant: {
-            include: {
-              user: true
-            }
-          }
+          participant: true,
+          course: true
         },
         skip,
         take: limit,
         orderBy: {
-          issue_date: 'desc'
+          issueDate: 'desc'
         }
       });
       
-      // Format respons
+      console.log("Found certificates:", certificates.length);
+      
+      // Format the response
       const formattedCertificates = certificates.map(cert => {
         return {
           id: cert.id,
-          certificateNumber: cert.certificate_number,
-          issueDate: cert.issue_date,
-          courseName: cert.class.course.course_name,
-          courseType: cert.class.course.courseType.course_type,
-          location: cert.class.location,
-          startDate: cert.class.start_date,
-          endDate: cert.class.end_date,
-          participantName: cert.participant.user.username,
+          certificateNumber: cert.certificateNumber,
+          issueDate: cert.issueDate,
+          courseName: cert.course?.course_name || "Unknown Course",
+          courseType: "Training", // Default value since courseType might not be directly accessible
+          location: "Online", // Default value
+          startDate: cert.issueDate,
+          endDate: cert.expiryDate,
+          participantName: cert.participant?.full_name || "Unknown",
           description: [
-            `${cert.class.duration_day} hari pelatihan`,
-            `${cert.class.location} - ${cert.class.room}`
+            `Sertifikat ini berlaku hingga ${new Date(cert.expiryDate).toLocaleDateString('id-ID')}`,
+            `Status: ${cert.status}`
           ]
         };
       });
       
-      // Jika tidak ada data tersedia, kembalikan data dummy untuk testing
+      // If no data is available, return dummy data for testing
       if (formattedCertificates.length === 0) {
         const dummyCertificates = [
           {
@@ -98,6 +88,7 @@ export async function GET(req: Request) {
           }
         ];
         
+        console.log("No certificates found, returning dummy data");
         return NextResponse.json({
           data: dummyCertificates,
           meta: {
@@ -110,7 +101,7 @@ export async function GET(req: Request) {
         });
       }
       
-      // Hitung total sertifikat untuk pagination
+      // Count total certificates for pagination
       const totalCount = await prisma.certificate.count({
         where: whereClause
       });
@@ -127,7 +118,7 @@ export async function GET(req: Request) {
     } catch (dbError) {
       console.error("Database error:", dbError);
       
-      // Jika terjadi error database, kembalikan data dummy
+      // If there's a database error, return dummy data
       const dummyCertificates = [
         {
           id: "dummy_1",

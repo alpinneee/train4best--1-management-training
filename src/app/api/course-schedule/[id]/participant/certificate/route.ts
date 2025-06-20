@@ -11,7 +11,7 @@ interface Params {
 export async function POST(request: Request, { params }: Params) {
   try {
     const { id: classId } = params;
-    const { participantId, certificateNumber, registrationDate, issueDate, pdfUrl } = await request.json();
+    const { participantId, certificateNumber, issueDate, pdfUrl } = await request.json();
 
     if (!participantId || !certificateNumber) {
       return NextResponse.json(
@@ -47,10 +47,11 @@ export async function POST(request: Request, { params }: Params) {
       );
     }
 
-    // Check if certificate already exists
+    // Check if certificate already exists for this participant and course
     const existingCertificate = await prisma.certificate.findFirst({
       where: {
-        registrationId: registration.id
+        participantId: participantId,
+        courseId: classExists.courseId
       }
     });
 
@@ -61,41 +62,47 @@ export async function POST(request: Request, { params }: Params) {
           id: existingCertificate.id
         },
         data: {
-          certificate_number: certificateNumber,
-          registration_date: registrationDate ? new Date(registrationDate) : existingCertificate.registration_date,
-          issue_date: issueDate ? new Date(issueDate) : existingCertificate.issue_date,
-          pdf_url: pdfUrl || existingCertificate.pdf_url
+          certificateNumber: certificateNumber,
+          issueDate: issueDate ? new Date(issueDate) : existingCertificate.issueDate,
+          // Use current date + 1 year for expiryDate if not set
+          expiryDate: existingCertificate.expiryDate,
+          pdfUrl: pdfUrl || existingCertificate.pdfUrl
         }
       });
 
       return NextResponse.json({
         id: updatedCertificate.id,
-        certificateNumber: updatedCertificate.certificate_number,
-        registrationDate: updatedCertificate.registration_date,
-        issueDate: updatedCertificate.issue_date,
-        pdfUrl: updatedCertificate.pdf_url,
+        certificateNumber: updatedCertificate.certificateNumber,
+        issueDate: updatedCertificate.issueDate,
+        expiryDate: updatedCertificate.expiryDate,
+        pdfUrl: updatedCertificate.pdfUrl,
         message: 'Certificate updated successfully'
       }, { status: 200 });
     }
 
     // Create new certificate
+    const expiryDate = new Date();
+    expiryDate.setFullYear(expiryDate.getFullYear() + 1); // Default expiry is 1 year
+    
     const certificate = await prisma.certificate.create({
       data: {
-        id: `cert_${Date.now()}`,
-        certificate_number: certificateNumber,
-        registration_date: registrationDate ? new Date(registrationDate) : new Date(),
-        issue_date: issueDate ? new Date(issueDate) : new Date(),
-        pdf_url: pdfUrl || null,
-        registrationId: registration.id
+        certificateNumber: certificateNumber,
+        name: `${classExists.courseId} Certificate`,
+        issueDate: issueDate ? new Date(issueDate) : new Date(),
+        expiryDate: expiryDate,
+        status: "Valid",
+        participantId: participantId,
+        courseId: classExists.courseId,
+        pdfUrl: pdfUrl || null
       }
     });
 
     return NextResponse.json({
       id: certificate.id,
-      certificateNumber: certificate.certificate_number,
-      registrationDate: certificate.registration_date,
-      issueDate: certificate.issue_date,
-      pdfUrl: certificate.pdf_url,
+      certificateNumber: certificate.certificateNumber,
+      issueDate: certificate.issueDate,
+      expiryDate: certificate.expiryDate,
+      pdfUrl: certificate.pdfUrl,
       message: 'Certificate created successfully'
     }, { status: 201 });
   } catch (error) {
@@ -142,10 +149,23 @@ export async function GET(request: Request, { params }: Params) {
       );
     }
 
+    // Find class to get courseId
+    const classData = await prisma.class.findUnique({
+      where: { id: classId }
+    });
+    
+    if (!classData) {
+      return NextResponse.json(
+        { error: 'Course schedule not found' },
+        { status: 404 }
+      );
+    }
+
     // Find certificate
     const certificate = await prisma.certificate.findFirst({
       where: {
-        registrationId: registration.id
+        participantId: participantId,
+        courseId: classData.courseId
       }
     });
 
@@ -158,10 +178,9 @@ export async function GET(request: Request, { params }: Params) {
 
     return NextResponse.json({
       id: certificate.id,
-      certificateNumber: certificate.certificate_number,
-      registrationDate: certificate.registration_date,
-      issueDate: certificate.issue_date,
-      pdfUrl: certificate.pdf_url
+      certificateNumber: certificate.certificateNumber,
+      issueDate: certificate.issueDate,
+      expiryDate: certificate.expiryDate
     }, { status: 200 });
   } catch (error) {
     console.error('Error fetching certificate:', error);
@@ -207,10 +226,23 @@ export async function DELETE(request: Request, { params }: Params) {
       );
     }
 
+    // Find class to get courseId
+    const classData = await prisma.class.findUnique({
+      where: { id: classId }
+    });
+    
+    if (!classData) {
+      return NextResponse.json(
+        { error: 'Course schedule not found' },
+        { status: 404 }
+      );
+    }
+
     // Find certificate
     const certificate = await prisma.certificate.findFirst({
       where: {
-        registrationId: registration.id
+        participantId: participantId,
+        courseId: classData.courseId
       }
     });
 

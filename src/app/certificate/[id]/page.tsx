@@ -14,6 +14,7 @@ interface CertificateDetail {
   issueDate: string;
   expiryDate: string;
   status: string;
+  pdfUrl: string | null;
   participant: {
     id: string;
     name: string;
@@ -214,6 +215,36 @@ export default function CertificateDetailPage({ params }: { params: { id: string
                     {certificate.status}
                   </span>
                 </div>
+                
+                {/* Certificate PDF Preview */}
+                {certificate.pdfUrl && (
+                  <div className="mt-4">
+                    <p className="text-sm text-gray-500 mb-1">Certificate PDF</p>
+                    <div className="border rounded-md overflow-hidden">
+                      <div className="bg-gray-50 p-2 flex justify-between items-center">
+                        <p className="text-xs font-medium">Certificate Document</p>
+                        <a 
+                          href={certificate.pdfUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                          Download
+                        </a>
+                      </div>
+                      <div className="p-3 bg-white">
+                        <iframe 
+                          src={certificate.pdfUrl} 
+                          className="w-full h-72 border"
+                          title="Certificate PDF"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

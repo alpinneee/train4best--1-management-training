@@ -12,6 +12,7 @@ import {
   AlertCircle,
   Loader2
 } from "lucide-react";
+import Link from "next/link";
 
 interface Course {
   id: string;
@@ -308,31 +309,45 @@ const DashboardPage = () => {
                     No certificates found. Complete a course to earn a certificate.
                   </div>
                 ) : (
-                  certificates.map((cert) => (
-                  <div key={cert.id} className="border rounded-lg p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-medium text-gray-700">{cert.courseName}</h3>
-                        <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
-                          <Calendar className="w-4 h-4" />
-                          <span>Issued: {cert.issueDate}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
-                          <Calendar className="w-4 h-4" />
-                          <span>Expires: {cert.expiryDate}</span>
-                        </div>
-                      </div>
-                      <div className={`px-2 py-1 rounded-full text-xs ${
+                  certificates.map((cert, idx) => (
+                    <Link
+                      key={cert.id || idx}
+                      href={`/participant/certificate/${cert.id}`}
+                      className={`block p-4 rounded-lg mb-2 ${
                         cert.status === "valid"
-                          ? "bg-green-100 text-green-600"
-                          : cert.status === "expiring"
-                          ? "bg-yellow-100 text-yellow-600"
-                          : "bg-red-100 text-red-600"
-                      }`}>
-                        {cert.status}
+                          ? "bg-green-50 border border-green-100"
+                          : cert.status === "expired"
+                          ? "bg-red-50 border border-red-100"
+                          : "bg-yellow-50 border border-yellow-100"
+                      }`}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-medium text-gray-800">
+                          {cert.courseName}
+                        </h4>
+                        <span
+                          className={`text-xs px-2 py-1 rounded-full ${
+                            cert.status === "valid"
+                              ? "bg-green-100 text-green-800"
+                              : cert.status === "expired"
+                              ? "bg-red-100 text-red-800"
+                              : "bg-yellow-100 text-yellow-800"
+                          }`}
+                        >
+                          {cert.status === "valid"
+                            ? "Valid"
+                            : cert.status === "expired"
+                            ? "Expired"
+                            : "Expiring Soon"}
+                        </span>
                       </div>
-                    </div>
-                  </div>
+                      <div className="text-xs text-gray-500">
+                        <p>Issued: {new Date(cert.issueDate).toLocaleDateString()}</p>
+                        <p>
+                          Expires: {new Date(cert.expiryDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </Link>
                   ))
                 )}
               </div>

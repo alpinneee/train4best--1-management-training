@@ -180,6 +180,7 @@ model Certificate {
   status            String       @default("Valid") // Valid, Expired, Revoked
   participantId     String?
   courseId          String?
+  pdfUrl            String?      // Path to certificate PDF file
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
   participant       Participant? @relation(fields: [participantId], references: [id], map: "Certificate_participantId_fkey")

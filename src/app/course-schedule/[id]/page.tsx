@@ -8,6 +8,7 @@ import Modal from "@/components/common/Modal";
 import Layout from "@/components/common/Layout";
 import Image from "next/image";
 import InstructorSelectionTable from "../../../components/common/InstructorSelectionTable";
+import { toast } from "react-hot-toast";
 
 interface Participant {
   id: string;
@@ -106,7 +107,6 @@ const CourseScheduleDetail = () => {
   const [selectedParticipantForCertificate, setSelectedParticipantForCertificate] = useState<Participant | null>(null);
   const [certificateData, setCertificateData] = useState({
     certificateNumber: '',
-    registrationDate: '',
     issueDate: '',
     pdfFile: null as File | null,
     pdfUrl: ''
@@ -638,7 +638,6 @@ const CourseScheduleDetail = () => {
         const data = await response.json();
         setCertificateData({
           certificateNumber: data.certificateNumber || '',
-          registrationDate: data.registrationDate ? new Date(data.registrationDate).toISOString().split('T')[0] : '',
           issueDate: data.issueDate ? new Date(data.issueDate).toISOString().split('T')[0] : '',
           pdfFile: null,
           pdfUrl: data.pdfUrl || ''
@@ -647,7 +646,6 @@ const CourseScheduleDetail = () => {
         // If no certificate exists yet, initialize with empty values
         setCertificateData({
           certificateNumber: '',
-          registrationDate: '',
           issueDate: '',
           pdfFile: null,
           pdfUrl: ''
@@ -686,7 +684,7 @@ const CourseScheduleDetail = () => {
     setCertificateError(null);
 
     try {
-      // First, create the certificate without the PDF file
+      // Create or update the certificate
       const response = await fetch(`/api/course-schedule/${scheduleId}/participant/certificate`, {
         method: 'POST',
         headers: {
@@ -695,8 +693,8 @@ const CourseScheduleDetail = () => {
         body: JSON.stringify({
           participantId: selectedParticipantForCertificate.participantId,
           certificateNumber: certificateData.certificateNumber,
-          registrationDate: certificateData.registrationDate,
-          issueDate: certificateData.issueDate
+          issueDate: certificateData.issueDate,
+          pdfUrl: certificateData.pdfUrl // Include pdfUrl in request
         })
       });
 
@@ -706,27 +704,60 @@ const CourseScheduleDetail = () => {
       }
 
       const createdCertificate = await response.json();
-
-      // If we have a PDF file, upload it separately
-      if (createdCertificate && createdCertificate.id && certificateData.pdfFile) {
-        const formData = new FormData();
-        formData.append("file", certificateData.pdfFile);
-        formData.append("certificateId", createdCertificate.id);
-        
-        const uploadResponse = await fetch("/api/certificate/upload", {
-          method: "POST",
-          body: formData,
-        });
-        
-        if (!uploadResponse.ok) {
-          console.error("Warning: Certificate created but PDF upload failed");
+      
+      // If we have a PDF file, upload it to storage and update the certificate
+      if (certificateData.pdfFile) {
+        try {
+          // Create FormData for file upload
+          const formData = new FormData();
+          formData.append('file', certificateData.pdfFile);
+          formData.append('certificateId', createdCertificate.id);
+          
+          // Upload the PDF file
+          const uploadResponse = await fetch('/api/certificate/upload', {
+            method: 'POST',
+            body: formData
+          });
+          
+          if (!uploadResponse.ok) {
+            const uploadErrorData = await uploadResponse.json();
+            console.error('Certificate PDF upload failed:', uploadErrorData.error);
+            toast.error('Certificate saved but PDF upload failed');
+          } else {
+            // Get the URL of the uploaded PDF
+            const uploadData = await uploadResponse.json();
+            
+            // Update the certificate with the PDF URL
+            const updateResponse = await fetch(`/api/certificate/${createdCertificate.id}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                pdfUrl: uploadData.fileUrl
+              })
+            });
+            
+            if (updateResponse.ok) {
+              toast.success('Certificate and PDF saved successfully');
+            } else {
+              toast.error('Certificate saved but PDF URL update failed');
+            }
+          }
+        } catch (uploadError) {
+          console.error('Error uploading PDF:', uploadError);
+          toast.error('Certificate saved but PDF upload failed');
         }
       }
-
-      // Close modal and refresh data
+      
+      // Success - close modal and refresh data
       setIsCertificateModalOpen(false);
       setSelectedParticipantForCertificate(null);
-      fetchCourseSchedule(); // Refresh data
+      fetchCourseSchedule();
+
+      // Show success message
+      toast.success("Certificate saved successfully");
+      
     } catch (error) {
       console.error('Error saving certificate:', error);
       setCertificateError(error instanceof Error ? error.message : 'Failed to save certificate');
@@ -1769,121 +1800,101 @@ const CourseScheduleDetail = () => {
 
         {/* Certificate Modal */}
         {isCertificateModalOpen && selectedParticipantForCertificate && (
-          <Modal onClose={() => {
-            setIsCertificateModalOpen(false);
-            setSelectedParticipantForCertificate(null);
-          }}>
-            <h2 className="text-xl font-semibold mb-4 text-gray-700">Certificate</h2>
-            {certificateLoading ? (
-              <div className="flex justify-center items-center h-40">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+          <Modal
+            onClose={() => {
+              setIsCertificateModalOpen(false);
+              setSelectedParticipantForCertificate(null);
+            }}
+          >
+            <h2 className="text-xl font-semibold mb-4 text-gray-700">Issue Certificate</h2>
+            <form onSubmit={handleCertificateSubmit} className="space-y-4">
+              <p className="text-gray-600">
+                Issuing certificate for{" "}
+                <span className="font-semibold">{selectedParticipantForCertificate.name}</span>
+              </p>
+              
+              <div>
+                <label htmlFor="certificateNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                  Certificate Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="certificateNumber"
+                  name="certificateNumber"
+                  required
+                  placeholder="e.g. CERT/2023/001"
+                  value={certificateData.certificateNumber}
+                  onChange={handleCertificateInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
               </div>
-            ) : (
-              <form className="space-y-4" onSubmit={handleCertificateSubmit}>
-                {certificateError && (
-                  <div className="bg-red-50 border border-red-400 text-red-700 px-4 py-2 rounded text-xs">
-                    {certificateError}
-                  </div>
+              
+              <div>
+                <label htmlFor="issueDate" className="block text-sm font-medium text-gray-700 mb-1">
+                  Issue Date <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  id="issueDate"
+                  name="issueDate"
+                  required
+                  value={certificateData.issueDate}
+                  onChange={handleCertificateInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="pdfFile" className="block text-sm font-medium text-gray-700 mb-1">
+                  Certificate PDF
+                </label>
+                <input
+                  type="file"
+                  id="pdfFile"
+                  name="pdfFile"
+                  accept=".pdf"
+                  onChange={handleCertificateFileChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                {certificateData.pdfFile && (
+                  <p className="mt-1 text-sm text-gray-500">
+                    Selected: {certificateData.pdfFile.name}
+                  </p>
                 )}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-xs text-gray-700 mb-1">Certificate Number</label>
-                    <input
-                      type="text"
-                      name="certificateNumber"
-                      placeholder="Train4best"
-                      value={certificateData.certificateNumber}
-                      onChange={handleCertificateInputChange}
-                      className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-700 mb-1">Registration Date</label>
-                    <input
-                      type="date"
-                      name="registrationDate"
-                      value={certificateData.registrationDate}
-                      onChange={handleCertificateInputChange}
-                      className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-700 mb-1">Issue Date</label>
-                    <input
-                      type="date"
-                      name="issueDate"
-                      value={certificateData.issueDate}
-                      onChange={handleCertificateInputChange}
-                      className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    />
-                  </div>
+              </div>
+              
+              {certificateError && (
+                <div className="p-3 bg-red-50 text-red-700 text-sm rounded-md">
+                  {certificateError}
                 </div>
-                <div>
-                  <label className="block text-xs text-gray-700 mb-1 flex items-center gap-1">
-                    File PDF
-                    <span>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="inline w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
-                      </svg>
-                    </span>
-                  </label>
-                  <input
-                    type="file"
-                    accept="application/pdf"
-                    className="hidden"
-                    id="certificate-pdf-upload"
-                    onChange={handleCertificateFileChange}
-                  />
-                  <label htmlFor="certificate-pdf-upload" className="inline-block cursor-pointer px-3 py-1 border rounded text-xs bg-white hover:bg-gray-100">
-                    Upload PDF
-                  </label>
-                  {certificateData.pdfFile && (
-                    <span className="ml-2 text-xs text-gray-600">
-                      {certificateData.pdfFile.name}
-                    </span>
+              )}
+              
+              <div className="flex justify-end mt-6">
+                <button
+                  type="button"
+                  className="mr-3 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200"
+                  onClick={() => {
+                    setIsCertificateModalOpen(false);
+                    setSelectedParticipantForCertificate(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700"
+                  disabled={certificateLoading}
+                >
+                  {certificateLoading ? (
+                    <>
+                      <span className="inline-block mr-2 animate-spin">↻</span> Saving...
+                    </>
+                  ) : (
+                    "Save Certificate"
                   )}
-                  {!certificateData.pdfFile && certificateData.pdfUrl && (
-                    <span className="ml-2 text-xs text-blue-600">
-                      <a href={certificateData.pdfUrl} target="_blank" rel="noopener noreferrer">
-                        View existing PDF
-                      </a>
-                    </span>
-                  )}
-                </div>
-                <div className="border rounded p-2 h-48 flex items-center justify-center bg-gray-50">
-                  <div className="text-center text-gray-500 text-xs">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <p className="mt-1">PDF preview will appear here</p>
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2 mt-4">
-                  <Button
-                    variant="gray"
-                    size="small"
-                    type="button"
-                    onClick={() => {
-                      setIsCertificateModalOpen(false);
-                      setSelectedParticipantForCertificate(null);
-                    }}
-                    className="text-xs px-6 py-1"
-                  >
-                    Back
-                  </Button>
-                  <Button
-                    variant="primary"
-                    size="small"
-                    type="submit"
-                    disabled={certificateLoading}
-                    className={`text-xs px-6 py-1 ${certificateLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    {certificateLoading ? 'Saving...' : 'Create'}
-                  </Button>
-                </div>
-              </form>
-            )}
+                </button>
+              </div>
+            </form>
           </Modal>
         )}
 
