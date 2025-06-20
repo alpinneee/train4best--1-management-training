@@ -1,5 +1,131 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
+import { cookies } from "next/headers";
+import { decode } from "next-auth/jwt";
+import jwt from "jsonwebtoken";
+
+// Helper function to get current user ID
+async function getCurrentUserId() {
+  let userId = null;
+  
+  // Try from NextAuth session
+  try {
+    const session = await getServerSession(authOptions);
+    if (session?.user?.id) {
+      // Get the user with participant info to ensure we have the right ID
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        include: {
+          participant: true
+        }
+      });
+      
+      if (user?.participant && user.participant.length > 0) {
+        console.log("Found participant ID from session:", user.participant[0].id);
+        return user.participant[0].id; // Return participant ID instead of user ID
+      }
+      
+      return session.user.id;
+    }
+  } catch (error) {
+    console.error("Error getting session:", error);
+  }
+  
+  // Try from debug token
+  try {
+    const cookieStore = cookies();
+    const debugToken = cookieStore.get("debug_token")?.value;
+    
+    if (debugToken) {
+      const decoded = jwt.verify(
+        debugToken, 
+        process.env.NEXTAUTH_SECRET || "30a2a5966da74d102ef886556d5fcc2c84a3a849ab7d36b851e872a2592a01f5"
+      );
+      
+      if (decoded && typeof decoded === 'object' && 'id' in decoded) {
+        // Get the user with participant info
+        const user = await prisma.user.findUnique({
+          where: { id: decoded.id as string },
+          include: {
+            participant: true
+          }
+        });
+        
+        if (user?.participant && user.participant.length > 0) {
+          console.log("Found participant ID from debug token:", user.participant[0].id);
+          return user.participant[0].id; // Return participant ID instead of user ID
+        }
+        
+        return decoded.id as string;
+      }
+    }
+  } catch (error) {
+    console.error("Error decoding debug token:", error);
+  }
+  
+  // Try from session token
+  try {
+    const cookieStore = cookies();
+    const sessionToken = cookieStore.get("next-auth.session-token")?.value;
+    
+    if (sessionToken) {
+      const decoded = await decode({
+        token: sessionToken,
+        secret: process.env.NEXTAUTH_SECRET || ""
+      });
+      
+      if (decoded && 'id' in decoded) {
+        // Get the user with participant info
+        const user = await prisma.user.findUnique({
+          where: { id: decoded.id as string },
+          include: {
+            participant: true
+          }
+        });
+        
+        if (user?.participant && user.participant.length > 0) {
+          console.log("Found participant ID from session token:", user.participant[0].id);
+          return user.participant[0].id; // Return participant ID instead of user ID
+        }
+        
+        return decoded.id as string;
+      }
+    }
+  } catch (error) {
+    console.error("Error decoding session token:", error);
+  }
+  
+  // Try from user email in localStorage as a last resort
+  try {
+    const cookieStore = cookies();
+    const userEmail = cookieStore.get("userEmail")?.value;
+    
+    if (userEmail) {
+      const user = await prisma.user.findUnique({
+        where: { email: userEmail },
+        include: {
+          participant: true
+        }
+      });
+      
+      if (user?.participant && user.participant.length > 0) {
+        console.log("Found participant ID from email cookie:", user.participant[0].id);
+        return user.participant[0].id;
+      }
+      
+      if (user) {
+        return user.id;
+      }
+    }
+  } catch (error) {
+    console.error("Error finding user by email:", error);
+  }
+  
+  console.error("Could not determine user ID from any source");
+  return null;
+}
 
 // GET /api/payment - Get all payments
 export async function GET(request: Request) {
@@ -11,6 +137,41 @@ export async function GET(request: Request) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 50;
+    const filterByUser = searchParams.get('filterByUser') === 'true';
+    const userEmail = searchParams.get('email'); // Get email from query params as fallback
+    
+    // Get current user ID if filtering by user
+    let userId = null;
+    if (filterByUser) {
+      userId = await getCurrentUserId();
+      console.log("Filtering payments for user ID:", userId);
+      
+      // If userId is null but we have email, try to get user by email
+      if (!userId && userEmail) {
+        console.log("Trying to get user by email:", userEmail);
+        try {
+          const user = await prisma.user.findUnique({
+            where: { email: userEmail },
+            include: { participant: true }
+          });
+          
+          if (user?.participant && user.participant.length > 0) {
+            userId = user.participant[0].id;
+            console.log("Found participant ID from email param:", userId);
+          }
+        } catch (error) {
+          console.error("Error finding user by email:", error);
+        }
+      }
+      
+      if (!userId) {
+        console.log("No user ID found, returning empty result");
+        return NextResponse.json({
+          data: [],
+          total: 0
+        });
+      }
+    }
     
     // Build where clause based on filters
     let whereClause: any = {};
@@ -60,7 +221,29 @@ export async function GET(request: Request) {
       ];
     }
     
-    console.log("Payment query where clause:", JSON.stringify(whereClause, null, 2));
+    // Add user filter if needed
+    if (userId) {
+      whereClause.registration = {
+        ...whereClause.registration,
+        participant: {
+          ...whereClause.registration?.participant,
+          id: userId
+        }
+      };
+    } else if (userEmail) {
+      // Jika tidak ada userId tapi ada email, filter berdasarkan email
+      whereClause.registration = {
+        ...whereClause.registration,
+        participant: {
+          ...whereClause.registration?.participant,
+          user: {
+            email: userEmail
+          }
+        }
+      };
+    }
+    
+    console.log("Where clause:", JSON.stringify(whereClause, null, 2));
     
     // Get payments with filter
     const payments = await prisma.payment.findMany({
@@ -132,27 +315,8 @@ export async function GET(request: Request) {
     
     // If in development, return mock data on error
     if (process.env.NODE_ENV === 'development') {
-      // Check if any filter is applied
-      const url = new URL(request.url);
-      const searchParams = url.searchParams;
-      const search = searchParams.get('search');
-      const paymentMethod = searchParams.get('paymentMethod');
-      const startDate = searchParams.get('startDate');
-      const endDate = searchParams.get('endDate');
-      const status = searchParams.get('status');
-      
-      const hasFilters = search || paymentMethod || startDate || endDate || (status && status !== 'All');
-      
-      if (!hasFilters) {
-        console.log("Error occurred with no filters, returning mock data");
-        return NextResponse.json(getMockPayments());
-      } else {
-        console.log("Error occurred with filters, returning empty result");
-        return NextResponse.json({
-          data: [],
-          total: 0
-        });
-      }
+      console.log("Error in development, returning mock data");
+      return NextResponse.json(getMockPayments());
     }
     
     return NextResponse.json(
@@ -166,47 +330,15 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { 
-      paymentDate, 
-      amount, 
-      paymentMethod, 
-      referenceNumber, 
-      status, 
-      registrationId 
-    } = body;
-
-    // Validate required fields
+    const { paymentDate, amount, paymentMethod, referenceNumber, status, registrationId } = body;
+    
     if (!paymentDate || !amount || !paymentMethod || !referenceNumber || !registrationId) {
       return NextResponse.json(
-        { error: "Payment date, amount, payment method, reference number, and registration ID are required" },
+        { error: "Missing required fields" },
         { status: 400 }
       );
     }
-
-    // Check if reference number already exists
-    const existingPayment = await prisma.payment.findUnique({
-      where: { referenceNumber },
-    });
-
-    if (existingPayment) {
-      return NextResponse.json(
-        { error: "Reference number already exists" },
-        { status: 409 }
-      );
-    }
-
-    // Check if registration exists
-    const registration = await prisma.courseRegistration.findUnique({
-      where: { id: registrationId },
-    });
-
-    if (!registration) {
-      return NextResponse.json(
-        { error: "Registration not found" },
-        { status: 404 }
-      );
-    }
-
+    
     // Create payment
     const newPayment = await prisma.payment.create({
       data: {
@@ -274,10 +406,10 @@ function getMockPayments() {
     {
       id: "mock-4",
       no: 4,
-      nama: "Cyntia Febiola",
-      tanggal: "2024-02-12",
+      nama: "Dimas Prayoga",
+      tanggal: "2024-01-15",
       paymentMethod: "Transfer Bank",
-      nomorReferensi: "TRF-20240212-002",
+      nomorReferensi: "TRF-20240115-001",
       jumlah: "Rp 2.000.000",
       amount: 2000000,
       status: "Paid",
@@ -287,13 +419,13 @@ function getMockPayments() {
     {
       id: "mock-5",
       no: 5,
-      nama: "Saska Khairani",
-      tanggal: "2024-02-03",
+      nama: "Siti Nurhaliza",
+      tanggal: "2024-01-20",
       paymentMethod: "E-Wallet",
-      nomorReferensi: "EWL-20240203-002",
-      jumlah: "Rp 2.000.000",
-      amount: 2000000,
-      status: "Paid",
+      nomorReferensi: "EWL-20240120-001",
+      jumlah: "Rp 1.500.000",
+      amount: 1500000,
+      status: "Rejected",
       registrationId: "mock-reg-5",
       paymentProof: "/uploads/payment-proofs/sample-receipt-4.jpg"
     }

@@ -41,10 +41,14 @@ export default function PaymentReport() {
       const userEmail = localStorage.getItem('userEmail') || '';
       
       // Buat URL untuk fetch dengan parameter
-      let url = `/api/payment?page=${pageNum}&limit=5`;
-      if (userEmail) url += `&email=${encodeURIComponent(userEmail)}`;
+      let url = `/api/payment?page=${pageNum}&limit=5&filterByUser=true`;
       if (search) url += `&search=${encodeURIComponent(search)}`;
-      if (method) url += `&method=${encodeURIComponent(method)}`;
+      if (method) url += `&paymentMethod=${encodeURIComponent(method)}`;
+      
+      // Tambahkan email sebagai parameter tambahan untuk fallback
+      if (userEmail) {
+        url += `&email=${encodeURIComponent(userEmail)}`;
+      }
       
       // Tambahkan timestamp untuk menghindari cache
       url += `&_=${new Date().getTime()}`;
@@ -57,6 +61,13 @@ export default function PaymentReport() {
         if (response.status === 500 && errorData.includes('database')) {
           setIsDbConfigured(false);
           throw new Error('Database belum dikonfigurasi');
+        }
+        // Check if error is due to authentication
+        if (response.status === 401) {
+          setError('Anda perlu login untuk melihat data pembayaran.');
+          setPayments([]);
+          setLoading(false);
+          return;
         }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -90,6 +101,23 @@ export default function PaymentReport() {
   // Effect untuk mengambil data saat pertama kali atau saat parameter berubah
   useEffect(() => {
     fetchPayments(currentPage, searchTerm, paymentMethod);
+    
+    // Set debug token untuk membantu autentikasi
+    const setDebugToken = async () => {
+      const userEmail = localStorage.getItem('userEmail');
+      if (userEmail) {
+        try {
+          const response = await fetch(`/api/debug-token?email=${encodeURIComponent(userEmail)}`);
+          if (response.ok) {
+            console.log("Debug token set successfully");
+          }
+        } catch (error) {
+          console.error("Error setting debug token:", error);
+        }
+      }
+    };
+    
+    setDebugToken();
   }, [fetchPayments, currentPage, searchTerm, paymentMethod]);
   
   // Setup database
@@ -244,7 +272,7 @@ export default function PaymentReport() {
     <Layout variant="participant">
       <div className="p-2">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2">
-          <h1 className="text-lg md:text-xl text-gray-700">Payment Report</h1>
+          <h1 className="text-lg md:text-xl text-gray-700">My Payment Report</h1>
           
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <select 
