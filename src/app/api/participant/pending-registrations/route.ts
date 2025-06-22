@@ -30,13 +30,10 @@ export async function GET(request: Request) {
 
     const participantId = user.participant[0].id;
 
-    // Cari semua pendaftaran yang masih pending pembayaran
-    const pendingRegistrations = await prisma.courseRegistration.findMany({
+    // Get all registrations, not just pending ones
+    const allRegistrations = await prisma.courseRegistration.findMany({
       where: {
         participantId,
-        payment_status: {
-          in: ["Unpaid", "Pending"]
-        }
       },
       include: {
         class: {
@@ -48,12 +45,13 @@ export async function GET(request: Request) {
     });
 
     // Format data untuk respons
-    const formattedRegistrations = pendingRegistrations.map(reg => ({
+    const formattedRegistrations = allRegistrations.map(reg => ({
       registrationId: reg.id,
       courseId: reg.class.id,
       courseName: reg.class.course ? reg.class.course.course_name : 'Unknown Course',
       className: `${reg.class.location} - ${new Date(reg.class.start_date).toLocaleDateString()}`,
-      status: reg.payment_status,
+      status: reg.reg_status,
+      paymentStatus: reg.payment_status,
       paymentAmount: reg.payment,
       paymentEvidence: reg.payment_evidence
     }));
@@ -62,9 +60,9 @@ export async function GET(request: Request) {
       registrations: formattedRegistrations
     });
   } catch (error) {
-    console.error("Error fetching pending registrations:", error);
+    console.error("Error fetching registrations:", error);
     return NextResponse.json(
-      { error: "Failed to fetch pending registrations" },
+      { error: "Failed to fetch registrations" },
       { status: 500 }
     );
   }

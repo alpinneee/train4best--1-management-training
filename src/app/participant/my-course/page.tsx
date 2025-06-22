@@ -85,8 +85,9 @@ export default function MyCoursePage() {
   const [uploadError, setUploadError] = useState('');
   const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
   const [pendingRegistrations, setPendingRegistrations] = useState<{[key: string]: string}>({});
+  const [paidRegistrations, setPaidRegistrations] = useState<{[key: string]: boolean}>({});
   const [pendingRegistrationId, setPendingRegistrationId] = useState<string | null>(null);
-  const [bankAccounts, setBankAccounts] = useState([]);
+  const [bankAccounts, setBankAccounts] = useState<{bankName: string; accountNumber: string; accountName: string}[]>([]);
   
   // Email validation function
   const isValidEmail = (email: string) => {
@@ -332,7 +333,7 @@ export default function MyCoursePage() {
     });
   }, [fetchAvailableCourses, refreshKey]);
   
-  // Fungsi untuk mengambil daftar pendaftaran yang masih pending pembayaran
+  // Update the fetchPendingRegistrations function to also track paid registrations
   const fetchPendingRegistrations = async (email: string) => {
     try {
       const response = await fetch(`/api/participant/pending-registrations?email=${encodeURIComponent(email)}`);
@@ -343,15 +344,22 @@ export default function MyCoursePage() {
         if (data.registrations && Array.isArray(data.registrations)) {
           // Buat objek dengan courseId sebagai key dan registrationId sebagai value
           const pendingRegs: {[key: string]: string} = {};
+          const paidRegs: {[key: string]: boolean} = {};
           
           data.registrations.forEach((reg: any) => {
             if (reg.courseId && reg.registrationId) {
               pendingRegs[reg.courseId] = reg.registrationId;
+              // Check if registration is paid
+              if (reg.paymentStatus === 'Paid') {
+                paidRegs[reg.courseId] = true;
+              }
             }
           });
           
           console.log('Pending registrations:', pendingRegs);
+          console.log('Paid registrations:', paidRegs);
           setPendingRegistrations(pendingRegs);
+          setPaidRegistrations(paidRegs);
         }
       }
     } catch (error) {
@@ -780,6 +788,7 @@ export default function MyCoursePage() {
             quota={course.quota}
             onRegister={handleRegisterClick}
             isPendingRegistration={!!pendingRegistrations[course.id]}
+            isPaidRegistration={!!paidRegistrations[course.id]}
             registrationId={pendingRegistrations[course.id] as any}
           />
         ))}
