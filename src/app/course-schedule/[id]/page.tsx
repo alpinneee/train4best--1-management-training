@@ -109,7 +109,8 @@ const CourseScheduleDetail = () => {
     certificateNumber: '',
     issueDate: '',
     pdfFile: null as File | null,
-    pdfUrl: ''
+    pdfUrl: '',
+    driveLink: ''
   });
   const [certificateLoading, setCertificateLoading] = useState(false);
   const [certificateError, setCertificateError] = useState<string | null>(null);
@@ -640,7 +641,8 @@ const CourseScheduleDetail = () => {
           certificateNumber: data.certificateNumber || '',
           issueDate: data.issueDate ? new Date(data.issueDate).toISOString().split('T')[0] : '',
           pdfFile: null,
-          pdfUrl: data.pdfUrl || ''
+          pdfUrl: data.pdfUrl || '',
+          driveLink: data.driveLink || ''
         });
       } else {
         // If no certificate exists yet, initialize with empty values
@@ -648,7 +650,8 @@ const CourseScheduleDetail = () => {
           certificateNumber: '',
           issueDate: '',
           pdfFile: null,
-          pdfUrl: ''
+          pdfUrl: '',
+          driveLink: ''
         });
       }
     } catch (error) {
@@ -694,7 +697,8 @@ const CourseScheduleDetail = () => {
           participantId: selectedParticipantForCertificate.participantId,
           certificateNumber: certificateData.certificateNumber,
           issueDate: certificateData.issueDate,
-          pdfUrl: certificateData.pdfUrl // Include pdfUrl in request
+          pdfUrl: certificateData.pdfUrl,
+          driveLink: certificateData.driveLink // Include driveLink in request
         })
       });
 
@@ -1825,7 +1829,7 @@ const CourseScheduleDetail = () => {
                   placeholder="e.g. CERT/2023/001"
                   value={certificateData.certificateNumber}
                   onChange={handleCertificateInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-700"
                 />
               </div>
               
@@ -1840,28 +1844,28 @@ const CourseScheduleDetail = () => {
                   required
                   value={certificateData.issueDate}
                   onChange={handleCertificateInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-700"
                 />
               </div>
 
               <div>
-                <label htmlFor="pdfFile" className="block text-sm font-medium text-gray-700 mb-1">
-                  Certificate PDF
+                <label htmlFor="driveLink" className="block text-sm font-medium text-gray-700 mb-1">
+                  Google Drive Link
                 </label>
                 <input
-                  type="file"
-                  id="pdfFile"
-                  name="pdfFile"
-                  accept=".pdf"
-                  onChange={handleCertificateFileChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  type="url"
+                  id="driveLink"
+                  name="driveLink"
+                  placeholder="https://drive.google.com/file/d/..."
+                  value={certificateData.driveLink}
+                  onChange={handleCertificateInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-700"
                 />
-                {certificateData.pdfFile && (
-                  <p className="mt-1 text-sm text-gray-500">
-                    Selected: {certificateData.pdfFile.name}
-                  </p>
-                )}
+                <p className="mt-1 text-sm text-gray-500">
+                  Paste Google Drive link to share with participant
+                </p>
               </div>
+
               
               {certificateError && (
                 <div className="p-3 bg-red-50 text-red-700 text-sm rounded-md">

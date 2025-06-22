@@ -15,6 +15,7 @@ interface CertificateDetail {
   expiryDate: string;
   status: string;
   pdfUrl: string | null;
+  driveLink: string | null;
   participant: {
     id: string;
     name: string;
@@ -77,6 +78,17 @@ export default function ParticipantCertificateDetailPage() {
   
   const handlePrint = () => {
     window.open(`/certificate/${id}/print`, '_blank');
+  };
+
+  // Fungsi untuk mengubah URL Google Drive menjadi URL embed
+  const getGoogleDriveEmbedUrl = (driveUrl: string) => {
+    // Format URL Google Drive: https://drive.google.com/file/d/{FILE_ID}/view?usp=sharing
+    const fileIdMatch = driveUrl.match(/\/d\/(.+?)\/|id=(.+?)&/);
+    if (fileIdMatch) {
+      const fileId = fileIdMatch[1] || fileIdMatch[2];
+      return `https://drive.google.com/file/d/${fileId}/preview`;
+    }
+    return driveUrl; // Return original URL if pattern doesn't match
   };
 
   if (loading) {
@@ -186,6 +198,36 @@ export default function ParticipantCertificateDetailPage() {
           <div className="bg-white shadow rounded-lg p-5">
             <h2 className="text-lg font-semibold mb-4 text-gray-800">Dokumen Sertifikat</h2>
             
+            {certificate.driveLink && (
+              <div className="space-y-4">
+                <div className="bg-gray-50 p-3 mb-4 rounded-lg flex justify-between items-center">
+                  <div>
+                    <p className="font-medium text-sm">Google Drive</p>
+                    <p className="text-xs text-gray-500">Akses sertifikat Anda di Google Drive</p>
+                  </div>
+                  <a 
+                    href={certificate.driveLink} 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 px-3 py-2 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                  >
+                    <Download size={14} />
+                    Buka Drive
+                  </a>
+                </div>
+                
+                {/* Google Drive PDF Preview */}
+                <div className="border rounded-md overflow-hidden">
+                  <iframe 
+                    src={getGoogleDriveEmbedUrl(certificate.driveLink)} 
+                    className="w-full h-[500px] border-0"
+                    title="Certificate PDF from Google Drive"
+                    allowFullScreen
+                  />
+                </div>
+              </div>
+            )}
+            
             {certificate.pdfUrl ? (
               <div className="space-y-4">
                 <div className="bg-gray-50 p-3 mb-4 rounded-lg flex justify-between items-center">
@@ -211,11 +253,11 @@ export default function ParticipantCertificateDetailPage() {
                   />
                 </div>
               </div>
-            ) : (
+            ) : !certificate.driveLink ? (
               <div className="text-center py-10 bg-gray-50 rounded-lg">
-                <p className="text-gray-500">Dokumen PDF tidak tersedia</p>
+                <p className="text-gray-500">Dokumen sertifikat tidak tersedia</p>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

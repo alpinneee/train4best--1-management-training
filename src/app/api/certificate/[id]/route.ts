@@ -45,7 +45,8 @@ export async function GET(request: Request, { params }: Params) {
       issueDate: certificate.issueDate.toISOString().split('T')[0],
       expiryDate: certificate.expiryDate.toISOString().split('T')[0],
       status: certificate.status,
-      pdfUrl: certificate.pdfUrl || null,
+      pdfUrl: certificate.filePdf || null,
+      driveLink: certificate.driveLink || null,
       participant: certificate.participant ? {
         id: certificate.participantId,
         name: certificate.participant.full_name,
@@ -82,7 +83,8 @@ export async function PUT(request: Request, { params }: Params) {
       expiryDate, 
       status, 
       participantId, 
-      courseId 
+      courseId,
+      driveLink
     } = body;
 
     // Check if certificate exists
@@ -120,6 +122,7 @@ export async function PUT(request: Request, { params }: Params) {
         issueDate: issueDate ? new Date(issueDate) : undefined,
         expiryDate: expiryDate ? new Date(expiryDate) : undefined,
         status: status || undefined,
+        driveLink,
         participantId: participantId || undefined,
         courseId: courseId || undefined,
       },

@@ -7,15 +7,33 @@ interface Params {
   };
 }
 
+// Function to generate unique certificate number
+async function generateUniqueCertificateNumber(): Promise<string> {
+  // Generate random 10-digit number
+  const randomNum = Math.floor(1000000000 + Math.random() * 9000000000).toString();
+  
+  // Check if it already exists
+  const existingCert = await prisma.certificate.findUnique({
+    where: { certificateNumber: randomNum }
+  });
+  
+  // If exists, recursively try again
+  if (existingCert) {
+    return generateUniqueCertificateNumber();
+  }
+  
+  return randomNum;
+}
+
 // POST /api/course-schedule/[id]/participant/certificate - Add a certificate for a participant
 export async function POST(request: Request, { params }: Params) {
   try {
     const { id: classId } = params;
-    const { participantId, certificateNumber, issueDate, pdfUrl } = await request.json();
+    const { participantId, certificateNumber, issueDate, pdfUrl, driveLink } = await request.json();
 
-    if (!participantId || !certificateNumber) {
+    if (!participantId) {
       return NextResponse.json(
-        { error: 'Participant ID and certificate number are required' },
+        { error: 'Participant ID is required' },
         { status: 400 }
       );
     }
@@ -50,8 +68,12 @@ export async function POST(request: Request, { params }: Params) {
     // Check if certificate already exists for this participant and course
     const existingCertificate = await prisma.certificate.findFirst({
       where: {
-        participantId: participantId,
-        courseId: classExists.courseId
+        participant: {
+          id: participantId
+        },
+        course: {
+          id: classExists.courseId
+        }
       }
     });
 
@@ -62,11 +84,12 @@ export async function POST(request: Request, { params }: Params) {
           id: existingCertificate.id
         },
         data: {
-          certificateNumber: certificateNumber,
+          certificateNumber: certificateNumber || existingCertificate.certificateNumber,
           issueDate: issueDate ? new Date(issueDate) : existingCertificate.issueDate,
           // Use current date + 1 year for expiryDate if not set
           expiryDate: existingCertificate.expiryDate,
-          pdfUrl: pdfUrl || existingCertificate.pdfUrl
+          pdfUrl: pdfUrl || existingCertificate.pdfUrl,
+          driveLink: driveLink || existingCertificate.driveLink
         }
       });
 
@@ -76,6 +99,7 @@ export async function POST(request: Request, { params }: Params) {
         issueDate: updatedCertificate.issueDate,
         expiryDate: updatedCertificate.expiryDate,
         pdfUrl: updatedCertificate.pdfUrl,
+        driveLink: updatedCertificate.driveLink,
         message: 'Certificate updated successfully'
       }, { status: 200 });
     }
@@ -84,16 +108,24 @@ export async function POST(request: Request, { params }: Params) {
     const expiryDate = new Date();
     expiryDate.setFullYear(expiryDate.getFullYear() + 1); // Default expiry is 1 year
     
+    // Generate unique certificate number if not provided
+    const uniqueCertNumber = certificateNumber || await generateUniqueCertificateNumber();
+    
     const certificate = await prisma.certificate.create({
       data: {
-        certificateNumber: certificateNumber,
+        certificateNumber: uniqueCertNumber,
         name: `${classExists.courseId} Certificate`,
         issueDate: issueDate ? new Date(issueDate) : new Date(),
         expiryDate: expiryDate,
         status: "Valid",
-        participantId: participantId,
-        courseId: classExists.courseId,
-        pdfUrl: pdfUrl || null
+        participant: {
+          connect: { id: participantId }
+        },
+        course: {
+          connect: { id: classExists.courseId }
+        },
+        pdfUrl: pdfUrl || null,
+        driveLink: driveLink || null
       }
     });
 
@@ -103,6 +135,7 @@ export async function POST(request: Request, { params }: Params) {
       issueDate: certificate.issueDate,
       expiryDate: certificate.expiryDate,
       pdfUrl: certificate.pdfUrl,
+      driveLink: certificate.driveLink,
       message: 'Certificate created successfully'
     }, { status: 201 });
   } catch (error) {
@@ -180,7 +213,9 @@ export async function GET(request: Request, { params }: Params) {
       id: certificate.id,
       certificateNumber: certificate.certificateNumber,
       issueDate: certificate.issueDate,
-      expiryDate: certificate.expiryDate
+      expiryDate: certificate.expiryDate,
+      pdfUrl: certificate.pdfUrl,
+      driveLink: certificate.driveLink
     }, { status: 200 });
   } catch (error) {
     console.error('Error fetching certificate:', error);

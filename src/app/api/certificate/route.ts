@@ -1,6 +1,24 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+// Function to generate unique certificate number
+async function generateUniqueCertificateNumber(): Promise<string> {
+  // Generate random 10-digit number
+  const randomNum = Math.floor(1000000000 + Math.random() * 9000000000).toString();
+  
+  // Check if it already exists
+  const existingCert = await prisma.certificate.findUnique({
+    where: { certificateNumber: randomNum }
+  });
+  
+  // If exists, recursively try again
+  if (existingCert) {
+    return generateUniqueCertificateNumber();
+  }
+  
+  return randomNum;
+}
+
 // GET /api/certificate - Get all certificates
 export async function GET(req: Request) {
   try {
@@ -46,6 +64,7 @@ export async function GET(req: Request) {
           startDate: cert.issueDate,
           endDate: cert.expiryDate,
           participantName: cert.participant?.full_name || "Unknown",
+          driveLink: cert.driveLink || null,
           description: [
             `Sertifikat ini berlaku hingga ${new Date(cert.expiryDate).toLocaleDateString('id-ID')}`,
             `Status: ${cert.status}`
@@ -188,35 +207,44 @@ export async function POST(request: Request) {
     } = body;
 
     // Validate required fields
-    if (!certificateNumber || !name || !issueDate || !expiryDate) {
+    if (!name || !issueDate || !expiryDate) {
       return NextResponse.json(
-        { error: "Certificate number, name, issue date, and expiry date are required" },
+        { error: "Name, issue date, and expiry date are required" },
         { status: 400 }
       );
     }
 
-    // Check if certificate number already exists
-    const existingCertificate = await prisma.certificate.findUnique({
-      where: { certificateNumber },
-    });
+    // Generate unique certificate number if not provided
+    const uniqueCertNumber = certificateNumber || await generateUniqueCertificateNumber();
 
-    if (existingCertificate) {
-      return NextResponse.json(
-        { error: "Certificate number already exists" },
-        { status: 409 }
-      );
+    // Check if certificate number already exists
+    if (certificateNumber) {
+      const existingCertificate = await prisma.certificate.findUnique({
+        where: { certificateNumber: uniqueCertNumber },
+      });
+
+      if (existingCertificate) {
+        return NextResponse.json(
+          { error: "Certificate number already exists" },
+          { status: 409 }
+        );
+      }
     }
 
     // Create certificate
     const newCertificate = await prisma.certificate.create({
       data: {
-        certificateNumber,
+        certificateNumber: uniqueCertNumber,
         name,
         issueDate: new Date(issueDate),
         expiryDate: new Date(expiryDate),
         status: status || "Valid",
-        participantId,
-        courseId,
+        participant: participantId ? {
+          connect: { id: participantId }
+        } : undefined,
+        course: courseId ? {
+          connect: { id: courseId }
+        } : undefined
       },
     });
 

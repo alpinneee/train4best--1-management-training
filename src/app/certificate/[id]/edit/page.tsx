@@ -37,6 +37,7 @@ export default function CertificateEditPage({ params }: { params: { id: string }
     participantId: "",
     courseId: "",
     pdfUrl: "",
+    driveLink: "",
   });
 
   // Fetch certificate details if editing
@@ -64,6 +65,7 @@ export default function CertificateEditPage({ params }: { params: { id: string }
           participantId: data.participant?.id || "",
           courseId: data.course?.id || "",
           pdfUrl: data.pdfUrl || "",
+          driveLink: data.driveLink || "",
         };
         
         setFormData(formattedData);
@@ -510,6 +512,27 @@ export default function CertificateEditPage({ params }: { params: { id: string }
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* Google Drive Link */}
+            <div className="mb-4">
+              <label htmlFor="driveLink" className="block text-sm font-medium text-gray-700 mb-1">
+                Google Drive Link
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  id="driveLink"
+                  name="driveLink"
+                  value={formData.driveLink}
+                  onChange={handleInputChange}
+                  placeholder="https://drive.google.com/file/d/..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <p className="mt-1 text-sm text-gray-500">
+                Paste Google Drive link to share with participant
+              </p>
             </div>
 
             <div className="mt-8 flex justify-end">

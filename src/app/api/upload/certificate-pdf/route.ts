@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     const fileUrl = `/uploads/certificates/${filename}`;
     await prisma.certificate.update({
       where: { id: certificateId },
-      data: { pdfUrl: fileUrl }
+      data: { filePdf: fileUrl }
     });
     
     return NextResponse.json({
