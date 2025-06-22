@@ -244,15 +244,15 @@ export async function POST(request: Request) {
 
     // Check if certificate number already exists
     if (certificateNumber) {
-      const existingCertificate = await prisma.certificate.findUnique({
+    const existingCertificate = await prisma.certificate.findUnique({
         where: { certificateNumber: uniqueCertNumber },
-      });
+    });
 
-      if (existingCertificate) {
-        return NextResponse.json(
-          { error: "Certificate number already exists" },
-          { status: 409 }
-        );
+    if (existingCertificate) {
+      return NextResponse.json(
+        { error: "Certificate number already exists" },
+        { status: 409 }
+      );
       }
     }
 

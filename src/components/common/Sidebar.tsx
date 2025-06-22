@@ -37,18 +37,14 @@ const instructureMenuItems: MenuItem[] = [
   {
     title: "My Courses",
     icon: <BookOpen size={20} />,
-    path: "/instructure/courses",
+    path: "/instructure/my-course",
   },
   {
-    title: "Students",
-    icon: <Users size={20} />,
-    path: "/instructure/students",
-  },
-  {
-    title: "Assignments",
+    title: "Certificate",
     icon: <FileText size={20} />,
-    path: "/instructure/assignments",
-  }
+    path: "/instructure/certificate",
+  },
+ 
 ];
 
 const adminMenuItems: MenuItem[] = [

@@ -476,12 +476,12 @@ const MyCertificatePage = () => {
                   <div className="flex justify-between items-center pt-2">
                     {cert.driveLink && (
                       <>
-                        <a
+                    <a
                           href={cert.driveLink}
-                          target="_blank"
+                      target="_blank"
                           rel="noopener noreferrer"
                           className="text-green-600 hover:text-green-800 text-xs flex items-center gap-1"
-                        >
+                    >
                           <Download size={14} />
                           Drive
                         </a>
