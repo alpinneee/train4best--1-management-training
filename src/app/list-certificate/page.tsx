@@ -56,20 +56,47 @@ const CertificatePage = () => {
         params.append('endDate', endDate);
       }
       
+      // Add admin=true to get all certificates (for admin view)
+      params.append('admin', 'true');
+      
       // Append params to URL if any exist
       const queryString = params.toString();
       if (queryString) {
         url += `?${queryString}`;
       }
       
-      const response = await fetch(url);
+      console.log("Fetching certificates from:", url);
+      
+      const response = await fetch(url, {
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
       
       if (!response.ok) {
         throw new Error(`Error: ${response.status}`);
       }
       
       const data = await response.json();
-      setCertificates(data);
+      console.log("API Response:", data);
+      
+      // Format the data to match the Certificate interface
+      if (data && data.data) {
+        const formattedCertificates = data.data.map((cert: any, index: number) => ({
+          id: cert.id,
+          no: index + 1,
+          name: cert.name || cert.participantName || "Unknown",
+          certificateNumber: cert.certificateNumber,
+          issueDate: new Date(cert.issueDate).toLocaleDateString('en-US'),
+          expiryDate: new Date(cert.endDate || cert.expiryDate).toLocaleDateString('en-US'),
+          status: cert.status || "Valid",
+          course: cert.courseName || cert.course?.course_name || "Unknown Course"
+        }));
+        setCertificates(formattedCertificates);
+      } else {
+        setCertificates([]);
+      }
     } catch (error) {
       console.error("Failed to fetch certificates:", error);
       toast.error("Failed to load certificates");
@@ -161,9 +188,6 @@ const CertificatePage = () => {
       header: "Action",
       accessor: (certificate) => (
         <div className="flex gap-1">
-          <Link href={`/certificate/${certificate.id}/print`} className="flex items-center gap-1 text-gray-600 hover:text-gray-800 text-xs p-1">
-            <Printer size={14} /> Print
-          </Link>
           <Link href={`/certificate/${certificate.id}`} className="flex items-center gap-1 text-gray-600 hover:text-gray-800 text-xs p-1">
             <FileText size={14} /> Detail
           </Link>

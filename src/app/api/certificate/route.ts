@@ -27,24 +27,47 @@ export async function GET(req: Request) {
     const limit = Number(url.searchParams.get('limit')) || 10;
     const page = Number(url.searchParams.get('page')) || 1;
     const skip = (page - 1) * limit;
+    const isAdmin = url.searchParams.get('admin') === 'true';
+    
+    console.log("Request params:", { email, limit, page, isAdmin });
     
     // Filter to find certificates by email
-    const whereClause = email ? { 
-      participant: { 
-        user: { email } 
-      } 
-    } : {};
+    // If email is provided, find certificates for that user
+    // If admin=true, return all certificates
+    let whereClause = {};
+    
+    if (email && !isAdmin) {
+      try {
+        // First, find the participant ID associated with this email
+        const user = await prisma.user.findUnique({
+          where: { email },
+          include: { participant: true }
+        });
+        
+        const participantId = user?.participant?.id;
+        
+        if (participantId) {
+          // If participant found, filter by participant ID
+          whereClause = { participantId };
+          console.log(`Found participant ID ${participantId} for email ${email}`);
+        } else {
+          console.log(`No participant found for email ${email}`);
+        }
+      } catch (err) {
+        console.error("Error finding participant:", err);
+      }
+    }
     
     try {
-      // Find certificates for the user
+      // Find certificates based on the where clause
       const certificates = await prisma.certificate.findMany({
         where: whereClause,
         include: {
           participant: true,
           course: true
         },
-        skip,
-        take: limit,
+        skip: isAdmin ? 0 : skip, // Skip pagination for admin view to get all certificates
+        take: isAdmin ? 100 : limit, // Get more certificates for admin view
         orderBy: {
           issueDate: 'desc'
         }
@@ -65,8 +88,10 @@ export async function GET(req: Request) {
           endDate: cert.expiryDate,
           participantName: cert.participant?.full_name || "Unknown",
           driveLink: cert.driveLink || null,
+          name: cert.name,
+          status: cert.status,
           description: [
-            `Sertifikat ini berlaku hingga ${new Date(cert.expiryDate).toLocaleDateString('id-ID')}`,
+            `Certificate valid until ${new Date(cert.expiryDate).toLocaleDateString('en-US')}`,
             `Status: ${cert.status}`
           ]
         };

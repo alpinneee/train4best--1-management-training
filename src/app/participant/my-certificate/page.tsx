@@ -306,20 +306,28 @@ const MyCertificatePage = () => {
       const userEmail = localStorage.getItem('userEmail') || '';
       
       // Buat URL untuk fetch dengan parameter
-      let url = `/api/certificate?page=${pageNum}&limit=8`;
+      let url = `/api/certificate?page=${pageNum}&limit=20`;
       if (userEmail) url += `&email=${encodeURIComponent(userEmail)}`;
       if (searchTerm) url += `&search=${encodeURIComponent(searchTerm)}`;
       
       // Tambahkan timestamp untuk menghindari cache
       url += `&_=${new Date().getTime()}`;
       
-      const response = await fetch(url);
+      console.log("Fetching certificates from:", url);
+      
+      const response = await fetch(url, {
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const data = await response.json();
+      console.log("API Response:", data);
       
       if (data && data.data) {
         setCertificates(data.data);
@@ -333,7 +341,7 @@ const MyCertificatePage = () => {
       setError(null);
     } catch (err) {
       console.error("Error fetching certificates:", err);
-      setError("Gagal mengambil data sertifikat. Silakan coba lagi nanti.");
+      setError("Failed to fetch certificate data. Please try again later.");
       setCertificates([]);
     } finally {
       setLoading(false);
@@ -468,10 +476,25 @@ const MyCertificatePage = () => {
                   <div className="flex justify-between items-center pt-2">
                     {cert.driveLink && (
                       <>
-                     
+                        <a
+                          href={cert.driveLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-green-600 hover:text-green-800 text-xs flex items-center gap-1"
+                        >
+                          <Download size={14} />
+                          Drive
+                        </a>
+                        <button
+                          onClick={() => openPreview(cert.driveLink!, cert.certificateNumber)}
+                          className="text-green-600 hover:text-green-800 text-xs flex items-center gap-1"
+                        >
+                          <Eye size={14} />
+                          View
+                        </button>
                       </>
                     )}
-                    
+                       
                     <button
                       onClick={() => openDetailModal(cert.id)}
                       className="text-gray-600 hover:text-gray-800 text-xs flex items-center gap-1"
