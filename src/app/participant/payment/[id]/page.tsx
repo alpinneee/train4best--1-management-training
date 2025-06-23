@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Layout from "@/components/common/Layout";
-import { ArrowLeft, Upload, CheckCircle, AlertCircle } from "lucide-react";
+import { ArrowLeft, Upload, CheckCircle, AlertCircle, Image as ImageIcon, Printer } from "lucide-react";
 import Image from "next/image";
 import { toast } from "react-hot-toast";
 
@@ -29,6 +29,7 @@ export default function PaymentPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  const [showFullImage, setShowFullImage] = useState(false);
   
   useEffect(() => {
     const fetchPaymentDetails = async () => {
@@ -43,6 +44,7 @@ export default function PaymentPage() {
         }
         
         const data = await response.json();
+        console.log("Payment details:", data); // Log untuk debugging
         setPaymentDetails(data);
       } catch (err) {
         console.error("Error fetching payment details:", err);
@@ -140,6 +142,14 @@ export default function PaymentPage() {
     }
   };
   
+  const toggleFullImage = () => {
+    setShowFullImage(!showFullImage);
+  };
+  
+  const goToPrintVersion = () => {
+    window.open(`/participant/payment/${id}/print`, '_blank');
+  };
+  
   if (loading) {
     return (
       <Layout variant="participant">
@@ -176,15 +186,37 @@ export default function PaymentPage() {
   
   return (
     <Layout variant="participant">
+      {/* Print-only header that will replace the navbar in print view */}
+      <div className="hidden print:block bg-[#362d98] text-white py-4 px-6 mb-4">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center">
+            <div className="font-bold text-2xl">Train4Best</div>
+          </div>
+          <div className="text-right">
+            <div className="text-sm">Print Date: {new Date().toLocaleDateString()}</div>
+          </div>
+        </div>
+      </div>
+
       <div className="p-4">
-        <div className="mb-4 flex items-center">
-          <button 
-            onClick={() => router.back()}
-            className="text-blue-600 hover:text-blue-800 flex items-center mr-4"
-          >
-            <ArrowLeft size={16} className="mr-1" /> Back
-          </button>
-          <h1 className="text-xl font-bold text-gray-800">Payment Details</h1>
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center">
+            <button 
+              onClick={() => router.back()}
+              className="text-blue-600 hover:text-blue-800 flex items-center mr-4 print:hidden"
+            >
+              <ArrowLeft size={16} className="mr-1" /> Back
+            </button>
+            <h1 className="text-xl font-bold text-gray-800">Payment Details</h1>
+          </div>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={goToPrintVersion}
+              className="flex items-center px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 print:hidden"
+            >
+              <Printer size={16} className="mr-1" /> Print
+            </button>
+          </div>
         </div>
         
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -221,8 +253,8 @@ export default function PaymentPage() {
             <div className="flex flex-col sm:flex-row sm:justify-between">
               <span className="text-gray-600">Status:</span>
               <span className={`font-medium ${
-                paymentDetails.paymentStatus === 'Paid' ? 'text-green-600' : 
-                paymentDetails.paymentStatus === 'Pending' ? 'text-yellow-600' : 'text-red-600'
+                paymentDetails.paymentStatus === 'Paid' ? 'text-green-600 print:text-green-700' : 
+                paymentDetails.paymentStatus === 'Pending' ? 'text-yellow-600 print:text-yellow-700' : 'text-red-600 print:text-red-700'
               }`}>
                 {paymentDetails.paymentStatus}
               </span>
@@ -271,19 +303,74 @@ export default function PaymentPage() {
             </div>
           </div>
           
+          {/* Display existing payment proof if available */}
+          {paymentDetails.paymentProof && (
+            <>
+              <hr className="my-6" />
+              
+              <div className="p-4 space-y-4">
+                <h2 className="text-lg font-semibold text-gray-800">Bukti Pembayaran</h2>
+                
+                <div className="border border-gray-200 rounded-md p-4">
+                  {paymentDetails.paymentProof.endsWith('.pdf') ? (
+                    <div className="text-center py-4">
+                      <p className="text-gray-700 mb-2">Dokumen PDF Bukti Pembayaran</p>
+                      <a
+                        href={paymentDetails.paymentProof}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 print:bg-blue-600 print:text-white"
+                      >
+                        Lihat PDF
+                      </a>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex flex-col items-center">
+                        <p className="text-gray-700 mb-4 text-center font-medium">Bukti Pembayaran Anda</p>
+                        <div className={`relative ${showFullImage ? 'w-full' : 'max-w-md'}`}>
+                          <div className="border rounded-md overflow-hidden shadow-md">
+                            <img
+                              src={paymentDetails.paymentProof}
+                              alt="Bukti pembayaran"
+                              className={`w-full h-auto rounded-md ${showFullImage ? 'cursor-zoom-out' : 'cursor-zoom-in'} print:max-w-xs print:mx-auto`}
+                              onClick={toggleFullImage}
+                            />
+                          </div>
+                          <button
+                            onClick={toggleFullImage}
+                            className="absolute top-2 right-2 bg-white p-1 rounded-full shadow-md hover:bg-gray-100 print:hidden"
+                            title={showFullImage ? "Perkecil gambar" : "Perbesar gambar"}
+                          >
+                            <ImageIcon size={16} className="text-gray-700" />
+                          </button>
+                        </div>
+                        <p className="text-sm text-gray-500 mt-2 print:hidden">
+                          {showFullImage ? "Klik gambar untuk memperkecil" : "Klik gambar untuk memperbesar"}
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+          
           {/* Only show upload section if payment is not paid yet */}
           {paymentDetails.paymentStatus !== 'Paid' && (
             <>
               <hr className="my-6" />
               
-              <div className="p-4 space-y-4">
-                <h2 className="text-lg font-semibold text-gray-800">Upload Payment Proof</h2>
+              <div className="p-4 space-y-4 print:hidden">
+                <h2 className="text-lg font-semibold text-gray-800">
+                  {paymentDetails.paymentProof ? "Perbarui Bukti Pembayaran" : "Upload Bukti Pembayaran"}
+                </h2>
                 
                 <div className="border-2 border-dashed border-gray-300 rounded-md p-4">
                   <div className="space-y-4">
                     <div>
                       <label htmlFor="payment-proof" className="block text-sm font-medium text-gray-700 mb-1">
-                        Payment Proof (JPEG, PNG, or PDF, max 5MB)
+                        Bukti Pembayaran (JPEG, PNG, atau PDF, maks 5MB)
                       </label>
                       <input
                         type="file"
@@ -336,7 +423,7 @@ export default function PaymentPage() {
                         ) : (
                           <>
                             <Upload size={16} className="mr-2" />
-                            Upload Payment Proof
+                            {paymentDetails.paymentProof ? "Perbarui Bukti Pembayaran" : "Upload Bukti Pembayaran"}
                           </>
                         )}
                       </button>
@@ -352,45 +439,65 @@ export default function PaymentPage() {
               </div>
             </>
           )}
-          
-          {/* Display existing payment proof if available */}
-          {paymentDetails.paymentProof && (
-            <>
-              <hr className="my-6" />
-              
-              <div className="p-4 space-y-4">
-                <h2 className="text-lg font-semibold text-gray-800">Uploaded Payment Proof</h2>
-                
-                <div className="border border-gray-200 rounded-md p-4">
-                  {paymentDetails.paymentProof.endsWith('.pdf') ? (
-                    <div className="text-center py-4">
-                      <p className="text-gray-700 mb-2">PDF Document</p>
-                      <a
-                        href={paymentDetails.paymentProof}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                      >
-                        View PDF
-                      </a>
-                    </div>
-                  ) : (
-                    <div className="flex justify-center">
-                      <div className="max-w-md">
-                        <img
-                          src={paymentDetails.paymentProof}
-                          alt="Payment proof"
-                          className="w-full h-auto rounded-md"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
+        </div>
+
+        {/* Print footer */}
+        <div className="hidden print:block text-center mt-8 pt-8 border-t border-gray-300">
+          <p className="text-gray-500 text-sm">Dokumen ini dicetak dari sistem Train4Best pada {new Date().toLocaleString()}</p>
+          <p className="text-gray-500 text-sm">© {new Date().getFullYear()} Train4Best Indonesia</p>
         </div>
       </div>
+
+      {/* Print Styles */}
+      <style jsx global>{`
+        @media print {
+          /* Force show print elements */
+          .print\\:block {
+            display: block !important;
+          }
+          
+          /* Force navbar color */
+          .bg-\\[\\#362d98\\] {
+            background-color: #362d98 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          
+          /* General print styles */
+          body {
+            font-size: 12pt;
+            color: black;
+          }
+          
+          /* Hide elements not needed for printing */
+          nav, footer, .print\\:hidden {
+            display: none !important;
+          }
+          
+          /* Status colors */
+          .print\\:text-green-700 {
+            color: #047857 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          
+          .print\\:text-yellow-700 {
+            color: #a16207 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          
+          .print\\:text-red-700 {
+            color: #b91c1c !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+        }
+      `}</style>
     </Layout>
   );
 } 

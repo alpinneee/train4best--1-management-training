@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Table from "@/components/common/table";
 import Layout from "@/components/common/Layout";
+import { useRouter } from "next/navigation";
 
 interface Payment {
   id: string;
@@ -26,6 +27,7 @@ interface Column<T> {
 }
 
 export default function PaymentReport() {
+  const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -166,6 +168,11 @@ export default function PaymentReport() {
     setCurrentPage(1); // Reset ke halaman pertama saat filter berubah
   };
 
+  // Fungsi untuk navigasi ke halaman detail payment
+  const goToPaymentDetail = (paymentId: string) => {
+    router.push(`/participant/payment/${paymentId}`);
+  };
+
   const columns: Column<Payment>[] = [
     { 
       header: "NO", 
@@ -224,6 +231,20 @@ export default function PaymentReport() {
         </span>
       ),
       className: "min-w-[80px]"
+    },
+    {
+      header: "ACTION",
+      accessor: (payment: Payment) => (
+        <div className="flex justify-center">
+          <button
+            onClick={() => goToPaymentDetail(payment.id)}
+            className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+          >
+            Detail
+          </button>
+        </div>
+      ),
+      className: "min-w-[100px] text-center"
     }
   ];
 
