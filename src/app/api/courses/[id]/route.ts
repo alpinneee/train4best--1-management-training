@@ -35,7 +35,9 @@ export async function GET(request: Request, { params }: Params) {
       id: course.id,
       course_name: course.course_name,
       courseTypeId: course.courseTypeId,
-      courseType: course.courseType.course_type
+      courseType: course.courseType.course_type,
+      description: course.description,
+      image: course.image
     });
   } catch (error) {
     console.error('Error fetching course:', error);
@@ -50,7 +52,8 @@ export async function GET(request: Request, { params }: Params) {
 export async function PUT(request: Request, { params }: Params) {
   try {
     const { id } = params;
-    const { course_name, courseTypeId } = await request.json();
+    const body = await request.json();
+    const { course_name, courseTypeId, description, image } = body;
     
     // Check if course exists
     const existingCourse = await prisma.course.findUnique({
@@ -64,13 +67,19 @@ export async function PUT(request: Request, { params }: Params) {
       );
     }
 
+    // Prepare update data
+    const updateData: any = {};
+    
+    // Only include fields that are provided
+    if (course_name !== undefined) updateData.course_name = course_name;
+    if (courseTypeId !== undefined) updateData.courseTypeId = courseTypeId;
+    if (description !== undefined) updateData.description = description;
+    if (image !== undefined) updateData.image = image;
+
     // Update course
     const updatedCourse = await prisma.course.update({
       where: { id },
-      data: {
-        course_name,
-        courseTypeId
-      },
+      data: updateData,
       include: {
         courseType: {
           select: {
@@ -84,7 +93,9 @@ export async function PUT(request: Request, { params }: Params) {
       id: updatedCourse.id,
       course_name: updatedCourse.course_name,
       courseTypeId: updatedCourse.courseTypeId,
-      courseType: updatedCourse.courseType.course_type
+      courseType: updatedCourse.courseType.course_type,
+      description: updatedCourse.description,
+      image: updatedCourse.image
     });
   } catch (error) {
     console.error('Error updating course:', error);

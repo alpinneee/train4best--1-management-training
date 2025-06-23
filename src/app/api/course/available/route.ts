@@ -41,6 +41,8 @@ export async function GET(req: Request) {
         }
       });
       
+      console.log("Available classes found:", availableClasses.length);
+      
       // Format respons
       const classesWithAvailability = availableClasses.map(classItem => {
         const registeredCount = classItem.courseregistration.length;
@@ -49,11 +51,28 @@ export async function GET(req: Request) {
         // Hilangkan data registrasi peserta dari response
         const { courseregistration, ...classData } = classItem;
         
+        // Ensure course data has image field
+        const updatedCourse = {
+          ...classData.course,
+          image: classData.course.image || '/default-course.jpg'
+        };
+        
         return {
           ...classData,
+          course: updatedCourse, // Include the complete course object with image
           availableSlots,
           isFull: availableSlots <= 0
         };
+      });
+      
+      // Log the output for debugging
+      console.log("Formatted response:", {
+        total: classesWithAvailability.length,
+        sample: classesWithAvailability.length > 0 ? {
+          id: classesWithAvailability[0].id,
+          courseName: classesWithAvailability[0].course.course_name, 
+          courseImage: classesWithAvailability[0].course.image
+        } : "No classes available"
       });
       
       // Perkirakan total dengan kueri yang sama
@@ -70,6 +89,13 @@ export async function GET(req: Request) {
           } : {})
         }
       });
+      
+      // Debug check for image fields
+      console.log("Course images check:", classesWithAvailability.map(item => ({
+        id: item.id, 
+        courseName: item.course.course_name, 
+        courseImage: item.course.image
+      })));
       
       return NextResponse.json({
         data: classesWithAvailability,

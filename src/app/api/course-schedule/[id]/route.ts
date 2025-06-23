@@ -21,6 +21,8 @@ export async function GET(request: Request, { params }: Params) {
           select: {
             id: true,
             course_name: true,
+            description: true,
+            image: true,
             courseType: {
               select: {
                 id: true,
@@ -72,6 +74,8 @@ export async function GET(request: Request, { params }: Params) {
       id: schedule.id,
       className: schedule.course.course_name,
       courseId: schedule.courseId,
+      courseDescription: schedule.course.description || '',
+      courseImage: schedule.course.image || '/default-course.jpg',
       date: `${formatDate(schedule.start_date)} - ${formatDate(schedule.end_date)}`,
       registrationDate: `${formatDate(schedule.start_reg_date)} - ${formatDate(schedule.end_reg_date)}`,
       location: schedule.location,

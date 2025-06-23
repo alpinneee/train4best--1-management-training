@@ -46,6 +46,8 @@ model Course {
   id           String        @id
   courseTypeId String
   course_name  String
+  description  String?       @db.Text
+  image        String?
   certificates Certificate[]
   class        Class[]
   courseType   CourseType    @relation(fields: [courseTypeId], references: [id], map: "Course_courseTypeId_fkey")

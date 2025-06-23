@@ -14,6 +14,7 @@ interface CourseType {
 interface CourseInfo {
   course_name: string;
   courseType: CourseType;
+  image?: string;
 }
 
 interface Course {
@@ -151,7 +152,8 @@ export default function MyCoursePage() {
               course_name: course.course?.course_name || `Course ${course.id.substring(0, 5)}`,
               courseType: {
                 course_type: course.course?.courseType?.course_type || 'Technical'
-              }
+              },
+              image: course.course?.image || '/default-course.jpg'
             }
           };
         });
@@ -769,29 +771,32 @@ export default function MyCoursePage() {
     
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-        {courses.map((course) => (
-          <CourseCard
-            key={course.id}
-            id={course.id}
-            title={course.course.course_name}
-            type={course.course.courseType.course_type}
-            image={course.imageUrl || null}
-            className={`${course.location} - ${new Date(course.start_date).toLocaleDateString('en-US', { 
-              month: 'short', 
-              day: 'numeric' 
-            })}`}
-            startDate={course.start_date}
-            endDate={course.end_date}
-            price={course.price}
-            location={course.location}
-            room={course.room}
-            quota={course.quota}
-            onRegister={handleRegisterClick}
-            isPendingRegistration={!!pendingRegistrations[course.id]}
-            isPaidRegistration={!!paidRegistrations[course.id]}
-            registrationId={pendingRegistrations[course.id] as any}
-          />
-        ))}
+        {courses.map((course) => {
+          console.log('Course image:', course.course.image); // Debug to see the image path
+          return (
+            <CourseCard
+              key={course.id}
+              id={course.id}
+              title={course.course.course_name}
+              type={course.course.courseType.course_type}
+              image={course.course.image || '/default-course.jpg'}
+              className={`${course.location} - ${new Date(course.start_date).toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric' 
+              })}`}
+              startDate={course.start_date}
+              endDate={course.end_date}
+              price={course.price}
+              location={course.location}
+              room={course.room}
+              quota={course.quota}
+              onRegister={handleRegisterClick}
+              isPendingRegistration={!!pendingRegistrations[course.id]}
+              isPaidRegistration={!!paidRegistrations[course.id]}
+              registrationId={pendingRegistrations[course.id] as any}
+            />
+          );
+        })}
       </div>
     );
   };
@@ -812,17 +817,6 @@ export default function MyCoursePage() {
             </h2>
             
             {/* Info message about registration process */}
-            <div className="bg-blue-50 border border-blue-200 text-blue-700 px-3 py-2 rounded-md mb-3 text-sm">
-              <p className="font-medium mb-1">Registration Process:</p>
-              <ol className="list-decimal pl-5 space-y-1">
-                <li>Register for the course</li>
-                <li>Make payment via bank transfer</li>
-                <li>Upload payment proof</li>
-                <li>Wait for admin verification</li>
-                <li>Once verified, your status will change to "Registered"</li>
-              </ol>
-              <p className="mt-1">You can only register once per course. If you've already registered, please check your "My Courses" page for payment status.</p>
-            </div>
             
             {registrationError && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-md mb-3 text-sm">

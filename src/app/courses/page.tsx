@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { Eye, PenSquare, Trash2, Plus } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Eye, PenSquare, Trash2, Plus, Upload } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Pagination from "@/components/common/Pagination";
 import Button from "@/components/common/button";
@@ -26,6 +26,8 @@ interface CourseType {
 
 export default function Courses() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
   const [courses, setCourses] = useState<Course[]>([]);
   const [courseTypes, setCourseTypes] = useState<CourseType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,6 +42,11 @@ export default function Courses() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [courseImage, setCourseImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [editCourseImage, setEditCourseImage] = useState<File | null>(null);
+  const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [newCourse, setNewCourse] = useState({
     course_name: '',
     description: '',
@@ -109,6 +116,87 @@ export default function Courses() {
     }));
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      alert("Please select a valid image file (JPEG, PNG, GIF, WEBP)");
+      return;
+    }
+    
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      alert("File size should be less than 2MB");
+      return;
+    }
+    
+    setCourseImage(file);
+    
+    // Create preview URL for the image
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleEditFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      alert("Please select a valid image file (JPEG, PNG, GIF, WEBP)");
+      return;
+    }
+    
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      alert("File size should be less than 2MB");
+      return;
+    }
+    
+    setEditCourseImage(file);
+    
+    // Create preview URL for the image
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setEditImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const uploadImage = async (courseId: string, imageFile: File) => {
+    try {
+      setUploadingImage(true);
+      const formData = new FormData();
+      formData.append('file', imageFile);
+      formData.append('courseId', courseId);
+      
+      const response = await fetch('/api/upload/course-image', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Error ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data.imageUrl;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      throw error;
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -126,6 +214,19 @@ export default function Courses() {
         throw new Error(data.error || 'Failed to create course');
       }
       
+      const courseData = await response.json();
+      
+      // Upload image if available
+      if (courseImage) {
+        try {
+          const imageUrl = await uploadImage(courseData.id, courseImage);
+          courseData.image = imageUrl;
+        } catch (imgError) {
+          console.error('Error uploading course image:', imgError);
+          // Continue even if image upload fails
+        }
+      }
+      
       // Reset form and close modal
       setIsModalOpen(false);
       setNewCourse({
@@ -134,6 +235,8 @@ export default function Courses() {
         courseTypeId: '',
         image: '/default-course.jpg'
       });
+      setCourseImage(null);
+      setImagePreview(null);
       
       // Refresh courses
       fetchCourses();
@@ -150,6 +253,7 @@ export default function Courses() {
       courseTypeId: course.courseTypeId,
       image: course.image || '/default-course.jpg'
     });
+    setEditImagePreview(course.image || null);
     setIsEditModalOpen(true);
   };
 
@@ -172,6 +276,24 @@ export default function Courses() {
         throw new Error(data.error || 'Failed to update course');
       }
       
+      // Upload new image if selected
+      if (editCourseImage) {
+        try {
+          const imageUrl = await uploadImage(selectedCourse.id, editCourseImage);
+          // Update the course with new image URL
+          await fetch(`/api/courses/${selectedCourse.id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ image: imageUrl }),
+          });
+        } catch (imgError) {
+          console.error('Error uploading course image:', imgError);
+          // Continue even if image upload fails
+        }
+      }
+      
       // Reset form and close modal
       setIsEditModalOpen(false);
       setSelectedCourse(null);
@@ -181,6 +303,8 @@ export default function Courses() {
         courseTypeId: '',
         image: '/default-course.jpg'
       });
+      setEditCourseImage(null);
+      setEditImagePreview(null);
       
       // Refresh courses
       fetchCourses();
@@ -376,6 +500,40 @@ export default function Courses() {
                   className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 h-20"
                 />
               </div>
+              <div>
+                <label className="block text-xs text-gray-700 mb-1">Course Image</label>
+                <div className="flex flex-col space-y-2">
+                  {imagePreview && (
+                    <div className="relative h-32 w-full mb-2">
+                      <Image
+                        src={imagePreview}
+                        alt="Course Preview"
+                        fill
+                        className="object-cover rounded"
+                      />
+                    </div>
+                  )}
+                  <div className="flex items-center">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileChange}
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="gray"
+                      size="small"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="text-xs flex items-center"
+                    >
+                      <Upload size={12} className="mr-1" /> Upload Image
+                    </Button>
+                    <span className="ml-2 text-xs text-gray-500">Max size: 2MB</span>
+                  </div>
+                </div>
+              </div>
               <div className="flex justify-end gap-2">
                 <Button
                   variant="gray"
@@ -390,8 +548,9 @@ export default function Courses() {
                   size="small"
                   type="submit"
                   className="text-xs px-2 py-1"
+                  disabled={uploadingImage}
                 >
-                  Submit
+                  {uploadingImage ? 'Submitting...' : 'Submit'}
                 </Button>
               </div>
             </form>
@@ -442,6 +601,40 @@ export default function Courses() {
                   className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 h-20"
                 />
               </div>
+              <div>
+                <label className="block text-xs text-gray-700 mb-1">Course Image</label>
+                <div className="flex flex-col space-y-2">
+                  {editImagePreview && (
+                    <div className="relative h-32 w-full mb-2">
+                      <Image
+                        src={editImagePreview}
+                        alt="Course Preview"
+                        fill
+                        className="object-cover rounded"
+                      />
+                    </div>
+                  )}
+                  <div className="flex items-center">
+                    <input
+                      type="file"
+                      ref={editFileInputRef}
+                      onChange={handleEditFileChange}
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="gray"
+                      size="small"
+                      onClick={() => editFileInputRef.current?.click()}
+                      className="text-xs flex items-center"
+                    >
+                      <Upload size={12} className="mr-1" /> Change Image
+                    </Button>
+                    <span className="ml-2 text-xs text-gray-500">Max size: 2MB</span>
+                  </div>
+                </div>
+              </div>
               <div className="flex justify-end gap-2">
                 <Button
                   variant="gray"
@@ -456,8 +649,9 @@ export default function Courses() {
                   size="small"
                   type="submit"
                   className="text-xs px-2 py-1"
+                  disabled={uploadingImage}
                 >
-                  Save Changes
+                  {uploadingImage ? 'Saving...' : 'Save Changes'}
                 </Button>
               </div>
             </form>

@@ -41,6 +41,8 @@ export async function GET(request: Request) {
     const formattedCourses = courses.map((course) => ({
       id: course.id,
       course_name: course.course_name,
+      description: course.description,
+      image: course.image,
       courseTypeId: course.courseTypeId,
       courseType: course.courseType.course_type
     }))
@@ -66,7 +68,7 @@ export async function GET(request: Request) {
 // POST /api/courses - Create a new course
 export async function POST(request: Request) {
   try {
-    const { course_name, courseTypeId } = await request.json()
+    const { course_name, courseTypeId, description } = await request.json()
 
     // Validate required fields
     if (!course_name || !courseTypeId) {
@@ -93,7 +95,8 @@ export async function POST(request: Request) {
       data: {
         id: `course_${Date.now()}`,
         course_name,
-        courseTypeId
+        courseTypeId,
+        description: description || null
       },
       include: {
         courseType: {
@@ -107,6 +110,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       id: newCourse.id,
       course_name: newCourse.course_name,
+      description: newCourse.description,
       courseTypeId: newCourse.courseTypeId,
       courseType: newCourse.courseType.course_type
     }, { status: 201 })
