@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Payment } from "@prisma/client";
 
 export async function GET(request: Request) {
   try {
@@ -94,7 +95,7 @@ export async function GET(request: Request) {
       });
       
       // Update associated payments if they exist
-      let updatedPayments = [];
+      let updatedPayments: Payment[] = [];
       if (registration.payments.length > 0) {
         updatedPayments = await Promise.all(
           registration.payments.map(payment => 

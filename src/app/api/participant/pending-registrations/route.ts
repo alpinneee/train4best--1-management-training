@@ -40,21 +40,32 @@ export async function GET(request: Request) {
           include: {
             course: true
           }
+        },
+        payments: {
+          orderBy: {
+            paymentDate: 'desc'
+          },
+          take: 1
         }
       }
     });
 
     // Format data untuk respons
-    const formattedRegistrations = allRegistrations.map(reg => ({
-      registrationId: reg.id,
-      courseId: reg.class.id,
-      courseName: reg.class.course ? reg.class.course.course_name : 'Unknown Course',
-      className: `${reg.class.location} - ${new Date(reg.class.start_date).toLocaleDateString()}`,
-      status: reg.reg_status,
-      paymentStatus: reg.payment_status,
-      paymentAmount: reg.payment,
-      paymentEvidence: reg.payment_evidence
-    }));
+    const formattedRegistrations = allRegistrations.map(reg => {
+      // Get payment evidence from related payment if available
+      const paymentEvidence = reg.payments.length > 0 ? reg.payments[0].paymentProof : null;
+      
+      return {
+        registrationId: reg.id,
+        courseId: reg.class.id,
+        courseName: reg.class.course ? reg.class.course.course_name : 'Unknown Course',
+        className: `${reg.class.location} - ${new Date(reg.class.start_date).toLocaleDateString()}`,
+        status: reg.reg_status,
+        paymentStatus: reg.payment_status,
+        paymentAmount: reg.payment,
+        paymentEvidence: paymentEvidence
+      };
+    });
 
     return NextResponse.json({
       registrations: formattedRegistrations

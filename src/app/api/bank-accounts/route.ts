@@ -80,7 +80,7 @@ export async function POST(request: Request) {
     // Verify admin access
     const session = await getServerSession(authOptions);
     
-    if (!session?.user || session.user.role !== "Admin") {
+    if (!session?.user || session.user.userType !== "Admin") {
       return NextResponse.json(
         { error: "Unauthorized. Only admins can manage bank accounts." },
         { status: 403 }

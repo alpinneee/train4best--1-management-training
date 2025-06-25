@@ -7,6 +7,19 @@ interface Params {
   };
 }
 
+interface HistoryDetail {
+  [key: string]: any; // Allow any properties in the details object
+}
+
+interface HistoryItem {
+  id: string;
+  type: string;
+  description: string;
+  date: Date;
+  changedBy: string;
+  details: HistoryDetail;
+}
+
 // GET /api/instructure/[id]/history - Get instructor history
 export async function GET(request: Request, { params }: Params) {
   try {
@@ -33,7 +46,7 @@ export async function GET(request: Request, { params }: Params) {
 
     // For a real application, you would have a dedicated history/audit table
     // For now, we'll create a simulated history based on available data
-    const history = [
+    const history: HistoryItem[] = [
       {
         id: '1',
         type: 'Registration',

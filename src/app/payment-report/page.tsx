@@ -417,6 +417,7 @@ export default function PaymentReport() {
   const [paymentMethod, setPaymentMethod] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState<string | null>(null);
   const [showProofModal, setShowProofModal] = useState(false);
@@ -459,8 +460,8 @@ export default function PaymentReport() {
         params.append('endDate', endDate);
       }
       
-      // Add status=All to ensure we get all payment statuses including approved ones
-      params.append('status', 'All');
+      // Add status filter
+      params.append('status', statusFilter);
       
       // Add a timestamp to prevent caching
       params.append('_t', Date.now().toString());
@@ -629,6 +630,13 @@ export default function PaymentReport() {
   // Handle payment method change
   const handlePaymentMethodChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setPaymentMethod(e.target.value);
+  };
+  
+  // Handle status filter change
+  const handleStatusFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setStatusFilter(e.target.value);
+    // Reset to first page when changing filters
+    setCurrentPage(1);
   };
 
   // Handle verify payment
@@ -832,6 +840,11 @@ export default function PaymentReport() {
       fetchPayments();
     }
   }, [selectedPayment?.status]);
+  
+  // Add effect to refresh payments when status filter changes
+  useEffect(() => {
+    fetchPayments();
+  }, [statusFilter]);
 
   const columns: Column<Payment>[] = [
     { 
@@ -885,14 +898,14 @@ export default function PaymentReport() {
       header: "Status",
       accessor: (payment: Payment) => (
         <span
-          className={`px-1 py-0.5 text-xs font-medium rounded-full ${
+          className={`px-1.5 py-0.5 text-xs font-medium rounded-full ${
             payment.status === "Paid"
-              ? "bg-green-100 text-green-800"
+              ? "bg-green-100 text-green-800 border border-green-300"
               : payment.status === "Unpaid"
-                ? "bg-red-100 text-red-800"
+                ? "bg-red-100 text-red-800 border border-red-300"
                 : payment.status === "Pending"
-                  ? "bg-yellow-100 text-yellow-800"
-                  : "bg-gray-100 text-gray-800"
+                  ? "bg-yellow-100 text-yellow-800 border border-yellow-300"
+                  : "bg-gray-100 text-gray-800 border border-gray-300"
           }`}
         >
           {payment.status}
@@ -1032,6 +1045,20 @@ export default function PaymentReport() {
               />
             </div>
             
+            <div className="w-[120px]">
+              <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
+              <select
+                value={statusFilter}
+                onChange={handleStatusFilterChange}
+                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-700"
+              >
+                <option value="All">All</option>
+                <option value="Paid">Paid</option>
+                <option value="Pending">Pending</option>
+                <option value="Unpaid">Unpaid</option>
+                <option value="Rejected">Rejected</option>
+              </select>
+            </div>
             
             <div className="w-[140px]">
               <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>

@@ -119,7 +119,7 @@ export async function DELETE(request: Request, { params }: Params) {
     const existingCourseType = await prisma.courseType.findUnique({
       where: { id },
       include: {
-        courses: {
+        course: {
           take: 1, // Just need to check if any exist
         }
       }
@@ -133,7 +133,7 @@ export async function DELETE(request: Request, { params }: Params) {
     }
 
     // Check if there are courses using this course type and not force delete
-    if (!force && existingCourseType.courses.length > 0) {
+    if (!force && existingCourseType.course.length > 0) {
       return NextResponse.json(
         { 
           error: 'Cannot delete course type that is being used by courses', 
@@ -144,7 +144,7 @@ export async function DELETE(request: Request, { params }: Params) {
     }
 
     // Delete in transaction if force delete
-    if (force && existingCourseType.courses.length > 0) {
+    if (force && existingCourseType.course.length > 0) {
       await prisma.$transaction(async (prisma) => {
         // Delete all related courses first
         await prisma.course.deleteMany({

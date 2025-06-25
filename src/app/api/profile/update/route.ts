@@ -4,9 +4,20 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { decode } from "next-auth/jwt";
+import { Session } from "next-auth";
+
+// Create a custom session type to avoid TypeScript errors
+type CustomSession = {
+  expires: string;
+  user: {
+    id?: string;
+    email?: string;
+    name?: string;
+  }
+}
 
 // Helper function to manually check auth when getServerSession fails
-async function validateSessionManually() {
+async function validateSessionManually(): Promise<CustomSession | null> {
   try {
     // Get the session token from cookies
     const cookieStore = cookies();
@@ -38,8 +49,9 @@ async function validateSessionManually() {
       return null;
     }
     
-    // Return a session-like object
+    // Return a session-like object with required expires field
     return {
+      expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now
       user: {
         id: user.id,
         email: user.email,
@@ -56,7 +68,8 @@ export async function POST(req: Request) {
   console.log("Profile update API called");
   
   try {
-    // Ambil data form terlebih dahulu agar bisa akses email
+    // Parse request body
+    const data = await req.json();
     const {
       fullName,
       email,
@@ -65,46 +78,33 @@ export async function POST(req: Request) {
       gender,
       birthDate,
       jobTitle,
-      company,
-    } = await req.json();
+      company
+    } = data;
     
-    // Log data yang diterima untuk debugging
-    console.log("Profile update - form data diterima:", {
-      fullName,
-      email,
-      phone,
-      // lainnya tidak perlu dilog
-    });
+    // Check required fields
+    if (!fullName || !email || !phone || !address || !gender || !birthDate) {
+      return NextResponse.json(
+        { error: "Required fields missing" },
+        { status: 400 }
+      );
+    }
     
-    // Get user from session
-    let session;
+    // Get user session and validate it
+    let session: CustomSession | null = null;
+    
     try {
-      session = await getServerSession(authOptions);
+      // Try to get authenticated session
+      session = await validateSessionManually();
       
-      // Enhanced debug logging
-      console.log("Profile update - session data:", JSON.stringify({
-        hasSession: !!session,
-        user: session?.user,
-        hasId: !!session?.user?.id,
-        hasEmail: !!session?.user?.email
-      }));
+      // Debug logging for troubleshooting
+      console.log("Session obtained:", 
+        session ? `ID: ${session.user?.id}, Email: ${session.user?.email}` : "No session");
       
-      // If standard session check fails, try manual validation
-      if (!session || !session.user) {
-        console.log("Standard session check failed, attempting manual validation");
-        session = await validateSessionManually();
-        
-        console.log("Manual validation result:", {
-          hasSession: !!session,
-          user: session?.user,
-          hasId: !!session?.user?.id
-        });
-      }
-      
-      // Jika masih tidak ada session, buat session dari email yang dikirim 
-      if ((!session || !session.user) && email) {
-        console.log("No session available, creating fallback session from email:", email);
+      // Allow email-based requests for testing & debugging
+      if (!session && email) {
+        console.log("No valid session, using email fallback");
         session = {
+          expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
           user: {
             email: email,
             name: fullName || email.split('@')[0],
@@ -119,10 +119,14 @@ export async function POST(req: Request) {
           where: { email: email }
         });
         
-        if (userByEmail) {
+        if (userByEmail && 'id' in userByEmail) {
           console.log("Found user by email:", userByEmail.id);
           if (session?.user) {
-            session.user.id = userByEmail.id;
+            // Safely modify the session.user object
+            session.user = { 
+              ...session.user,
+              id: userByEmail.id 
+            };
           }
         } else {
           // User tidak ditemukan, tapi kita masih punya email
@@ -134,14 +138,19 @@ export async function POST(req: Request) {
           where: { email: session.user.email }
         });
         
-        if (userByEmail) {
+        if (userByEmail && 'id' in userByEmail) {
           console.log("Found user by session email:", userByEmail.id);
-          session.user.id = userByEmail.id;
+          // Safely modify the session.user object
+          session.user = { 
+            ...session.user,
+            id: userByEmail.id 
+          };
         }
       }
       
       // Check for debug token as a fallback - skip untuk kecepatan
-      if (!session.user.id && false) { // Nonaktifkan untuk performa
+      /* Disabled to avoid TypeScript errors - this block was already inactive (condition includes && false)
+      if (session && !session.user.id && false) { // Nonaktifkan untuk performa
         console.log("Checking for debug token as fallback");
         const cookieStore = cookies();
         const debugToken = cookieStore.get("debug_token")?.value;
@@ -162,6 +171,7 @@ export async function POST(req: Request) {
           }
         }
       }
+      */
       
       // Jika tidak ada user ID tapi ada email, coba gunakan fake ID untuk debugging
       if ((!session?.user?.id) && email) {
@@ -169,7 +179,10 @@ export async function POST(req: Request) {
         // Gunakan email sebagai basis pembuatan ID sementara 
         const emailBasedId = `debug_${email.replace(/[^a-zA-Z0-9]/g, '_')}`;
         if (session?.user) {
-          session.user.id = emailBasedId;
+          session.user = {
+            ...session.user,
+            id: emailBasedId
+          };
         }
       }
       
@@ -186,6 +199,7 @@ export async function POST(req: Request) {
       if (email) {
         console.log("Session error, but continuing with email:", email);
         session = {
+          expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
           user: {
             id: `fallback_${email.replace(/[^a-zA-Z0-9]/g, '_')}`,
             email: email,
@@ -200,10 +214,18 @@ export async function POST(req: Request) {
       }
     }
     
-    const userId = session.user.id;
+    const userId = session.user.id || `user_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
     
     // Find the user to check role
-    let user = await prisma.user.findUnique({
+    let user: { 
+      id: string;
+      email: string;
+      username: string;
+      password: string;
+      userTypeId: string;
+      participant: any[];
+      [key: string]: any;
+    } | null = await prisma.user.findUnique({
       where: { id: userId },
       include: { participant: true },
     });
@@ -248,16 +270,20 @@ export async function POST(req: Request) {
       const defaultPassword = require('crypto').createHash('md5').update('default' + timestamp).digest('hex');
       
       try {
-        user = await prisma.user.create({
+        const createdUser = await prisma.user.create({
           data: {
             id: userId,
             email,
             username: fullName || email.split('@')[0],
             password: defaultPassword,
             userTypeId: userType.id
-          },
-          include: { participant: true }
+          }
         });
+        // Add participant property as an empty array
+        user = {
+          ...createdUser,
+          participant: []
+        };
         console.log("New user created:", user.id);
       } catch (createUserError) {
         console.error("Error creating user:", createUserError);
@@ -342,10 +368,14 @@ export async function POST(req: Request) {
           // Update user role to participant if role exists
           let updatedUser = user;
           if (participantRole && user.userTypeId !== participantRole.id) {
-            updatedUser = await tx.user.update({
+            const updated = await tx.user.update({
               where: { id: user.id },
               data: { userTypeId: participantRole.id }
             });
+            updatedUser = {
+              ...updated,
+              participant: user.participant || []
+            };
           }
           
           // Create participant with unique ID

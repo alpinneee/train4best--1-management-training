@@ -47,7 +47,7 @@ export async function PUT(request: Request, { params }: Params) {
     // Verify admin access
     const session = await getServerSession(authOptions);
     
-    if (!session?.user || session.user.role !== "Admin") {
+    if (!session?.user || session.user.userType !== "Admin") {
       return NextResponse.json(
         { error: "Unauthorized. Only admins can manage bank accounts." },
         { status: 403 }
@@ -104,7 +104,7 @@ export async function DELETE(request: Request, { params }: Params) {
     // Verify admin access
     const session = await getServerSession(authOptions);
     
-    if (!session?.user || session.user.role !== "Admin") {
+    if (!session?.user || session.user.userType !== "Admin") {
       return NextResponse.json(
         { error: "Unauthorized. Only admins can manage bank accounts." },
         { status: 403 }

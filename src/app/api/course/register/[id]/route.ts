@@ -34,7 +34,7 @@ export async function GET(request: Request, { params }: Params) {
             course: true
           }
         },
-        payment: true
+        payments: true
       }
     });
     
@@ -81,7 +81,7 @@ export async function GET(request: Request, { params }: Params) {
             username: registration.participant.user.username
           } : null
         } : null,
-        payments: registration.payment.map(p => ({
+        payments: registration.payments.map(p => ({
           id: p.id,
           date: p.paymentDate,
           amount: p.amount,

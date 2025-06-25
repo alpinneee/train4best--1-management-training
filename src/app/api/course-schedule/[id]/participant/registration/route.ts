@@ -14,12 +14,9 @@ export async function POST(request: Request, { params }: Params) {
     const { 
       participantId, 
       registrationDate, 
-      paymentDate, 
       paymentMethod, 
       payment, 
-      presentDay, 
-      paymentDetail, 
-      paymentEvidence 
+      presentDay
     } = await request.json();
 
     if (!participantId) {
@@ -76,12 +73,9 @@ export async function POST(request: Request, { params }: Params) {
       },
       data: {
         reg_date: registrationDate ? new Date(registrationDate) : registration.reg_date,
-        payment_date: paymentDate ? new Date(paymentDate) : registration.payment_date,
         payment_method: paymentMethod || registration.payment_method,
         payment: payment !== undefined ? Number(payment) : registration.payment,
         present_day: presentDay !== undefined ? Number(presentDay) : registration.present_day,
-        payment_detail: paymentDetail || registration.payment_detail,
-        payment_evidence: paymentEvidence || registration.payment_evidence,
         payment_status: paymentStatus
       },
       include: {
@@ -93,18 +87,46 @@ export async function POST(request: Request, { params }: Params) {
       }
     });
 
+    // Create payment record if needed
+    if (payment !== undefined && Number(payment) > 0) {
+      // Check if there's a payment record for this registration
+      const existingPayment = await prisma.payment.findFirst({
+        where: { registrationId: registration.id }
+      });
+
+      if (existingPayment) {
+        // Update existing payment
+        await prisma.payment.update({
+          where: { id: existingPayment.id },
+          data: {
+            amount: Number(payment),
+            status: paymentStatus
+          }
+        });
+      } else {
+        // Create new payment
+        await prisma.payment.create({
+          data: {
+            paymentDate: new Date(),
+            amount: Number(payment),
+            paymentMethod: paymentMethod || 'Unknown',
+            referenceNumber: `PAY-${Date.now()}`,
+            status: paymentStatus,
+            registrationId: registration.id
+          }
+        });
+      }
+    }
+
     return NextResponse.json({
       id: updatedRegistration.id,
       participantId: updatedRegistration.participantId,
       name: updatedRegistration.participant.full_name,
       registrationDate: updatedRegistration.reg_date,
-      paymentDate: updatedRegistration.payment_date,
       paymentMethod: updatedRegistration.payment_method,
       payment: updatedRegistration.payment,
       presentDay: updatedRegistration.present_day,
       paymentStatus: updatedRegistration.payment_status,
-      paymentDetail: updatedRegistration.payment_detail,
-      paymentEvidence: updatedRegistration.payment_evidence,
       message: 'Registration updated successfully'
     }, { status: 200 });
   } catch (error) {
@@ -152,6 +174,12 @@ export async function GET(request: Request, { params }: Params) {
           select: {
             price: true
           }
+        },
+        payments: {
+          orderBy: {
+            paymentDate: 'desc'
+          },
+          take: 1
         }
       }
     });
@@ -162,19 +190,21 @@ export async function GET(request: Request, { params }: Params) {
         { status: 404 }
       );
     }
+    
+    // Get payment details from the related payment record if available
+    const latestPayment = registration.payments[0];
+    const paymentDate = latestPayment ? latestPayment.paymentDate : null;
 
     return NextResponse.json({
       id: registration.id,
       participantId: registration.participantId,
       name: registration.participant.full_name,
       registrationDate: registration.reg_date,
-      paymentDate: registration.payment_date,
+      paymentDate: paymentDate,
       paymentMethod: registration.payment_method,
       payment: registration.payment,
       presentDay: registration.present_day,
       paymentStatus: registration.payment_status,
-      paymentDetail: registration.payment_detail,
-      paymentEvidence: registration.payment_evidence,
       totalPrice: registration.class.price
     }, { status: 200 });
   } catch (error) {

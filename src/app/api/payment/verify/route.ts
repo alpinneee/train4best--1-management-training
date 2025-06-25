@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     const registration = await prisma.courseRegistration.findUnique({
       where: { id: registrationId },
       include: {
-        payment: true,
+        payments: true,
         class: true,
         participant: true
       }
@@ -35,15 +35,14 @@ export async function POST(request: Request) {
         where: { id: registrationId },
         data: {
           reg_status: "Registered", // Change status to registered
-          payment_status: "Paid",
-          payment_detail: `${registration.payment_detail || ''} Payment verified and approved on ${new Date().toISOString()}.`
+          payment_status: "Paid"
         }
       });
       
       // Update payment status
-      if (registration.payment.length > 0) {
+      if (registration.payments.length > 0) {
         await prisma.payment.update({
-          where: { id: registration.payment[0].id },
+          where: { id: registration.payments[0].id },
           data: {
             status: "Paid"
           }
@@ -61,15 +60,14 @@ export async function POST(request: Request) {
         where: { id: registrationId },
         data: {
           reg_status: "Rejected",
-          payment_status: "Rejected",
-          payment_detail: `${registration.payment_detail || ''} Payment rejected on ${new Date().toISOString()}.`
+          payment_status: "Rejected"
         }
       });
       
       // Update payment status
-      if (registration.payment.length > 0) {
+      if (registration.payments.length > 0) {
         await prisma.payment.update({
-          where: { id: registration.payment[0].id },
+          where: { id: registration.payments[0].id },
           data: {
             status: "Rejected"
           }

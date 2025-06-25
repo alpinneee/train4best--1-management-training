@@ -138,7 +138,7 @@ export async function DELETE(request: Request, { params }: Params) {
         id,
       },
       include: {
-        users: {
+        user: {
           take: 1, // Only need to check if there are any users
         },
       },
@@ -152,7 +152,7 @@ export async function DELETE(request: Request, { params }: Params) {
     }
 
     // Check if rule is in use
-    if (existingRule.users.length > 0 && !force) {
+    if (existingRule.user.length > 0 && !force) {
       return NextResponse.json(
         { error: 'Cannot delete rule that is in use by users', hint: 'Add ?force=true to URL to force deletion' },
         { status: 400 }

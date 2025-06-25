@@ -42,7 +42,7 @@ export async function GET() {
     return NextResponse.json({ 
       success: false, 
       error: "Error checking session",
-      details: error.message
+      details: error instanceof Error ? error.message : "Unknown error"
     }, { status: 500 });
   }
 } 

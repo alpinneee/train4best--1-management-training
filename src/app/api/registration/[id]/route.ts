@@ -42,8 +42,8 @@ export async function GET(
         ? 'Paid' 
         : 'Unpaid';
       
-      const startDate = registration.class.startDate;
-      const endDate = registration.class.endDate;
+      const startDate = registration.class.start_date;
+      const endDate = registration.class.end_date;
       
       const formatDate = (date: Date) => {
         const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
@@ -56,7 +56,7 @@ export async function GET(
         courseName: registration.class.course.course_name,
         className: `${registration.class.location} - ${formatDate(startDate)}`,
         schedule: `${formatDate(startDate)} - ${formatDate(endDate)}`,
-        registrationDate: registration.registrationDate.toISOString().split('T')[0],
+        registrationDate: registration.reg_date.toISOString().split('T')[0],
         amount: registration.class.price,
         status: paymentStatus,
         registrationId: registration.id

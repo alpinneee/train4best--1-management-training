@@ -18,19 +18,26 @@ export async function PATCH(
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email! },
+      include: {
+        userType: true
+      }
     })
 
-    if (!user || user.role !== "instructor") {
+    if (!user || user.userType.usertype !== "Instructor") {
       return NextResponse.json(
         { error: "Only instructors can update enrollment status" },
         { status: 403 }
       )
     }
 
-    const enrollment = await prisma.enrollment.findUnique({
+    const enrollment = await prisma.courseRegistration.findUnique({
       where: { id: params.id },
       include: {
-        course: true,
+        class: {
+          include: {
+            course: true
+          }
+        }
       },
     })
 
@@ -42,7 +49,24 @@ export async function PATCH(
     }
 
     // Cek apakah instruktur adalah pengajar kursus ini
-    if (enrollment.course.instructorId !== user.id) {
+    // Perlu disesuaikan dengan relasi yang sesuai
+    const instructureId = user.instructureId;
+    if (!instructureId) {
+      return NextResponse.json(
+        { error: "You are not registered as an instructor" },
+        { status: 403 }
+      )
+    }
+    
+    // Perlu memeriksa apakah instructor terkait dengan class ini
+    const isInstructorForClass = await prisma.instructureClass.findFirst({
+      where: {
+        instructureId,
+        classId: enrollment.classId
+      }
+    });
+    
+    if (!isInstructorForClass) {
       return NextResponse.json(
         { error: "You are not the instructor of this course" },
         { status: 403 }
@@ -59,19 +83,26 @@ export async function PATCH(
       )
     }
 
-    const updatedEnrollment = await prisma.enrollment.update({
+    const updatedEnrollment = await prisma.courseRegistration.update({
       where: { id: params.id },
-      data: { status },
+      data: { reg_status: status },
       include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
-          },
+        participant: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                username: true
+              }
+            }
+          }
         },
-        course: true,
+        class: {
+          include: {
+            course: true
+          }
+        }
       },
     })
 

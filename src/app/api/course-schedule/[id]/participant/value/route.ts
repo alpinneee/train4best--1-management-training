@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 interface Params {
   params: {
@@ -46,9 +48,6 @@ export async function GET(
       where: {
         registrationId: registration.id
       },
-      orderBy: {
-        created_at: 'desc'
-      },
       skip: (page - 1) * pageSize,
       take: pageSize
     });
@@ -90,9 +89,17 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: "Unauthorized - Please login" },
+        { status: 401 }
+      );
+    }
+    
     const scheduleId = params.id;
     const data = await request.json();
-    const { participantId, valueType, remark, value } = data;
+    const { participantId, valueType, remark, value, instructureId } = data;
 
     if (!participantId || !valueType || !value) {
       return NextResponse.json(
@@ -115,12 +122,34 @@ export async function POST(
         { status: 404 }
       );
     }
+    
+    // Get current user as instructure
+    let actualInstructureId = instructureId;
+    
+    // If instructureId not provided, try to find the current user's instructure ID
+    if (!actualInstructureId) {
+      // Try to find instructure ID from current user
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { instructureId: true }
+      });
+      
+      if (user?.instructureId) {
+        actualInstructureId = user.instructureId;
+      } else {
+        return NextResponse.json(
+          { error: 'Instructure ID is required' },
+          { status: 400 }
+        );
+      }
+    }
 
     // Create value
     const valueReport = await prisma.valueReport.create({
       data: {
         id: `val_${Date.now()}`,
         registrationId: registration.id,
+        instructureId: actualInstructureId,
         value_type: valueType,
         remark: remark || '',
         value: Number(value)

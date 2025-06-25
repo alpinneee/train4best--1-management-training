@@ -38,13 +38,20 @@ export async function GET(req: Request) {
     
     if (email && !isAdmin) {
       try {
-        // First, find the participant ID associated with this email
+        // First, find the user and their associated participant
         const user = await prisma.user.findUnique({
           where: { email },
-          include: { participant: true }
+          select: {
+            participant: {
+              select: {
+                id: true
+              }
+            }
+          }
         });
         
-        const participantId = user?.participant?.id;
+        // Get the participant ID from the first participant if exists
+        const participantId = user?.participant?.[0]?.id;
         
         if (participantId) {
           // If participant found, filter by participant ID

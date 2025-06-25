@@ -58,6 +58,7 @@ export async function POST(request: Request) {
     // Create new user rule
     const newRule = await prisma.userType.create({
       data: {
+        id: `usertype_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
         usertype: roleName,
         description: description || '',
         status: status || 'Active',
